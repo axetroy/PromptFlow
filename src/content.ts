@@ -624,7 +624,7 @@ function selectPrompt(prompt: Prompt): void {
     state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
     setSelection(state.currentInput, selectionStart, selectionEnd);
   } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
-    insertContentWithNewlines(state.currentInput, newValue, selectionStart, selectionEnd);
+    insertContentWithNewlines(state.currentInput, prompt.content, selectionStart, selectionEnd);
   }
   
   closePanel(false, false);
@@ -633,12 +633,12 @@ function selectPrompt(prompt: Prompt): void {
 /**
  * Insert content into contenteditable element, properly handling newlines
  */
-function insertContentWithNewlines(element: Element, newValue: string, selectionStart: number, selectionEnd: number): void {
+function insertContentWithNewlines(element: Element, content: string, selectionStart: number, selectionEnd: number): void {
   // Clear the element
   element.textContent = '';
   
   // Insert the new content with proper newline handling
-  const lines = newValue.split('\n');
+  const lines = content.split('\n');
   
   for (let i = 0; i < lines.length; i++) {
     if (i > 0) {
