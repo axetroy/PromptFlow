@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Modal,
   Form,
@@ -10,7 +10,7 @@ import {
   Switch,
   Typography,
   Tooltip,
-  Spin,
+  Progress,
   message,
   Popconfirm,
 } from 'antd';
@@ -26,8 +26,6 @@ import {
   SyncedRepo,
   SyncedPrompt,
   fetchGitHubDirectory,
-  fetchGitHubFileContent,
-  parseFrontmatter,
 } from './types/sync';
 
 const { Text } = Typography;
@@ -44,6 +42,12 @@ interface SyncManagerProps {
   onTogglePrompt: (promptId: string, enabled: boolean) => void;
 }
 
+interface SyncProgress {
+  current: number;
+  total: number;
+  currentRepo: string;
+}
+
 const SyncManager: React.FC<SyncManagerProps> = ({
   open,
   onClose,
@@ -57,6 +61,9 @@ const SyncManager: React.FC<SyncManagerProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [syncingRepos, setSyncingRepos] = useState<Set<string>>(new Set());
+  const [isAddingRepo, setIsAddingRepo] = useState(false);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
   const handleAddRepo = async (values: { repo: string; branch?: string; promptsPath?: string }) => {
@@ -69,6 +76,8 @@ const SyncManager: React.FC<SyncManagerProps> = ({
         messageApi.error('Invalid repo format. Use format: owner/repo');
         return;
       }
+      
+      setIsAddingRepo(true);
       
       // Test fetch to validate repo exists
       const files = await fetchGitHubDirectory(values.repo, promptsPath, branch);
@@ -89,14 +98,21 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       form.resetFields();
     } catch (error) {
       messageApi.error(`Failed to add repo: ${(error as Error).message}`);
+    } finally {
+      setIsAddingRepo(false);
     }
   };
 
-  const handleSyncRepo = async (repoId: string) => {
+  const handleSyncRepo = useCallback(async (repoId: string) => {
+    const repo = repos.find(r => r.id === repoId);
+    if (!repo) return;
+    
     setSyncingRepos(prev => new Set(prev).add(repoId));
+    setSyncProgress({ current: 1, total: 1, currentRepo: repo.repo });
+    
     try {
       const newPrompts = await onSyncRepo(repoId);
-      messageApi.success(`Synced ${newPrompts.length} prompts`);
+      messageApi.success(`Synced ${newPrompts.length} prompts from ${repo.repo}`);
     } catch (error) {
       messageApi.error(`Sync failed: ${(error as Error).message}`);
     } finally {
@@ -105,8 +121,58 @@ const SyncManager: React.FC<SyncManagerProps> = ({
         next.delete(repoId);
         return next;
       });
+      setSyncProgress(null);
     }
-  };
+  }, [repos, onSyncRepo, messageApi]);
+
+  const handleSyncAll = useCallback(async () => {
+    if (repos.length === 0) {
+      messageApi.warning('No repositories to sync');
+      return;
+    }
+    
+    setIsSyncingAll(true);
+    const enabledRepos = repos.filter(r => r.enabled);
+    const total = enabledRepos.length;
+    
+    if (total === 0) {
+      messageApi.warning('No enabled repositories to sync');
+      setIsSyncingAll(false);
+      return;
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < enabledRepos.length; i++) {
+      const repo = enabledRepos[i];
+      setSyncProgress({ current: i + 1, total, currentRepo: repo.repo });
+      setSyncingRepos(prev => new Set(prev).add(repo.id));
+      
+      try {
+        await onSyncRepo(repo.id);
+        successCount++;
+      } catch (error) {
+        failCount++;
+        console.error(`Failed to sync ${repo.repo}:`, error);
+      } finally {
+        setSyncingRepos(prev => {
+          const next = new Set(prev);
+          next.delete(repo.id);
+          return next;
+        });
+      }
+    }
+    
+    setSyncProgress(null);
+    setIsSyncingAll(false);
+    
+    if (failCount === 0) {
+      messageApi.success(`Synced ${successCount} repository(s) successfully`);
+    } else {
+      messageApi.warning(`Synced ${successCount}, failed ${failCount} repository(s)`);
+    }
+  }, [repos, onSyncRepo, messageApi]);
 
   const getRepoPrompts = (repoId: string) => prompts.filter(p => p.repoId === repoId);
 
@@ -115,6 +181,10 @@ const SyncManager: React.FC<SyncManagerProps> = ({
     const date = new Date(timestamp);
     return date.toLocaleString();
   };
+
+  const enabledRepos = repos.filter(r => r.enabled);
+  const hasEnabledRepos = enabledRepos.length > 0;
+  const isAnySyncing = syncingRepos.size > 0 || isSyncingAll;
 
   return (
     <Modal
@@ -136,25 +206,63 @@ const SyncManager: React.FC<SyncManagerProps> = ({
         form={form}
         layout="inline"
         onFinish={handleAddRepo}
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: 16 }}
       >
         <Form.Item
           name="repo"
           rules={[{ required: true, message: 'Enter repo (owner/repo)' }]}
           style={{ flex: 2 }}
         >
-          <Input placeholder="owner/repo" />
+          <Input placeholder="owner/repo" disabled={isAddingRepo || isSyncingAll} />
         </Form.Item>
         <Form.Item name="branch" style={{ flex: 1 }}>
-          <Input placeholder="branch (default: main)" defaultValue="main" />
+          <Input placeholder="branch (default: main)" defaultValue="main" disabled={isAddingRepo || isSyncingAll} />
         </Form.Item>
         <Form.Item name="promptsPath" style={{ flex: 1 }}>
-          <Input placeholder="path (default: .agents/prompts)" defaultValue=".agents/prompts" />
+          <Input placeholder="path (default: .agents/prompts)" defaultValue=".agents/prompts" disabled={isAddingRepo || isSyncingAll} />
         </Form.Item>
         <Form.Item>
-          <Button type="primary" htmlType="submit">Add Repo</Button>
+          <Button 
+            type="primary" 
+            htmlType="submit" 
+            loading={isAddingRepo}
+            disabled={isSyncingAll}
+          >
+            {isAddingRepo ? 'Adding...' : 'Add Repo'}
+          </Button>
         </Form.Item>
       </Form>
+
+      {/* Sync progress */}
+      {syncProgress && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <LoadingOutlined />
+            <Text type="secondary">
+              Syncing {syncProgress.currentRepo} ({syncProgress.current}/{syncProgress.total})
+            </Text>
+          </div>
+          <Progress 
+            percent={Math.round((syncProgress.current / syncProgress.total) * 100)} 
+            size="small"
+            showInfo={false}
+          />
+        </div>
+      )}
+
+      {/* Sync all button */}
+      {repos.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Button
+            icon={isSyncingAll ? <LoadingOutlined /> : <SyncOutlined />}
+            onClick={handleSyncAll}
+            loading={isSyncingAll}
+            disabled={isAnySyncing || !hasEnabledRepos}
+          >
+            {isSyncingAll ? 'Syncing...' : `Sync All (${enabledRepos.length} repo${enabledRepos.length !== 1 ? 's' : ''})`}
+          </Button>
+        </div>
+      )}
 
       {/* Repo list */}
       {repos.length === 0 ? (
@@ -173,12 +281,12 @@ const SyncManager: React.FC<SyncManagerProps> = ({
               <List.Item
                 key={repo.id}
                 actions={[
-                  <Tooltip title="Sync now">
+                  <Tooltip title={isSyncing ? 'Syncing...' : 'Sync now'}>
                     <Button
                       type="text"
-                      icon={isSyncing ? <LoadingOutlined /> : <SyncOutlined spin={isSyncing} />}
+                      icon={isSyncing ? <LoadingOutlined /> : <SyncOutlined spin={!isSyncing && !isSyncingAll} />}
                       onClick={() => handleSyncRepo(repo.id)}
-                      disabled={isSyncing}
+                      disabled={isSyncing || isSyncingAll}
                     />
                   </Tooltip>,
                   <Popconfirm
@@ -186,10 +294,15 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                     description="All synced prompts from this repo will be removed."
                     onConfirm={() => onRemoveRepo(repo.id)}
                     okText="Remove"
-                    okButtonProps={{ danger: true }}
+                    okButtonProps={{ danger: true, disabled: isSyncing || isSyncingAll }}
                   >
                     <Tooltip title="Remove repo">
-                      <Button type="text" danger icon={<DeleteOutlined />} />
+                      <Button 
+                        type="text" 
+                        danger 
+                        icon={<DeleteOutlined />} 
+                        disabled={isSyncing || isSyncingAll}
+                      />
                     </Tooltip>
                   </Popconfirm>,
                 ]}
@@ -201,11 +314,14 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                         size="small"
                         checked={repo.enabled}
                         onChange={(checked) => onToggleRepo(repo.id, checked)}
+                        disabled={isSyncingAll}
                       />
                       <GithubOutlined />
-                      <Text strong>{repo.repo}</Text>
+                      <Text strong={repo.enabled}>{repo.repo}</Text>
                       <Tag>{repo.branch}</Tag>
-                      {repo.enabled ? (
+                      {isSyncing ? (
+                        <Tag color="processing" icon={<LoadingOutlined />}>Syncing</Tag>
+                      ) : repo.enabled ? (
                         <CheckCircleOutlined style={{ color: '#52c41a' }} />
                       ) : (
                         <ExclamationCircleOutlined style={{ color: '#faad14' }} />
@@ -224,7 +340,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                               key={prompt.id}
                               color={prompt.enabled !== false ? 'green' : 'default'}
                               style={{ cursor: 'pointer' }}
-                              onClick={() => onTogglePrompt(prompt.id, !prompt.enabled)}
+                              onClick={() => !isSyncing && !isSyncingAll && onTogglePrompt(prompt.id, !prompt.enabled)}
                             >
                               {prompt.title}
                             </Tag>
