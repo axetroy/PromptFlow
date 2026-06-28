@@ -509,6 +509,67 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
+/**
+ * Find the first placeholder in the content (e.g., {variable})
+ */
+function findFirstPlaceholder(content: string): { start: number; end: number } | null {
+  const match = content.match(/\{[^}]+\}/);
+  if (match && match.index !== undefined) {
+    return {
+      start: match.index,
+      end: match.index + match[0].length
+    };
+  }
+  return null;
+}
+
+/**
+ * Set text selection range for input/textarea elements
+ */
+function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, start: number, end: number): void {
+  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+    input.setSelectionRange(start, end);
+    input.focus();
+  } else if (input.hasAttribute('contenteditable')) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+    let charCount = 0;
+    let foundStart = false;
+    let foundEnd = false;
+
+    function traverseNodes(node: Node): void {
+      if (foundStart && foundEnd) return;
+      if (node.nodeType === Node.TEXT_NODE) {
+        const nodeLength = node.textContent!.length;
+        const nextCount = charCount + nodeLength;
+        
+        if (!foundStart && start <= nextCount) {
+          range.setStart(node, start - charCount);
+          foundStart = true;
+        }
+        if (foundStart && !foundEnd && end <= nextCount) {
+          range.setEnd(node, end - charCount);
+          foundEnd = true;
+        }
+        charCount = nextCount;
+      } else {
+        for (const child of Array.from(node.childNodes)) {
+          traverseNodes(child);
+          if (foundStart && foundEnd) break;
+        }
+      }
+    }
+
+    traverseNodes(input);
+    if (!foundEnd) {
+      range.selectNodeContents(input);
+      range.collapse(false);
+    }
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+}
+
 function selectPrompt(prompt: Prompt): void {
   if (!state.currentInput) return;
   
@@ -519,17 +580,31 @@ function selectPrompt(prompt: Prompt): void {
   const after = inputValue.substring(state.caretPosition);
   const newValue = before + prompt.content + after;
   
+  // Find first placeholder position
+  const placeholder = findFirstPlaceholder(prompt.content);
+  
+  // Calculate selection range after insertion
+  let selectionStart: number;
+  let selectionEnd: number;
+  
+  if (placeholder) {
+    // Select the entire first placeholder (including braces)
+    selectionStart = state.triggerStartPosition + placeholder.start;
+    selectionEnd = state.triggerStartPosition + placeholder.end;
+  } else {
+    // No placeholder found, position cursor at end of inserted text
+    selectionStart = state.triggerStartPosition + prompt.content.length;
+    selectionEnd = selectionStart;
+  }
+  
   if (state.currentInput instanceof HTMLInputElement || state.currentInput instanceof HTMLTextAreaElement) {
     state.currentInput.value = newValue;
     state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
-    
-    // Move cursor to end of inserted text
-    const newPosition = state.triggerStartPosition + prompt.content.length;
-    setCaretPosition(state.currentInput, newPosition);
+    setSelection(state.currentInput, selectionStart, selectionEnd);
   } else if (state.currentInput.hasAttribute('contenteditable')) {
     // For contenteditable elements, we need to properly handle newlines
     // by inserting <br> tags instead of just setting textContent
-    insertContentWithNewlines(state.currentInput, newValue, state.triggerStartPosition, prompt.content.length);
+    insertContentWithNewlines(state.currentInput, newValue, selectionStart, selectionEnd);
   }
   
   closePanel();
@@ -538,7 +613,7 @@ function selectPrompt(prompt: Prompt): void {
 /**
  * Insert content into contenteditable element, properly handling newlines
  */
-function insertContentWithNewlines(element: Element, newValue: string, startPos: number, contentLength: number): void {
+function insertContentWithNewlines(element: Element, newValue: string, selectionStart: number, selectionEnd: number): void {
   // Clear the element
   element.textContent = '';
   
@@ -556,8 +631,8 @@ function insertContentWithNewlines(element: Element, newValue: string, startPos:
     }
   }
   
-  // Move cursor to end of inserted text
-  setCaretPosition(element, startPos + contentLength);
+  // Set selection (may select placeholder or position cursor at end)
+  setSelection(element, selectionStart, selectionEnd);
 }
 
 function positionPanel(): void {
