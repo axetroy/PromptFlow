@@ -20,6 +20,11 @@ async function initializeStorage(): Promise<void> {
   }
 }
 
+chrome.action.onClicked.addListener(async () => {
+  // Open the settings page when the extension icon is clicked
+  await openSettings();
+})
+
 // Initialize on install
 chrome.runtime.onInstalled.addListener(async () => {
   await initializeStorage();

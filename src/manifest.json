@@ -17,7 +17,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_popup": "settings.html"
+    "default_title": "Click to open PromptFlow settings"
   },
   "background": {
     "service_worker": "background.js",
