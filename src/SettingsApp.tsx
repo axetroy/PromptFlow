@@ -293,20 +293,33 @@ const SettingsApp: React.FC = () => {
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#1890ff', borderRadius: 8 } }}>
       {contextHolder}
-      <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
-        <Header style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <CodeOutlined style={{ fontSize: 28, color: '#fff' }} />
+      <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+        <Header style={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+          padding: '24px 32px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 16,
+          height: 'auto',
+          lineHeight: 'normal',
+        }}>
+          <CodeOutlined style={{ fontSize: 32, color: '#fff' }} />
           <div>
-            <Title level={4} style={{ color: '#fff', margin: 0 }}>PromptFlow Settings</Title>
-            <Text style={{ color: 'rgba(255,255,255,0.8)' }}>Manage your prompts and customize your experience</Text>
+            <Title level={3} style={{ color: '#fff', margin: '0 0 4px 0', fontWeight: 600 }}>PromptFlow Settings</Title>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>Manage your prompts and customize your experience</Text>
           </div>
         </Header>
 
         <Content style={{ padding: 24, maxWidth: 900, margin: '0 auto', width: '100%' }}>
           <Card title={<Space><SettingOutlined />General Settings</Space>} style={{ marginBottom: 24 }}>
             <Form layout="vertical">
-              <Form.Item label="Trigger Command" tooltip="Type this command in any input field to open the prompt panel">
-                <Input value={settings.trigger} onChange={(e) => handleSettingsChange('trigger', e.target.value)} placeholder="/prompts" style={{ maxWidth: 300 }} prefix="/" />
+              <Form.Item label="Trigger Command" tooltip="Type this command in any input field to open the prompt panel" style={{ marginBottom: 8 }}>
+                <Input 
+                  value={settings.trigger} 
+                  onChange={(e) => handleSettingsChange('trigger', e.target.value)} 
+                  placeholder="/prompts" 
+                  style={{ maxWidth: 300 }}
+                />
               </Form.Item>
               <Form.Item label="Theme">
                 <Select
