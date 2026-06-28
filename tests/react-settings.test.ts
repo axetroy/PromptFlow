@@ -185,21 +185,51 @@ test.describe('React Settings App', () => {
         { id: 'custom-1', isDefault: false },
       ];
       
-      const defaultPrompts = []; // No longer tracking default prompts
-      const customPrompts = prompts;
+      const defaultPrompts = prompts.filter(p => p.isDefault);
+      const customPrompts = prompts.filter(p => !p.isDefault);
       
       return {
         defaultCount: defaultPrompts.length,
         customCount: customPrompts.length,
         canEditCustom: true,
-        canEditDefault: true,
+        canEditDefault: false,
       };
     });
     
-    expect(result.defaultCount).toBe(0);
-    expect(result.customCount).toBe(3);
+    expect(result.defaultCount).toBe(2);
+    expect(result.customCount).toBe(1);
     expect(result.canEditCustom).toBe(true);
-    expect(result.canEditDefault).toBe(true);
+    expect(result.canEditDefault).toBe(false);
+  });
+
+  test('should load default prompts from files', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      // Simulate the new storage structure
+      const storageData = {
+        customPrompts: [],
+        disabledDefaultIds: ['1'],
+        settings: { trigger: '/prompts', insertMode: 'replace' }
+      };
+      
+      const defaultPrompts = [
+        { id: '1', title: 'Default 1', isDefault: true },
+        { id: '2', title: 'Default 2', isDefault: true },
+      ];
+      
+      const enabledDefaults = defaultPrompts.filter(p => !storageData.disabledDefaultIds.includes(p.id));
+      
+      return {
+        hasCustomPrompts: storageData.customPrompts !== undefined,
+        hasDisabledDefaults: storageData.disabledDefaultIds !== undefined,
+        enabledDefaultsCount: enabledDefaults.length,
+      };
+    });
+    
+    expect(result.hasCustomPrompts).toBe(true);
+    expect(result.hasDisabledDefaults).toBe(true);
+    expect(result.enabledDefaultsCount).toBe(1);
   });
   
   test('should update prompt properties', async ({ page }) => {

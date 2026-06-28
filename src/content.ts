@@ -64,13 +64,30 @@ async function loadSettings(): Promise<void> {
 async function loadPrompts(): Promise<Prompt[]> {
   return new Promise((resolve) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
-      const data = result['promptflow-data'] as StorageData | undefined;
-      if (data?.prompts && data.prompts.length > 0) {
-        resolve(data.prompts.filter(p => p.enabled !== false));
-      } else {
-        // Use default prompts from markdown files
-        resolve(DEFAULT_PROMPTS);
-      }
+      const data = result['promptflow-data'] as { 
+        customPrompts?: Prompt[]; 
+        disabledDefaultIds?: string[];
+        settings?: any;
+      } | undefined;
+      
+      // Get custom prompts and disabled default IDs
+      const customPrompts: Prompt[] = data?.customPrompts || [];
+      const disabledDefaultIds: string[] = data?.disabledDefaultIds || [];
+      
+      // Merge default prompts with custom prompts
+      const allPrompts: Prompt[] = [];
+      
+      // Add default prompts (sorted by ID), excluding disabled ones
+      const sortedDefaults = [...DEFAULT_PROMPTS]
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .filter(p => !disabledDefaultIds.includes(p.id));
+      
+      allPrompts.push(...sortedDefaults);
+      
+      // Add custom prompts that are enabled
+      allPrompts.push(...customPrompts.filter(p => p.enabled !== false));
+      
+      resolve(allPrompts);
     });
   });
 }

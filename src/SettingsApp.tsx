@@ -51,7 +51,8 @@ interface Prompt {
   createdAt: number;
   updatedAt: number;
   enabled?: boolean;
-  }
+  isDefault?: boolean; // Mark default prompts
+}
 
 interface PromptSettings {
   trigger: string;
@@ -59,27 +60,52 @@ interface PromptSettings {
 }
 
 interface StorageData {
-  prompts: Prompt[];
+  customPrompts: Prompt[]; // Only custom prompts stored
+  disabledDefaultIds?: string[]; // IDs of disabled default prompts
   settings: PromptSettings;
 }
 
-// Default prompts - loaded from markdown files
+// Default prompts - always loaded from markdown files
 const getDefaultPrompts = (): Prompt[] => defaultPromptsFromFiles.map(prompt => ({
   ...prompt,
   createdAt: Date.now(),
-  updatedAt: Date.now()
+  updatedAt: Date.now(),
+  isDefault: true,
+  enabled: true,
 }));
 
-// Storage helpers
+// Get all prompts: default prompts first, then custom prompts
+// Default prompts with enabled=false are filtered out unless they were explicitly disabled
+const getAllPrompts = (customPrompts: Prompt[], disabledDefaultIds: string[] = []): Prompt[] => {
+  const defaults = getDefaultPrompts().map(p => ({
+    ...p,
+    enabled: !disabledDefaultIds.includes(p.id),
+  }));
+  
+  // Sort: default prompts first (by id), then custom prompts
+  const sortedDefaults = [...defaults].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedCustom = [...customPrompts].sort((a, b) => 
+    (a.createdAt || 0) - (b.createdAt || 0)
+  );
+  
+  return [...sortedDefaults, ...sortedCustom];
+};
+
+// Storage helpers - only store custom prompts and disabled default IDs
 const loadData = (): Promise<StorageData> => {
   return new Promise((resolve) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
       const data = result['promptflow-data'] as StorageData | undefined;
       if (data) {
-        resolve(data);
+        resolve({
+          customPrompts: data.customPrompts || [],
+          disabledDefaultIds: data.disabledDefaultIds || [],
+          settings: data.settings || { trigger: '/prompts', insertMode: 'replace' },
+        });
       } else {
         resolve({
-          prompts: getDefaultPrompts(),
+          customPrompts: [],
+          disabledDefaultIds: [],
           settings: { trigger: '/prompts', insertMode: 'replace' },
         });
       }
@@ -95,7 +121,9 @@ const saveData = (data: StorageData): Promise<void> => {
 
 // Settings App Component
 const SettingsApp: React.FC = () => {
-  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [customPrompts, setCustomPrompts] = useState<Prompt[]>([]);
+  const [disabledDefaultIds, setDisabledDefaultIds] = useState<string[]>([]);
+  const [allPrompts, setAllPrompts] = useState<Prompt[]>([]);
   const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', insertMode: 'replace' });
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -107,22 +135,37 @@ const SettingsApp: React.FC = () => {
   // Load data on mount
   useEffect(() => {
     loadData().then((data) => {
-      setPrompts(data.prompts);
+      setCustomPrompts(data.customPrompts);
+      setDisabledDefaultIds(data.disabledDefaultIds);
+      setAllPrompts(getAllPrompts(data.customPrompts, data.disabledDefaultIds));
       setSettings(data.settings);
       setLoading(false);
     });
   }, []);
 
-  // Save data whenever prompts or settings change
-  const persistData = useCallback(async (newPrompts: Prompt[], newSettings: PromptSettings) => {
-    await saveData({ prompts: newPrompts, settings: newSettings });
+  // Update all prompts when custom prompts or disabled defaults change
+  useEffect(() => {
+    setAllPrompts(getAllPrompts(customPrompts, disabledDefaultIds));
+  }, [customPrompts, disabledDefaultIds]);
+
+  // Save data whenever custom prompts, disabled defaults or settings change
+  const persistData = useCallback(async (
+    newCustomPrompts: Prompt[], 
+    newDisabledDefaultIds: string[], 
+    newSettings: PromptSettings
+  ) => {
+    await saveData({ 
+      customPrompts: newCustomPrompts, 
+      disabledDefaultIds: newDisabledDefaultIds,
+      settings: newSettings 
+    });
   }, []);
 
   // Handle settings change
   const handleSettingsChange = async (key: keyof PromptSettings, value: string) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
-    await persistData(prompts, newSettings);
+    await persistData(customPrompts, disabledDefaultIds, newSettings);
     messageApi.success('Settings saved');
   };
 
@@ -131,7 +174,7 @@ const SettingsApp: React.FC = () => {
     const exportData = {
       version: '1.0',
       exportedAt: new Date().toISOString(),
-      prompts: prompts,
+      prompts: allPrompts,
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -142,7 +185,7 @@ const SettingsApp: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    messageApi.success(`Exported ${prompts.length} prompts`);
+    messageApi.success(`Exported ${allPrompts.length} prompts`);
   };
 
   // Import prompts from JSON file
@@ -161,43 +204,44 @@ const SettingsApp: React.FC = () => {
           return;
         }
 
-        // Validate prompts structure
-        const validPrompts = importData.prompts.filter((p: any) => 
-          p.id && p.title && p.content
+        // Filter out default prompts (they are always loaded from files)
+        // Only import custom prompts
+        const validCustomPrompts = importData.prompts.filter((p: any) => 
+          p.id && p.title && p.content && p.id.startsWith('custom-')
         );
 
-        if (validPrompts.length === 0) {
-          messageApi.error('No valid prompts found in file');
+        if (validCustomPrompts.length === 0) {
+          messageApi.error('No valid custom prompts found in file (default prompts are always loaded from files)');
           return;
         }
 
         Modal.confirm({
-          title: 'Import Prompts',
-          content: `Found ${validPrompts.length} prompts. How would you like to import them?`,
+          title: 'Import Custom Prompts',
+          content: `Found ${validCustomPrompts.length} custom prompts. How would you like to import them?`,
           okText: 'Merge',
           cancelText: 'Cancel',
           onOk: async () => {
-            // Merge with existing prompts (avoid duplicates by id)
-            const existingIds = new Set(prompts.map(p => p.id));
-            const newPrompts = prompts.concat(
-              validPrompts.filter((p: Prompt) => !existingIds.has(p.id))
+            // Merge with existing custom prompts (avoid duplicates by id)
+            const existingIds = new Set(customPrompts.map(p => p.id));
+            const newCustomPrompts = customPrompts.concat(
+              validCustomPrompts.filter((p: Prompt) => !existingIds.has(p.id))
             );
-            setPrompts(newPrompts);
-            await persistData(newPrompts, settings);
-            messageApi.success(`Merged ${validPrompts.length} prompts`);
+            setCustomPrompts(newCustomPrompts);
+            await persistData(newCustomPrompts, disabledDefaultIds, settings);
+            messageApi.success(`Merged ${validCustomPrompts.length} prompts`);
           },
         });
 
         // Replace option
         Modal.confirm({
-          title: 'Or Replace All',
-          content: 'Would you like to replace all existing prompts with the imported ones?',
+          title: 'Or Replace Custom Prompts',
+          content: 'Would you like to replace all existing custom prompts with the imported ones?',
           okText: 'Replace All',
           cancelText: 'Cancel',
           onOk: async () => {
-            setPrompts(validPrompts);
-            await persistData(validPrompts, settings);
-            messageApi.success(`Replaced with ${validPrompts.length} prompts`);
+            setCustomPrompts(validCustomPrompts);
+            await persistData(validCustomPrompts, disabledDefaultIds, settings);
+            messageApi.success(`Replaced with ${validCustomPrompts.length} prompts`);
           },
         });
       } catch (error) {
@@ -214,6 +258,11 @@ const SettingsApp: React.FC = () => {
 
   // Open modal for add/edit
   const openModal = (prompt?: Prompt) => {
+    // Don't allow editing default prompts
+    if (prompt?.isDefault) {
+      messageApi.warning('Default prompts cannot be edited');
+      return;
+    }
     setEditingPrompt(prompt || null);
     if (prompt) {
       form.setFieldsValue({
@@ -231,18 +280,18 @@ const SettingsApp: React.FC = () => {
   // Handle form submit
   const handleSubmit = async (values: { title: string; content: string; description?: string; tags?: string[] }) => {
     const tags = values.tags || [];
-    let newPrompts: Prompt[];
+    let newCustomPrompts: Prompt[];
 
     if (editingPrompt) {
-      // Update existing prompt
-      newPrompts = prompts.map((p) =>
+      // Update existing custom prompt
+      newCustomPrompts = customPrompts.map((p) =>
         p.id === editingPrompt.id
           ? { ...p, title: values.title, content: values.content, description: values.description, tags, updatedAt: Date.now() }
           : p
       );
       messageApi.success('Prompt updated');
     } else {
-      // Add new prompt
+      // Add new custom prompt
       const newPrompt: Prompt = {
         id: `custom-${Date.now()}`,
         title: values.title,
@@ -252,39 +301,62 @@ const SettingsApp: React.FC = () => {
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
-      newPrompts = [...prompts, newPrompt];
+      newCustomPrompts = [...customPrompts, newPrompt];
       messageApi.success('Prompt added');
     }
 
-    setPrompts(newPrompts);
-    await persistData(newPrompts, settings);
+    setCustomPrompts(newCustomPrompts);
+    await persistData(newCustomPrompts, disabledDefaultIds, settings);
     setModalVisible(false);
     form.resetFields();
   };
 
-  // Delete prompt
+  // Delete custom prompt only (default prompts cannot be deleted)
   const handleDelete = async (id: string) => {
-    const newPrompts = prompts.filter((p) => p.id !== id);
-    setPrompts(newPrompts);
-    await persistData(newPrompts, settings);
+    // Check if it's a default prompt
+    const isDefault = id.match(/^[1-6]$/);
+    if (isDefault) {
+      messageApi.warning('Default prompts cannot be deleted');
+      return;
+    }
+    
+    const newCustomPrompts = customPrompts.filter((p) => p.id !== id);
+    setCustomPrompts(newCustomPrompts);
+    await persistData(newCustomPrompts, disabledDefaultIds, settings);
     messageApi.success('Prompt deleted');
   };
 
   // Toggle prompt enabled status
   const handleToggleEnabled = async (id: string, enabled: boolean) => {
-    const newPrompts = prompts.map((p) =>
-      p.id === id ? { ...p, enabled } : p
-    );
-    setPrompts(newPrompts);
-    await persistData(newPrompts, settings);
+    // Check if it's a default prompt
+    const isDefault = id.match(/^[1-6]$/);
+    
+    if (isDefault) {
+      // Update disabledDefaultIds
+      let newDisabledDefaultIds: string[];
+      if (enabled) {
+        newDisabledDefaultIds = disabledDefaultIds.filter(did => did !== id);
+      } else {
+        newDisabledDefaultIds = [...disabledDefaultIds, id];
+      }
+      setDisabledDefaultIds(newDisabledDefaultIds);
+      await persistData(customPrompts, newDisabledDefaultIds, settings);
+    } else {
+      // Update custom prompts
+      const newCustomPrompts = customPrompts.map((p) =>
+        p.id === id ? { ...p, enabled } : p
+      );
+      setCustomPrompts(newCustomPrompts);
+      await persistData(newCustomPrompts, disabledDefaultIds, settings);
+    }
     messageApi.success(enabled ? 'Prompt enabled' : 'Prompt disabled');
   };
 
   // Reset prompts
   const handleReset = async () => {
-    const defaultPrompts = getDefaultPrompts();
-    setPrompts(defaultPrompts);
-    await persistData(defaultPrompts, settings);
+    setCustomPrompts([]);
+    setDisabledDefaultIds([]);
+    await persistData([], [], settings);
     messageApi.success('Prompts reset to defaults');
   };
 
@@ -297,7 +369,7 @@ const SettingsApp: React.FC = () => {
       render: (title: string, record) => (
         <Space>
           <Text strong>{title}</Text>
-          
+          {record.isDefault && <Tag color="blue">Default</Tag>}
         </Space>
       ),
     },
@@ -337,10 +409,15 @@ const SettingsApp: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <Space>
-          <Tooltip title='Edit'>
-            <Button type="text" icon={<EditOutlined />} onClick={() => openModal(record)} />
+          <Tooltip title={record.isDefault ? 'Default prompts cannot be edited' : 'Edit'}>
+            <Button 
+              type="text" 
+              icon={<EditOutlined />} 
+              onClick={() => openModal(record)}
+              disabled={record.isDefault}
+            />
           </Tooltip>
-          <Tooltip title='Delete'>
+          <Tooltip title={record.isDefault ? 'Default prompts cannot be deleted' : 'Delete'}>
             <Popconfirm
               title="Delete this prompt?"
               description="This action cannot be undone."
@@ -348,9 +425,9 @@ const SettingsApp: React.FC = () => {
               okText="Delete"
               cancelText="Cancel"
               okButtonProps={{ danger: true }}
-              
+              disabled={record.isDefault}
             >
-              <Button type="text" danger icon={<DeleteOutlined />}  />
+              <Button type="text" danger icon={<DeleteOutlined />} disabled={record.isDefault} />
             </Popconfirm>
           </Tooltip>
         </Space>
@@ -393,39 +470,32 @@ const SettingsApp: React.FC = () => {
           </Card>
 
           <Card
-            title={<Space><FileTextOutlined />Prompts ({prompts.length})</Space>}
+            title={<Space><FileTextOutlined />Prompts ({allPrompts.length})</Space>}
             extra={
               <Space>
                 <Button icon={<UploadOutlined />} onClick={handleExport}>Export</Button>
                 <Button icon={<DownloadOutlined />} onClick={() => fileInputRef.current?.click()}>Import</Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  style={{ display: 'none' }}
-                  onChange={handleImport}
-                />
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>Add Prompt</Button>
               </Space>
             }
             style={{ marginBottom: 24 }}
           >
-            <Table columns={columns} dataSource={prompts} rowKey="id" pagination={false} loading={loading} size="middle" />
+            <Table columns={columns} dataSource={allPrompts} rowKey="id" pagination={false} loading={loading} size="middle" />
           </Card>
 
           <Card title={<Text type="danger"><SettingOutlined /> Danger Zone</Text>} style={{ borderColor: '#ff4d4f' }}>
             <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-              This will delete all custom prompts and restore the default ones. This action cannot be undone.
+              This will clear all disabled default prompts and custom prompts. Default prompts will be restored from files.
             </Text>
             <Popconfirm
               title="Reset all prompts?"
-              description="All custom prompts will be deleted. Default prompts will be restored."
+              description="All disabled default prompts and custom prompts will be cleared."
               onConfirm={handleReset}
               okText="Reset"
               cancelText="Cancel"
               okButtonProps={{ danger: true }}
             >
-              <Button icon={<ReloadOutlined />}>Reset Prompts to Defaults</Button>
+              <Button icon={<ReloadOutlined />}>Reset to Default Prompts</Button>
             </Popconfirm>
           </Card>
         </Content>
