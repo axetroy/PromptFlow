@@ -423,7 +423,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   // Load prompts and render
   const prompts = await loadPrompts();
   state.prompts = prompts;
-  renderPromptList(shadow, prompts, theme);
+  renderPromptList(shadow, prompts);
   
   // Focus search input
   setTimeout(() => searchInput.focus(), 50);
@@ -437,7 +437,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
       p.content.toLowerCase().includes(query) ||
       p.tags.some(t => t.toLowerCase().includes(query))
     );
-    renderPromptList(shadow, filtered, theme);
+    renderPromptList(shadow, filtered);
   });
 }
 
