@@ -439,7 +439,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
     );
     state.prompts = filtered;
     state.selectedIndex = 0;
-    renderPromptList(shadow, filtered, theme);
+    renderPromptList(shadow, filtered);
   });
 
   // Keyboard navigation in search input
