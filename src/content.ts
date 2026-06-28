@@ -203,33 +203,22 @@ function createPanel(): HTMLElement {
   document.body.appendChild(container);
   
   // Load React panel with current theme
-  loadPanelApp(container, getCurrentTheme());
+  loadPanelApp(container);
   
   return container;
 }
 
-async function loadPanelApp(container: HTMLElement, theme: 'light' | 'dark' = 'dark'): Promise<void> {
-  const isDark = theme === 'dark';
-
-  // Theme colors
-  const colors = isDark ? {
-    bg: '#1e1e1e',
+async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): Promise<void> {
+  // Always use dark theme with slight transparency
+  const colors = {
+    bg: 'rgba(30, 30, 30, 0.95)',
     border: '#3a3a3a',
-    inputBg: '#2a2a2a',
+    inputBg: 'rgba(42, 42, 42, 0.9)',
     inputBorder: '#3a3a3a',
     text: '#ffffff',
     textSecondary: '#a0a0a0',
     hover: '#333333',
     selected: '#262626',
-  } : {
-    bg: '#ffffff',
-    border: '#d9d9d9',
-    inputBg: '#ffffff',
-    inputBorder: '#d9d9d9',
-    text: '#000000',
-    textSecondary: '#666666',
-    hover: '#f5f5f5',
-    selected: '#f0f0f0',
   };
   // Create shadow DOM for style isolation
   const shadow = container.attachShadow({ mode: 'open' });
@@ -272,7 +261,7 @@ async function loadPanelApp(container: HTMLElement, theme: 'light' | 'dark' = 'd
     padding: 10px 14px;
     border: 1px solid ${colors.border};
     border-radius: 8px;
-    background: ${isDark ? '#2a2a2a' : '#f0f0f0'};
+    background: ${'#2a2a2a'};
     color: ${colors.text};
     font-size: 14px;
     outline: none;
@@ -295,7 +284,7 @@ async function loadPanelApp(container: HTMLElement, theme: 'light' | 'dark' = 'd
   const footer = document.createElement('div');
   footer.style.cssText = `
     padding: 10px 12px;
-    border-top: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'};
+    border-top: 1px solid ${'rgba(255, 255, 255, 0.08)'};
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -358,7 +347,7 @@ async function loadPanelApp(container: HTMLElement, theme: 'light' | 'dark' = 'd
   // Load prompts and render
   const prompts = await loadPrompts();
   state.prompts = prompts;
-  renderPromptList(shadow, prompts, getCurrentTheme());
+  renderPromptList(shadow, prompts);
   
   // Focus search input
   setTimeout(() => searchInput.focus(), 50);
@@ -372,12 +361,11 @@ async function loadPanelApp(container: HTMLElement, theme: 'light' | 'dark' = 'd
       p.content.toLowerCase().includes(query) ||
       p.tags.some(t => t.toLowerCase().includes(query))
     );
-    renderPromptList(shadow, filtered, getCurrentTheme());
+    renderPromptList(shadow, filtered);
   });
 }
 
-function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light' | 'dark'): void {
-  const isDark = theme !== 'light';
+function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
   const listContainer = shadow.getElementById('promptflow-list');
   if (!listContainer) return;
   
@@ -415,7 +403,7 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light'
         ${prompt.tags.map(tag => `
           <span style="
             padding: 2px 8px;
-            background: ${isDark ? '#2a2a2a' : '#f0f0f0'};
+            background: ${'#2a2a2a'};
             border-radius: 4px;
             font-size: 11px;
             color: #6b7280;
@@ -785,7 +773,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'UPDATE_PROMPTS') {
     state.prompts = message.prompts;
     if (state.isPanelOpen && panelContainer?.shadowRoot) {
-      renderPromptList(panelContainer.shadowRoot, state.prompts, getCurrentTheme());
+      renderPromptList(panelContainer.shadowRoot, state.prompts);
     }
   }
 });
