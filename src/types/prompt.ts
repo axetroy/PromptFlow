@@ -70,4 +70,13 @@ export const DEFAULT_PROMPTS: Prompt[] = [
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
+  {
+    id: '6',
+    title: 'Analyze Error',
+    content: 'Please analyze the following error message and help me understand:\n\nError:\n```\n{error}\n```\n\nContext:\n{context}\n\nI need to understand:\n- What caused this error\n- How to fix it\n- How to prevent it in the future',
+    description: 'Analyze and understand error messages',
+    tags: ['dev', 'debug', 'error'],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
 ];
