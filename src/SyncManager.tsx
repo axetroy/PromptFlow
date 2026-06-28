@@ -219,7 +219,12 @@ const SyncManager: React.FC<SyncManagerProps> = ({
           <Input placeholder="branch (default: main)" defaultValue="main" disabled={isAddingRepo || isSyncingAll} />
         </Form.Item>
         <Form.Item name="promptsPath" style={{ flex: 1 }}>
-          <Input placeholder="path (default: .agents/prompts)" defaultValue=".agents/prompts" disabled={isAddingRepo || isSyncingAll} />
+          <Input 
+            placeholder=".agents/prompts" 
+            defaultValue=".agents/prompts" 
+            disabled={isAddingRepo || isSyncingAll}
+            addonBefore="Path:"
+          />
         </Form.Item>
         <Form.Item>
           <Button 
@@ -361,8 +366,26 @@ const SyncManager: React.FC<SyncManagerProps> = ({
         <Text type="secondary" style={{ fontSize: 12 }}>
           <strong>How it works:</strong> Add a GitHub repository to sync prompts from a specific directory.
           Scrapes GitHub page for file list, fetches content via raw.githubusercontent.com.
-          Each <code>.md</code> file should have YAML frontmatter with <code>title</code> and optionally <code>description</code> and <code>tags</code>.
         </Text>
+        <div style={{ marginTop: 12 }}>
+          <Text strong style={{ fontSize: 12 }}>Repository structure requirements:</Text>
+          <ul style={{ margin: '8px 0 0 0', paddingLeft: 16, fontSize: 12 }}>
+            <li>Prompt files must be <code>.md</code> files</li>
+            <li>Each file must have YAML frontmatter with <code>title</code> field</li>
+            <li>Optional frontmatter: <code>description</code>, <code>tags</code></li>
+          </ul>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <Text strong style={{ fontSize: 12 }}>Example file structure:</Text>
+          <pre style={{ margin: '8px 0 0 0', padding: 8, background: '#fff', borderRadius: 4, fontSize: 11, overflow: 'auto' }}>
+{`---
+title: My Prompt
+description: A useful prompt
+tags: [chat, helpful]
+---
+Your prompt content here...`}
+          </pre>
+        </div>
       </div>
     </Modal>
   );
