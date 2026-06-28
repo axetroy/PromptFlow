@@ -1,4 +1,4 @@
-import { Prompt, DEFAULT_SETTINGS } from './types';
+import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -65,10 +65,11 @@ async function loadPrompts(): Promise<Prompt[]> {
   return new Promise((resolve) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
       const data = result['promptflow-data'] as StorageData | undefined;
-      if (data?.prompts) {
+      if (data?.prompts && data.prompts.length > 0) {
         resolve(data.prompts.filter(p => p.enabled !== false));
       } else {
-        resolve([]);
+        // Use default prompts from markdown files
+        resolve(DEFAULT_PROMPTS);
       }
     });
   });
