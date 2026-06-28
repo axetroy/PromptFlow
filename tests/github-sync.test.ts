@@ -5,117 +5,93 @@ test.describe('GitHub Sync', () => {
   const TEST_BRANCH = 'main';
   const TEST_PATH = '.agents/promtps'; // Note: typo in repo, using actual path
 
-  test('should construct correct jsdelivr URLs', async ({ page }) => {
+  test('should construct correct GitHub URLs', async ({ page }) => {
     const result = await page.evaluate(({ repo, branch, path }) => {
-      const commit = 'fa153dbe655f6cc44136d9258f84fdee6fc37108';
+      // Tree page URL
+      const treeUrl = `https://github.com/${repo}/tree/${branch}/${path}`;
       
-      // Package page URL
-      const packagePageUrl = `https://www.jsdelivr.com/package/gh/${repo}`;
-      
-      // Data API URL
-      const dataApiUrl = `https://data.jsdelivr.com/v1/packages/gh/${repo}@${commit}/!${path}`;
-      
-      // CDN file URL format
+      // Raw content URL
       const filePath = `${path}/test.md`;
-      const cdnUrl = `https://cdn.jsdelivr.net/gh/${repo}@${commit}/${filePath}`;
+      const rawUrl = `https://raw.githubusercontent.com/${repo}/${branch}/${filePath}`;
       
       return {
-        packagePageUrl,
-        dataApiUrl,
-        cdnUrl,
-        hasCorrectPackageUrl: packagePageUrl.includes('www.jsdelivr.com/package/gh/'),
-        hasCorrectDataApi: dataApiUrl.includes('data.jsdelivr.com/v1/packages/gh/'),
-        hasCorrectCdnUrl: cdnUrl.includes('cdn.jsdelivr.net/gh/'),
-        hasCommit: cdnUrl.includes(`@${commit}`),
+        treeUrl,
+        rawUrl,
+        hasCorrectTreeUrl: treeUrl.includes('github.com') && treeUrl.includes('/tree/'),
+        hasCorrectRawUrl: rawUrl.includes('raw.githubusercontent.com'),
+        rawUrlHasBranch: rawUrl.includes(`/${branch}/`),
       };
     }, { repo: TEST_REPO, branch: TEST_BRANCH, path: TEST_PATH });
     
-    expect(result.hasCorrectPackageUrl).toBe(true);
-    expect(result.hasCorrectDataApi).toBe(true);
-    expect(result.hasCorrectCdnUrl).toBe(true);
-    expect(result.hasCommit).toBe(true);
-    expect(result.packagePageUrl).toBe('https://www.jsdelivr.com/package/gh/axetroy/prompts');
-    expect(result.dataApiUrl).toBe('https://data.jsdelivr.com/v1/packages/gh/axetroy/prompts@fa153dbe655f6cc44136d9258f84fdee6fc37108/!.agents/promtps');
+    expect(result.hasCorrectTreeUrl).toBe(true);
+    expect(result.hasCorrectRawUrl).toBe(true);
+    expect(result.rawUrlHasBranch).toBe(true);
+    expect(result.treeUrl).toBe('https://github.com/axetroy/prompts/tree/main/.agents/promtps');
+    expect(result.rawUrl).toBe('https://raw.githubusercontent.com/axetroy/prompts/main/.agents/promtps/test.md');
   });
 
-  test('should parse commit hash from HTML pattern', async ({ page }) => {
+  test('should parse file links from GitHub HTML', async ({ page }) => {
     const result = await page.evaluate(() => {
-      // Simulate the HTML pattern from jsdelivr package page
-      const html = `<span title="fa153dbe655f6cc44136d9258f84fdee6fc37108">Version <span>fa153dbe655f6cc44136d9258f84fdee6fc37108</span></span>`;
+      // Simulate GitHub HTML structure with file links
+      const html = `
+        <a class="js-navigation-open" href="/axetroy/prompts/blob/main/.agents/promtps/test.md" title="test.md">test.md</a>
+        <a class="js-navigation-open" href="/axetroy/prompts/blob/main/.agents/promtps/readme.md" title="readme.md">readme.md</a>
+      `;
       
-      // Pattern: <span title="hash">Version <span>hash</span></span>
-      const match = html.match(/<span[^>]*title="([a-f0-9]{40})"[^>]*>[\s\S]*?Version[\s\S]*?<span>([a-f0-9]{40})<\/span>/);
+      // Pattern from sync.ts: file links from GitHub tree page
+      const fileLinkPattern = /class="js-navigation-open"[^>]+href="\/[^/]+\/[^/]+\/blob\/[^/]+\/([^"?]+\.md)"/g;
+      const files: string[] = [];
+      let match;
       
-      if (match) {
-        return { hash: match[1] || match[2], found: true };
+      while ((match = fileLinkPattern.exec(html)) !== null) {
+        files.push(match[1]);
       }
-      return { hash: '', found: false };
-    });
-    
-    expect(result.found).toBe(true);
-    expect(result.hash).toBe('fa153dbe655f6cc44136d9258f84fdee6fc37108');
-  });
-
-  test('should parse JSON response from data API', async ({ page }) => {
-    const result = await page.evaluate(() => {
-      // Simulate the JSON structure from data.jsdelivr.com
-      const jsonResponse = {
-        type: 'gh',
-        name: 'axetroy/prompts',
-        version: 'fa153dbe655f6cc44136d9258f84fdee6fc37108',
-        files: [
-          {
-            type: 'directory',
-            name: '.agents',
-            files: [
-              {
-                type: 'directory',
-                name: 'promtps',
-                files: [
-                  {
-                    type: 'file',
-                    name: 'architecture-whitepaper.md',
-                    hash: 'abc123',
-                    size: 2597
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      };
-      
-      // Recursively find markdown files
-      function findMdFiles(files: any[], basePath = ''): any[] {
-        const result: any[] = [];
-        for (const file of files) {
-          const filePath = basePath ? `${basePath}/${file.name}` : file.name;
-          if (file.type === 'file' && file.name.endsWith('.md')) {
-            result.push({
-              name: file.name,
-              path: filePath,
-              sha: file.hash || '',
-              size: file.size || 0
-            });
-          } else if (file.type === 'directory' && file.files) {
-            result.push(...findMdFiles(file.files, filePath));
-          }
-        }
-        return result;
-      }
-      
-      const mdFiles = findMdFiles(jsonResponse.files);
       
       return {
-        totalFiles: mdFiles.length,
-        firstFile: mdFiles[0]?.name,
-        firstPath: mdFiles[0]?.path
+        filesCount: files.length,
+        firstFile: files[0],
+        secondFile: files[1],
       };
     });
     
-    expect(result.totalFiles).toBe(1);
-    expect(result.firstFile).toBe('architecture-whitepaper.md');
-    expect(result.firstPath).toBe('.agents/promtps/architecture-whitepaper.md');
+    expect(result.filesCount).toBe(2);
+    expect(result.firstFile).toBe('.agents/promtps/test.md');
+    expect(result.secondFile).toBe('.agents/promtps/readme.md');
+  });
+
+  test('should filter markdown files only', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      // Simulate GitHub HTML with mixed file types
+      const html = `
+        <a href="/axetroy/prompts/blob/main/file.ts">file.ts</a>
+        <a href="/axetroy/prompts/blob/main/readme.md">readme.md</a>
+        <a href="/axetroy/prompts/blob/main/config.json">config.json</a>
+        <a href="/axetroy/prompts/blob/main/prompt.md">prompt.md</a>
+      `;
+      
+      // Pattern to match .md files only
+      const fileLinkPattern = /href="\/[^/]+\/[^/]+\/blob\/[^/]+\/([^"?]+\.md)"/g;
+      const mdFiles: string[] = [];
+      let match;
+      
+      while ((match = fileLinkPattern.exec(html)) !== null) {
+        mdFiles.push(match[1]);
+      }
+      
+      // Should only include .md files
+      const allMd = mdFiles.every(f => f.endsWith('.md'));
+      
+      return {
+        totalLinks: 4,
+        mdFilesCount: mdFiles.length,
+        allMarkdown: allMd,
+        files: mdFiles,
+      };
+    });
+    
+    expect(result.totalLinks).toBe(4);
+    expect(result.mdFilesCount).toBe(2);
+    expect(result.allMarkdown).toBe(true);
   });
 
   test('should parse frontmatter from markdown content', async ({ page }) => {

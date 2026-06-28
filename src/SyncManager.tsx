@@ -70,8 +70,8 @@ const SyncManager: React.FC<SyncManagerProps> = ({
         return;
       }
       
-      // Test fetch to validate repo exists and get files
-      const { files } = await fetchGitHubDirectory(values.repo, promptsPath);
+      // Test fetch to validate repo exists
+      const files = await fetchGitHubDirectory(values.repo, promptsPath, branch);
       if (files.length === 0) {
         messageApi.warning(`No markdown files found at ${promptsPath}. Make sure the path is correct.`);
         return;
@@ -205,11 +205,6 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                       <GithubOutlined />
                       <Text strong>{repo.repo}</Text>
                       <Tag>{repo.branch}</Tag>
-                      {repo.lastCommit && (
-                        <Tag color="blue" style={{ fontFamily: 'monospace', fontSize: 10 }}>
-                          {repo.lastCommit.substring(0, 7)}
-                        </Tag>
-                      )}
                       {repo.enabled ? (
                         <CheckCircleOutlined style={{ color: '#52c41a' }} />
                       ) : (
@@ -249,7 +244,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       <div style={{ marginTop: 16, padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           <strong>How it works:</strong> Add a GitHub repository to sync prompts from a specific directory.
-          Uses jsdelivr CDN + API to fetch files (works globally including China, no rate limits).
+          Scrapes GitHub page for file list, fetches content via raw.githubusercontent.com.
           Each <code>.md</code> file should have YAML frontmatter with <code>title</code> and optionally <code>description</code> and <code>tags</code>.
         </Text>
       </div>
