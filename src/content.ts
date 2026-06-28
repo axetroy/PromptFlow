@@ -29,8 +29,6 @@ function getCurrentTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-const DEBOUNCE_DELAY = 150;
-
 function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
   let timeoutId: ReturnType<typeof setTimeout>;
   return ((...args: Parameters<T>) => {
@@ -333,7 +331,11 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
 
 function createPanel(): HTMLElement {
   const container = document.createElement('div');
+  // Use system theme as default, default to light theme
+  const theme = getCurrentTheme()
+  const isDark = theme === 'dark';
   container.id = 'promptflow-panel-container';
+  container.classList.add(isDark ? 'dark' : 'light');
   container.style.cssText = `
     position: fixed;
     z-index: 2147483647;
@@ -343,7 +345,7 @@ function createPanel(): HTMLElement {
   document.body.appendChild(container);
   
   // Load React panel with current theme
-  loadPanelApp(container, getCurrentTheme());
+  loadPanelApp(container, theme);
   
   return container;
 }
@@ -361,10 +363,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   // Create panel container with theme class
   const panelWrapper = document.createElement('div');
   panelWrapper.id = 'promptflow-panel';
-  const currentTheme = theme || getCurrentTheme();
-  if (currentTheme === 'light') {
-    panelWrapper.classList.add('light');
-  }
+  const currentTheme = theme;
   shadow.appendChild(panelWrapper);
   
   // Create search input
@@ -423,7 +422,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   // Load prompts and render
   const prompts = await loadPrompts();
   state.prompts = prompts;
-  renderPromptList(shadow, prompts, getCurrentTheme());
+  renderPromptList(shadow, prompts, theme);
   
   // Focus search input
   setTimeout(() => searchInput.focus(), 50);
@@ -437,11 +436,11 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
       p.content.toLowerCase().includes(query) ||
       p.tags.some(t => t.toLowerCase().includes(query))
     );
-    renderPromptList(shadow, filtered, getCurrentTheme());
+    renderPromptList(shadow, filtered, theme);
   });
 }
 
-function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light' | 'dark'): void {
+function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
   const listContainer = shadow.getElementById('promptflow-list');
   if (!listContainer) return;
   
