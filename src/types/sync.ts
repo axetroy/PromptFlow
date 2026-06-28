@@ -49,11 +49,13 @@ export interface GitHubContent {
 }
 
 /**
- * Fetch file content from raw.githubusercontent.com (no rate limit for public repos)
+ * Fetch file content using jsdelivr CDN
+ * Works globally including China, no rate limits
+ * Format: https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
  */
 export async function fetchGitHubFileContent(repo: string, filePath: string, branch: string = 'main'): Promise<string> {
-  // Use raw.githubusercontent.com which is a CDN and has no rate limits
-  const url = `https://raw.githubusercontent.com/${repo}/${branch}/${filePath}`;
+  // jsdelivr CDN format
+  const url = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`;
   const response = await fetch(url);
   
   if (!response.ok) {
@@ -64,16 +66,17 @@ export async function fetchGitHubFileContent(repo: string, filePath: string, bra
 }
 
 /**
- * Fetch directory listing by scraping GitHub's tree page (no API rate limits)
- * This avoids the GitHub API rate limit issue for public repositories
+ * Fetch directory listing using jsdelivr web interface
+ * Works globally including China
+ * Format: https://www.jsdelivr.com/package/gh/{owner}/{repo}?version={branch}&path={path}
  */
 export async function fetchGitHubDirectory(
   repo: string,
   path: string,
   branch: string = 'main'
 ): Promise<GitHubContent[]> {
-  // Use GitHub's web interface to get directory listing
-  const url = `https://github.com/${repo}/tree/${branch}/${path}`;
+  // jsdelivr package page to list files
+  const url = `https://www.jsdelivr.com/package/gh/${repo}?version=${branch}&path=${path}`;
   
   try {
     const response = await fetch(url);
@@ -88,54 +91,95 @@ export async function fetchGitHubDirectory(
     const html = await response.text();
     
     // Parse the HTML to extract file information
-    // GitHub uses React to render, but the initial HTML contains file data in a script tag
+    // jsdelivr returns a JSON payload in a script tag or inline data
     const files: GitHubContent[] = [];
     
-    // Try to extract from the react-router data embedded in the page
-    const dataMatch = html.match(/<script type="application\/json" data-target="react-app\.embeddedData">([\s\S]*?)<\/script>/);
-    if (dataMatch) {
+    // Try to extract file list from JSON data embedded in the page
+    // Pattern 1: Look for JSON data with file information
+    const jsonMatch = html.match(/window\.__NUXT__\s*=\s*({[\s\S]*?})\s*;?\s*<\/script>/);
+    if (jsonMatch) {
       try {
-        const jsonData = JSON.parse(dataMatch[1]);
-        const treeItems = jsonData?.payload?.tree?.items || jsonData?.payload?.tree || [];
+        const jsonData = JSON.parse(jsonMatch[1]);
+        // Navigate through the JSON structure to find files
+        const items = jsonData?.data?.files || jsonData?.files || [];
         
-        for (const item of treeItems) {
-          if (item.type === 'blob' && item.path.endsWith('.md')) {
+        for (const item of items) {
+          if (item.name?.endsWith('.md') || item.path?.endsWith('.md')) {
+            const fileName = item.name || item.path?.split('/').pop() || '';
+            const filePath = item.path || `${path}/${fileName}`;
+            
             files.push({
-              name: item.name || item.path.split('/').pop(),
-              path: item.path,
-              sha: item.oid || '',
+              name: fileName,
+              path: filePath,
+              sha: item.sha || '',
               size: item.size || 0,
               type: 'file',
-              download_url: `https://raw.githubusercontent.com/${repo}/${branch}/${item.path}`,
+              download_url: `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`,
             });
           }
         }
         
-        return files;
+        if (files.length > 0) {
+          return files;
+        }
       } catch (e) {
-        console.warn('Failed to parse embedded JSON, trying alternative method');
+        console.warn('Failed to parse Nuxt JSON, trying alternative method');
       }
     }
     
-    // Fallback: Parse HTML directly using regex patterns
-    // Look for file entries in the tree view
-    const fileLinkPattern = /href="\/[^/]+\/[^/]+\/blob\/[^/]+\/([^"]+\.md)"/g;
+    // Pattern 2: Look for API response embedded in page
+    const apiMatch = html.match(/"files"\s*:\s*(\[[\s\S]*?\])/);
+    if (apiMatch) {
+      try {
+        const filesData = JSON.parse(apiMatch[1]);
+        
+        for (const item of filesData) {
+          if (item.name?.endsWith('.md') || item.path?.endsWith('.md')) {
+            const fileName = item.name || item.path?.split('/').pop() || '';
+            const filePath = item.path || `${path}/${fileName}`;
+            
+            files.push({
+              name: fileName,
+              path: filePath,
+              sha: item.sha || '',
+              size: item.size || 0,
+              type: 'file',
+              download_url: `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`,
+            });
+          }
+        }
+        
+        if (files.length > 0) {
+          return files;
+        }
+      } catch (e) {
+        console.warn('Failed to parse files JSON, trying alternative method');
+      }
+    }
+    
+    // Pattern 3: Regex fallback - look for file links in the HTML
+    const fileLinkPattern = /href=["']([^"']*cdn\.jsdelivr\.net[^"']*)["'][^>]*>([^<]*\.md)</gi;
     let match;
     
     while ((match = fileLinkPattern.exec(html)) !== null) {
-      const filePath = match[1];
-      const fileName = filePath.split('/').pop() || '';
+      const url = match[1];
+      const fileName = match[2] || url.split('/').pop() || '';
       
-      // Avoid duplicates
-      if (!files.some(f => f.path === filePath)) {
-        files.push({
-          name: fileName,
-          path: filePath,
-          sha: '', // Not available from HTML
-          size: 0,
-          type: 'file',
-          download_url: `https://raw.githubusercontent.com/${repo}/${branch}/${filePath}`,
-        });
+      // Extract path from jsdelivr URL
+      const pathMatch = url.match(/gh\/([^@]+)@([^/]+)\/(.+)/);
+      if (pathMatch) {
+        const [, ownerRepo, , filePath] = pathMatch;
+        
+        if (!files.some(f => f.path === filePath)) {
+          files.push({
+            name: fileName,
+            path: filePath,
+            sha: '',
+            size: 0,
+            type: 'file',
+            download_url: url,
+          });
+        }
       }
     }
     
