@@ -1,7 +1,7 @@
 {
   "name": "promptflow-extension",
   "version": "0.1.0",
-  "description": "Browser-level Prompt Command System",
+  "description": "Browser-level Prompt Command System - Quick Prompt invocation in any input field",
   "scripts": {
     "clean": "rimraf dist",
     "build": "npm run clean && npm run build:copy && npm run build:bundle",
