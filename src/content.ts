@@ -67,12 +67,16 @@ async function loadPrompts(): Promise<Prompt[]> {
       const data = result['promptflow-data'] as { 
         customPrompts?: Prompt[]; 
         disabledDefaultIds?: string[];
+        syncedRepos?: SyncedRepo[];
+        syncedPrompts?: SyncedPrompt[];
         settings?: any;
       } | undefined;
       
       // Get custom prompts and disabled default IDs
       const customPrompts: Prompt[] = data?.customPrompts || [];
       const disabledDefaultIds: string[] = data?.disabledDefaultIds || [];
+      const syncedRepos: SyncedRepo[] = data?.syncedRepos || [];
+      const syncedPrompts: SyncedPrompt[] = data?.syncedPrompts || [];
       
       // Merge default prompts with custom prompts
       const allPrompts: Prompt[] = [];
@@ -87,9 +91,46 @@ async function loadPrompts(): Promise<Prompt[]> {
       // Add custom prompts that are enabled
       allPrompts.push(...customPrompts.filter(p => p.enabled !== false));
       
+      // Add synced prompts (only enabled ones from enabled repos)
+      const enabledRepoIds = new Set(
+        syncedRepos.filter(r => r.enabled).map(r => r.id)
+      );
+      
+      const enabledSyncedPrompts = syncedPrompts
+        .filter(p => 
+          enabledRepoIds.has(p.repoId) && 
+          p.enabled !== false
+        );
+      
+      allPrompts.push(...enabledSyncedPrompts);
+      
       resolve(allPrompts);
     });
   });
+}
+
+// Types for synced prompts (duplicated to avoid circular imports)
+interface SyncedRepo {
+  id: string;
+  repo: string;
+  branch: string;
+  promptsPath: string;
+  lastSyncedAt?: number;
+  enabled: boolean;
+  enabledPromptIds: string[];
+}
+
+interface SyncedPrompt {
+  id: string;
+  repoId: string;
+  title: string;
+  content: string;
+  description?: string;
+  tags: string[];
+  filePath: string;
+  createdAt: number;
+  updatedAt: number;
+  enabled?: boolean;
 }
 
 function getInputValue(input: HTMLInputElement | HTMLTextAreaElement | Element): string {

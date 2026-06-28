@@ -17,6 +17,7 @@ import {
   Popconfirm,
   Select,
   Tooltip,
+  Collapse,
 } from 'antd';
 import {
   SettingOutlined,
@@ -28,6 +29,8 @@ import {
   FileTextOutlined,
   UploadOutlined,
   DownloadOutlined,
+  GithubOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -37,9 +40,22 @@ import 'antd/dist/reset.css';
 // Import default prompts from markdown files
 import { DEFAULT_PROMPTS as defaultPromptsFromFiles } from './prompts';
 
+// Import sync types and functions
+import {
+  SyncedRepo,
+  SyncedPrompt,
+  fetchGitHubDirectory,
+  fetchGitHubFileContent,
+  parseFrontmatter,
+} from './types/sync';
+
+// Import SyncManager component
+import SyncManager from './SyncManager';
+
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+const { Panel } = Collapse;
 
 // Types
 interface Prompt {
@@ -62,6 +78,8 @@ interface PromptSettings {
 interface StorageData {
   customPrompts: Prompt[]; // Only custom prompts stored
   disabledDefaultIds?: string[]; // IDs of disabled default prompts
+  syncedRepos: SyncedRepo[];
+  syncedPrompts: SyncedPrompt[];
   settings: PromptSettings;
 }
 
@@ -91,6 +109,34 @@ const getAllPrompts = (customPrompts: Prompt[], disabledDefaultIds: string[] = [
   return [...sortedDefaults, ...sortedCustom];
 };
 
+// Get all prompts including synced prompts
+const getAllPromptsWithSync = (
+  customPrompts: Prompt[],
+  disabledDefaultIds: string[],
+  syncedRepos: SyncedRepo[],
+  syncedPrompts: SyncedPrompt[]
+): Prompt[] => {
+  // Start with default + custom prompts
+  const basePrompts = getAllPrompts(customPrompts, disabledDefaultIds);
+  
+  // Add synced prompts (only enabled ones from enabled repos)
+  const enabledRepoIds = new Set(
+    syncedRepos.filter(r => r.enabled).map(r => r.id)
+  );
+  
+  const enabledSyncedPrompts = syncedPrompts
+    .filter(p => 
+      enabledRepoIds.has(p.repoId) && 
+      p.enabled !== false
+    )
+    .map(p => ({
+      ...p,
+      isDefault: true, // Synced prompts are also read-only
+    }));
+  
+  return [...basePrompts, ...enabledSyncedPrompts];
+};
+
 // Storage helpers - only store custom prompts and disabled default IDs
 const loadData = (): Promise<StorageData> => {
   return new Promise((resolve) => {
@@ -100,12 +146,16 @@ const loadData = (): Promise<StorageData> => {
         resolve({
           customPrompts: data.customPrompts || [],
           disabledDefaultIds: data.disabledDefaultIds || [],
+          syncedRepos: data.syncedRepos || [],
+          syncedPrompts: data.syncedPrompts || [],
           settings: data.settings || { trigger: '/prompts', insertMode: 'replace' },
         });
       } else {
         resolve({
           customPrompts: [],
           disabledDefaultIds: [],
+          syncedRepos: [],
+          syncedPrompts: [],
           settings: { trigger: '/prompts', insertMode: 'replace' },
         });
       }
@@ -123,11 +173,14 @@ const saveData = (data: StorageData): Promise<void> => {
 const SettingsApp: React.FC = () => {
   const [customPrompts, setCustomPrompts] = useState<Prompt[]>([]);
   const [disabledDefaultIds, setDisabledDefaultIds] = useState<string[]>([]);
+  const [syncedRepos, setSyncedRepos] = useState<SyncedRepo[]>([]);
+  const [syncedPrompts, setSyncedPrompts] = useState<SyncedPrompt[]>([]);
   const [allPrompts, setAllPrompts] = useState<Prompt[]>([]);
   const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', insertMode: 'replace' });
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
+  const [syncManagerVisible, setSyncManagerVisible] = useState(false);
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -137,26 +190,37 @@ const SettingsApp: React.FC = () => {
     loadData().then((data) => {
       setCustomPrompts(data.customPrompts);
       setDisabledDefaultIds(data.disabledDefaultIds || []);
-      setAllPrompts(getAllPrompts(data.customPrompts, data.disabledDefaultIds || []));
+      setSyncedRepos(data.syncedRepos);
+      setSyncedPrompts(data.syncedPrompts);
+      setAllPrompts(getAllPromptsWithSync(
+        data.customPrompts,
+        data.disabledDefaultIds || [],
+        data.syncedRepos,
+        data.syncedPrompts
+      ));
       setSettings(data.settings);
       setLoading(false);
     });
   }, []);
 
-  // Update all prompts when custom prompts or disabled defaults change
+  // Update all prompts when custom prompts, disabled defaults, or synced data change
   useEffect(() => {
-    setAllPrompts(getAllPrompts(customPrompts, disabledDefaultIds));
-  }, [customPrompts, disabledDefaultIds]);
+    setAllPrompts(getAllPromptsWithSync(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts));
+  }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts]);
 
-  // Save data whenever custom prompts, disabled defaults or settings change
+  // Save data whenever custom prompts, disabled defaults, synced data or settings change
   const persistData = useCallback(async (
     newCustomPrompts: Prompt[], 
-    newDisabledDefaultIds: string[], 
+    newDisabledDefaultIds: string[],
+    newSyncedRepos: SyncedRepo[],
+    newSyncedPrompts: SyncedPrompt[],
     newSettings: PromptSettings
   ) => {
     await saveData({ 
       customPrompts: newCustomPrompts, 
       disabledDefaultIds: newDisabledDefaultIds,
+      syncedRepos: newSyncedRepos,
+      syncedPrompts: newSyncedPrompts,
       settings: newSettings 
     });
   }, []);
@@ -165,8 +229,147 @@ const SettingsApp: React.FC = () => {
   const handleSettingsChange = async (key: keyof PromptSettings, value: string) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
-    await persistData(customPrompts, disabledDefaultIds, newSettings);
+    await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, newSettings);
     messageApi.success('Settings saved');
+  };
+
+  // Sync handlers
+  const handleAddRepo = async (repoData: Omit<SyncedRepo, 'id' | 'lastSyncedAt'>): Promise<SyncedPrompt[]> => {
+    const repoId = `sync-${Date.now()}`;
+    
+    // Fetch prompts from the repo
+    const files = await fetchGitHubDirectory(repoData.repo, repoData.promptsPath, repoData.branch);
+    const mdFiles = files.filter((f: any) => f.name.endsWith('.md') && f.type === 'file');
+    
+    const newPrompts: SyncedPrompt[] = [];
+    
+    for (const file of mdFiles) {
+      try {
+        const content = await fetchGitHubFileContent(file.download_url!);
+        const { metadata, body } = parseFrontmatter(content);
+        
+        newPrompts.push({
+          id: `${repoId}-${file.name.replace('.md', '')}`,
+          repoId,
+          title: metadata.title || file.name.replace('.md', ''),
+          content: body,
+          description: metadata.description || '',
+          tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+          filePath: file.path,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          enabled: true,
+        });
+      } catch (err) {
+        console.error(`Failed to fetch ${file.path}:`, err);
+      }
+    }
+    
+    const newRepo: SyncedRepo = {
+      ...repoData,
+      id: repoId,
+      lastSyncedAt: Date.now(),
+      enabledPromptIds: newPrompts.map(p => p.id),
+    };
+    
+    const newRepos = [...syncedRepos, newRepo];
+    const newPromptsAll = [...syncedPrompts, ...newPrompts];
+    
+    setSyncedRepos(newRepos);
+    setSyncedPrompts(newPromptsAll);
+    await persistData(customPrompts, disabledDefaultIds, newRepos, newPromptsAll, settings);
+    
+    return newPrompts;
+  };
+
+  const handleRemoveRepo = (repoId: string) => {
+    const newRepos = syncedRepos.filter(r => r.id !== repoId);
+    const newPrompts = syncedPrompts.filter(p => p.repoId !== repoId);
+    
+    setSyncedRepos(newRepos);
+    setSyncedPrompts(newPrompts);
+    persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings);
+  };
+
+  const handleSyncRepo = async (repoId: string): Promise<SyncedPrompt[]> => {
+    const repo = syncedRepos.find(r => r.id === repoId);
+    if (!repo) return [];
+    
+    // Fetch prompts from the repo
+    const files = await fetchGitHubDirectory(repo.repo, repo.promptsPath, repo.branch);
+    const mdFiles = files.filter((f: any) => f.name.endsWith('.md') && f.type === 'file');
+    
+    const newPrompts: SyncedPrompt[] = [];
+    
+    for (const file of mdFiles) {
+      try {
+        const content = await fetchGitHubFileContent(file.download_url!);
+        const { metadata, body } = parseFrontmatter(content);
+        
+        newPrompts.push({
+          id: `${repoId}-${file.name.replace('.md', '')}`,
+          repoId,
+          title: metadata.title || file.name.replace('.md', ''),
+          content: body,
+          description: metadata.description || '',
+          tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+          filePath: file.path,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          enabled: true,
+        });
+      } catch (err) {
+        console.error(`Failed to fetch ${file.path}:`, err);
+      }
+    }
+    
+    // Update repo with new lastSyncedAt
+    const updatedRepo = { ...repo, lastSyncedAt: Date.now() };
+    const newRepos = syncedRepos.map(r => r.id === repoId ? updatedRepo : r);
+    
+    // Replace old prompts from this repo with new ones
+    const otherPrompts = syncedPrompts.filter(p => p.repoId !== repoId);
+    const newPromptsAll = [...otherPrompts, ...newPrompts];
+    
+    setSyncedRepos(newRepos);
+    setSyncedPrompts(newPromptsAll);
+    await persistData(customPrompts, disabledDefaultIds, newRepos, newPromptsAll, settings);
+    
+    return newPrompts;
+  };
+
+  const handleToggleRepo = (repoId: string, enabled: boolean) => {
+    const newRepos = syncedRepos.map(r => 
+      r.id === repoId ? { ...r, enabled } : r
+    );
+    setSyncedRepos(newRepos);
+    persistData(customPrompts, disabledDefaultIds, newRepos, syncedPrompts, settings);
+  };
+
+  const handleToggleSyncedPrompt = (promptId: string, enabled: boolean) => {
+    const newPrompts = syncedPrompts.map(p => 
+      p.id === promptId ? { ...p, enabled } : p
+    );
+    
+    // Update enabledPromptIds in the repo
+    const prompt = syncedPrompts.find(p => p.id === promptId);
+    if (prompt) {
+      const newRepos = syncedRepos.map(r => {
+        if (r.id === prompt.repoId) {
+          if (enabled) {
+            return { ...r, enabledPromptIds: [...r.enabledPromptIds, promptId] };
+          } else {
+            return { ...r, enabledPromptIds: r.enabledPromptIds.filter(id => id !== promptId) };
+          }
+        }
+        return r;
+      });
+      setSyncedRepos(newRepos);
+      persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings);
+    } else {
+      setSyncedPrompts(newPrompts);
+      persistData(customPrompts, disabledDefaultIds, syncedRepos, newPrompts, settings);
+    }
   };
 
   // Export prompts to JSON file (custom prompts only, default prompts are always loaded from files)
@@ -241,7 +444,7 @@ const SettingsApp: React.FC = () => {
             
             setCustomPrompts(newCustomPrompts);
             setDisabledDefaultIds(newDisabledDefaults);
-            await persistData(newCustomPrompts, newDisabledDefaults, settings);
+            await persistData(newCustomPrompts, newDisabledDefaults, syncedRepos, syncedPrompts, settings);
             messageApi.success(`Imported ${validCustomPrompts.length} prompts, ${newDisabledDefaults.length} disabled defaults`);
           },
         });
@@ -307,7 +510,7 @@ const SettingsApp: React.FC = () => {
     }
 
     setCustomPrompts(newCustomPrompts);
-    await persistData(newCustomPrompts, disabledDefaultIds, settings);
+    await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
     setModalVisible(false);
     form.resetFields();
   };
@@ -323,7 +526,7 @@ const SettingsApp: React.FC = () => {
     
     const newCustomPrompts = customPrompts.filter((p) => p.id !== id);
     setCustomPrompts(newCustomPrompts);
-    await persistData(newCustomPrompts, disabledDefaultIds, settings);
+    await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
     messageApi.success('Prompt deleted');
   };
 
@@ -341,14 +544,17 @@ const SettingsApp: React.FC = () => {
         newDisabledDefaultIds = [...disabledDefaultIds, id];
       }
       setDisabledDefaultIds(newDisabledDefaultIds);
-      await persistData(customPrompts, newDisabledDefaultIds, settings);
+      await persistData(customPrompts, newDisabledDefaultIds, syncedRepos, syncedPrompts, settings);
+    } else if (id.startsWith('sync-')) {
+      // Synced prompt - delegate to handleToggleSyncedPrompt
+      handleToggleSyncedPrompt(id, enabled);
     } else {
       // Update custom prompts
       const newCustomPrompts = customPrompts.map((p) =>
         p.id === id ? { ...p, enabled } : p
       );
       setCustomPrompts(newCustomPrompts);
-      await persistData(newCustomPrompts, disabledDefaultIds, settings);
+      await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
     }
     messageApi.success(enabled ? 'Prompt enabled' : 'Prompt disabled');
   };
@@ -357,7 +563,7 @@ const SettingsApp: React.FC = () => {
   const handleReset = async () => {
     setCustomPrompts([]);
     setDisabledDefaultIds([]);
-    await persistData([], [], settings);
+    await persistData([], [], syncedRepos, syncedPrompts, settings);
     messageApi.success('Prompts reset to defaults');
   };
 
@@ -370,7 +576,8 @@ const SettingsApp: React.FC = () => {
       render: (title: string, record) => (
         <Space>
           <Text strong>{title}</Text>
-          {record.isDefault && <Tag color="blue">Default</Tag>}
+          {record.isDefault && !record.id.startsWith('sync-') && <Tag color="blue">Default</Tag>}
+          {record.id.startsWith('sync-') && <Tag color="purple">Synced</Tag>}
         </Space>
       ),
     },
@@ -408,31 +615,34 @@ const SettingsApp: React.FC = () => {
       title: 'Actions',
       key: 'actions',
       width: 150,
-      render: (_, record) => (
-        <Space>
-          <Tooltip title={record.isDefault ? 'Default prompts cannot be edited' : 'Edit'}>
-            <Button 
-              type="text" 
-              icon={<EditOutlined />} 
-              onClick={() => openModal(record)}
-              disabled={record.isDefault}
-            />
-          </Tooltip>
-          <Tooltip title={record.isDefault ? 'Default prompts cannot be deleted' : 'Delete'}>
-            <Popconfirm
-              title="Delete this prompt?"
-              description="This action cannot be undone."
-              onConfirm={() => handleDelete(record.id)}
-              okText="Delete"
-              cancelText="Cancel"
-              okButtonProps={{ danger: true }}
-              disabled={record.isDefault}
-            >
-              <Button type="text" danger icon={<DeleteOutlined />} disabled={record.isDefault} />
-            </Popconfirm>
-          </Tooltip>
-        </Space>
-      ),
+      render: (_, record) => {
+        const isReadOnly = record.isDefault || record.id.startsWith('sync-');
+        return (
+          <Space>
+            <Tooltip title={isReadOnly ? 'This prompt cannot be edited' : 'Edit'}>
+              <Button 
+                type="text" 
+                icon={<EditOutlined />} 
+                onClick={() => openModal(record)}
+                disabled={isReadOnly}
+              />
+            </Tooltip>
+            <Tooltip title={isReadOnly ? 'This prompt cannot be deleted' : 'Delete'}>
+              <Popconfirm
+                title="Delete this prompt?"
+                description="This action cannot be undone."
+                onConfirm={() => handleDelete(record.id)}
+                okText="Delete"
+                cancelText="Cancel"
+                okButtonProps={{ danger: true }}
+                disabled={isReadOnly}
+              >
+                <Button type="text" danger icon={<DeleteOutlined />} disabled={isReadOnly} />
+              </Popconfirm>
+            </Tooltip>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -474,6 +684,9 @@ const SettingsApp: React.FC = () => {
             title={<Space><FileTextOutlined />Prompts ({allPrompts.length})</Space>}
             extra={
               <Space>
+                <Button icon={<SyncOutlined />} onClick={() => setSyncManagerVisible(true)}>
+                  Sync from GitHub {syncedRepos.length > 0 && `(${syncedRepos.length})`}
+                </Button>
                 <Button icon={<UploadOutlined />} onClick={handleExport}>Export</Button>
                 <Button icon={<DownloadOutlined />} onClick={() => fileInputRef.current?.click()}>Import</Button>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>Add Prompt</Button>
@@ -483,6 +696,33 @@ const SettingsApp: React.FC = () => {
           >
             <Table columns={columns} dataSource={allPrompts} rowKey="id" pagination={false} loading={loading} size="middle" />
           </Card>
+
+          {/* Synced repos info */}
+          {syncedRepos.length > 0 && (
+            <Card style={{ marginBottom: 24, background: '#f8f5ff' }}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text strong><GithubOutlined /> Synced from GitHub</Text>
+                {syncedRepos.map(repo => (
+                  <Space key={repo.id}>
+                    <Tag color={repo.enabled ? 'green' : 'default'}>
+                      {repo.enabled ? 'Active' : 'Disabled'}
+                    </Tag>
+                    <Text>{repo.repo}</Text>
+                    <Text type="secondary">• {repo.branch}</Text>
+                    <Text type="secondary">• Last sync: {repo.lastSyncedAt ? new Date(repo.lastSyncedAt).toLocaleString() : 'Never'}</Text>
+                    <Button 
+                      type="link" 
+                      size="small" 
+                      icon={<SyncOutlined />} 
+                      onClick={() => handleSyncRepo(repo.id)}
+                    >
+                      Sync
+                    </Button>
+                  </Space>
+                ))}
+              </Space>
+            </Card>
+          )}
 
           <Card title={<Text type="danger"><SettingOutlined /> Danger Zone</Text>} style={{ borderColor: '#ff4d4f' }}>
             <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
@@ -529,6 +769,19 @@ const SettingsApp: React.FC = () => {
             </Form.Item>
           </Form>
         </Modal>
+
+        {/* Sync Manager Modal */}
+        <SyncManager
+          open={syncManagerVisible}
+          onClose={() => setSyncManagerVisible(false)}
+          repos={syncedRepos}
+          prompts={syncedPrompts}
+          onAddRepo={handleAddRepo}
+          onRemoveRepo={handleRemoveRepo}
+          onSyncRepo={handleSyncRepo}
+          onToggleRepo={handleToggleRepo}
+          onTogglePrompt={handleToggleSyncedPrompt}
+        />
       </Layout>
     </ConfigProvider>
   );
