@@ -41,7 +41,7 @@
 }
 
 #promptflow-search::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(0, 0, 0, 0.4);
 }
 
 #promptflow-list {
@@ -71,7 +71,7 @@
 
 /* Dark theme (default) */
 .prompt-item {
-  padding: 12px;
+  padding: 8px;
   border-radius: 8px;
   cursor: pointer;
   margin-bottom: 4px;

@@ -400,6 +400,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
     align-items: center;
     font-size: 12px;
     color: ${colors.textSecondary};
+    border-top: 1px solid ${colors.border};
   `;
   footer.innerHTML = `
     <div style="display: flex; gap: 16px;">
