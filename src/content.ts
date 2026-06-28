@@ -634,9 +634,9 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
 function closePanel(restoreFocus: boolean = true): void {
   if (!state.isPanelOpen) return;
 
-  // Store input and position before closing
+  // Store input and actual caret position before closing
   const previousInput = state.currentInput;
-  const previousPosition = state.triggerStartPosition;
+  const previousPosition = state.caretPosition;
 
   state.isPanelOpen = false;
   state.currentInput = null;
@@ -649,7 +649,7 @@ function closePanel(restoreFocus: boolean = true): void {
     panelContainer = null;
   }
 
-  // Restore focus to the input and set cursor position
+  // Restore focus to the input and set cursor position to where it was
   if (restoreFocus && previousInput) {
     previousInput.focus();
     setCaretPosition(previousInput, previousPosition);
