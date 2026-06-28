@@ -602,7 +602,10 @@ function selectPrompt(prompt: Prompt): void {
   // For textarea, directly set value and selection synchronously
   if (state.currentInput instanceof HTMLTextAreaElement) {
     const textarea = state.currentInput;
+    console.log('[PromptFlow] newValue:', JSON.stringify(newValue));
+    console.log('[PromptFlow] selectionStart:', selectionStart, 'selectionEnd:', selectionEnd);
     textarea.value = newValue;
+    console.log('[PromptFlow] After set value, textarea.value length:', textarea.value.length);
     // Focus first
     textarea.focus();
     // Then set selection range
@@ -614,6 +617,7 @@ function selectPrompt(prompt: Prompt): void {
     // Double-check selection is set after closePanel
     textarea.setSelectionRange(selectionStart, selectionEnd);
     console.log('[PromptFlow] After double-check - Selection:', textarea.selectionStart, '-', textarea.selectionEnd);
+    console.log('[PromptFlow] Final textarea.value:', JSON.stringify(textarea.value));
     return;
   }
   
