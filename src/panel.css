@@ -257,12 +257,12 @@
 }
 
 #promptflow-panel.dark .prompt-item-description {
-  color: #888;
+  color: #bababa;
 }
 
 #promptflow-panel.dark .prompt-tag {
   background: rgba(255, 255, 255, 0.1);
-  color: #6b7280;
+  color: #a1a1a1;
 }
 
 #promptflow-panel.dark .empty-state {
