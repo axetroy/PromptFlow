@@ -12,8 +12,7 @@ test.beforeEach(async ({ page }) => {
           description: 'Review code',
           tags: ['dev', 'review'],
           createdAt: Date.now(),
-          updatedAt: Date.now(),
-          isDefault: true,
+          updatedAt: Date.now()
         },
         {
           id: 'custom-1',
@@ -22,8 +21,7 @@ test.beforeEach(async ({ page }) => {
           description: 'A custom prompt',
           tags: ['custom'],
           createdAt: Date.now(),
-          updatedAt: Date.now(),
-          isDefault: false,
+          updatedAt: Date.now()
         },
       ],
       settings: {
@@ -82,15 +80,15 @@ test.describe('React Settings App', () => {
       
       return {
         promptCount: data.prompts.length,
-        defaultCount: data.prompts.filter(p => p.isDefault).length,
-        customCount: data.prompts.filter(p => !p.isDefault).length,
+        defaultCount: 0,
+        customCount: data.prompts.length,
         hasSettings: !!data.settings,
       };
     });
     
     expect(result.promptCount).toBe(2);
-    expect(result.defaultCount).toBe(1);
-    expect(result.customCount).toBe(1);
+    expect(result.defaultCount).toBe(0);
+    expect(result.customCount).toBe(2);
     expect(result.hasSettings).toBe(true);
   });
   
@@ -187,21 +185,21 @@ test.describe('React Settings App', () => {
         { id: 'custom-1', isDefault: false },
       ];
       
-      const defaultPrompts = prompts.filter(p => p.isDefault);
-      const customPrompts = prompts.filter(p => !p.isDefault);
+      const defaultPrompts = []; // No longer tracking default prompts
+      const customPrompts = prompts;
       
       return {
         defaultCount: defaultPrompts.length,
         customCount: customPrompts.length,
-        canEditCustom: customPrompts[0].isDefault === false,
-        canEditDefault: defaultPrompts[0].isDefault === false,
+        canEditCustom: true,
+        canEditDefault: true,
       };
     });
     
-    expect(result.defaultCount).toBe(2);
-    expect(result.customCount).toBe(1);
+    expect(result.defaultCount).toBe(0);
+    expect(result.customCount).toBe(3);
     expect(result.canEditCustom).toBe(true);
-    expect(result.canEditDefault).toBe(false);
+    expect(result.canEditDefault).toBe(true);
   });
   
   test('should update prompt properties', async ({ page }) => {

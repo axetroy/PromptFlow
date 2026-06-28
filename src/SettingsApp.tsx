@@ -46,8 +46,7 @@ interface Prompt {
   tags: string[];
   createdAt: number;
   updatedAt: number;
-  isDefault?: boolean;
-}
+  }
 
 interface PromptSettings {
   trigger: string;
@@ -68,8 +67,7 @@ const getDefaultPrompts = (): Prompt[] => [
     description: 'Review code and provide improvement suggestions',
     tags: ['dev', 'review', 'code'],
     createdAt: Date.now(),
-    updatedAt: Date.now(),
-    isDefault: true,
+    updatedAt: Date.now()
   },
   {
     id: '2',
@@ -78,8 +76,7 @@ const getDefaultPrompts = (): Prompt[] => [
     description: 'Get detailed explanation of any code',
     tags: ['dev', 'explanation', 'learning'],
     createdAt: Date.now(),
-    updatedAt: Date.now(),
-    isDefault: true,
+    updatedAt: Date.now()
   },
   {
     id: '3',
@@ -88,8 +85,7 @@ const getDefaultPrompts = (): Prompt[] => [
     description: 'Debug and fix code issues',
     tags: ['dev', 'debug', 'fix'],
     createdAt: Date.now(),
-    updatedAt: Date.now(),
-    isDefault: true,
+    updatedAt: Date.now()
   },
   {
     id: '4',
@@ -98,8 +94,7 @@ const getDefaultPrompts = (): Prompt[] => [
     description: 'Generate test cases for code',
     tags: ['dev', 'testing', 'quality'],
     createdAt: Date.now(),
-    updatedAt: Date.now(),
-    isDefault: true,
+    updatedAt: Date.now()
   },
   {
     id: '5',
@@ -108,8 +103,7 @@ const getDefaultPrompts = (): Prompt[] => [
     description: 'Improve code structure and quality',
     tags: ['dev', 'refactor', 'cleanup'],
     createdAt: Date.now(),
-    updatedAt: Date.now(),
-    isDefault: true,
+    updatedAt: Date.now()
   },
 ];
 
@@ -331,7 +325,7 @@ const SettingsApp: React.FC = () => {
       render: (title: string, record) => (
         <Space>
           <Text strong>{title}</Text>
-          {record.isDefault && <Tag color="blue">Default</Tag>}
+          
         </Space>
       ),
     },
@@ -358,10 +352,10 @@ const SettingsApp: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <Space>
-          <Tooltip title={record.isDefault ? 'Default prompts cannot be edited' : 'Edit'}>
-            <Button type="text" icon={<EditOutlined />} disabled={record.isDefault} onClick={() => openModal(record)} />
+          <Tooltip title='Edit'>
+            <Button type="text" icon={<EditOutlined />} onClick={() => openModal(record)} />
           </Tooltip>
-          <Tooltip title={record.isDefault ? 'Default prompts cannot be deleted' : 'Delete'}>
+          <Tooltip title='Delete'>
             <Popconfirm
               title="Delete this prompt?"
               description="This action cannot be undone."
@@ -369,9 +363,9 @@ const SettingsApp: React.FC = () => {
               okText="Delete"
               cancelText="Cancel"
               okButtonProps={{ danger: true }}
-              disabled={record.isDefault}
+              
             >
-              <Button type="text" danger icon={<DeleteOutlined />} disabled={record.isDefault} />
+              <Button type="text" danger icon={<DeleteOutlined />}  />
             </Popconfirm>
           </Tooltip>
         </Space>
