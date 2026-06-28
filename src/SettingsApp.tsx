@@ -31,6 +31,7 @@ import {
   DownloadOutlined,
   GithubOutlined,
   SyncOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -175,6 +176,7 @@ const SettingsApp: React.FC = () => {
   const [disabledDefaultIds, setDisabledDefaultIds] = useState<string[]>([]);
   const [syncedRepos, setSyncedRepos] = useState<SyncedRepo[]>([]);
   const [syncedPrompts, setSyncedPrompts] = useState<SyncedPrompt[]>([]);
+  const [syncingMap, setSyncingMap] = useState<Record<string, boolean>>({});
   const [allPrompts, setAllPrompts] = useState<Prompt[]>([]);
   const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', insertMode: 'replace' });
   const [loading, setLoading] = useState(true);
@@ -296,54 +298,64 @@ const SettingsApp: React.FC = () => {
   };
 
   const handleSyncRepo = async (repoId: string): Promise<SyncedPrompt[]> => {
-    const repo = syncedRepos.find(r => r.id === repoId);
-    if (!repo) return [];
-    
-    // Fetch prompts from the repo (scraping GitHub page)
-    const mdFiles = await fetchGitHubDirectory(repo.repo, repo.promptsPath, repo.branch);
-    
-    if (mdFiles.length === 0) {
-      messageApi.warning(`No markdown files found at ${repo.promptsPath}`);
-      return [];
-    }
-    
-    const newPrompts: SyncedPrompt[] = [];
-    
-    for (const file of mdFiles) {
-      try {
-        const content = await fetchGitHubFileContent(repo.repo, file.path, repo.branch);
-        const { metadata, body } = parseFrontmatter(content);
-        
-        newPrompts.push({
-          id: `${repoId}-${file.name.replace('.md', '')}`,
-          repoId,
-          title: metadata.title || file.name.replace('.md', ''),
-          content: body,
-          description: metadata.description || '',
-          tags: Array.isArray(metadata.tags) ? metadata.tags : [],
-          filePath: file.path,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          enabled: true,
-        });
-      } catch (err) {
-        console.error(`Failed to fetch ${file.path}:`, err);
+    setSyncingMap(prev => ({ ...prev, [repoId]: true }));
+
+    try {
+      const repo = syncedRepos.find(r => r.id === repoId);
+      if (!repo) return [];
+      
+      // Fetch prompts from the repo (scraping GitHub page)
+      const mdFiles = await fetchGitHubDirectory(repo.repo, repo.promptsPath, repo.branch);
+      
+      if (mdFiles.length === 0) {
+        messageApi.warning(`No markdown files found at ${repo.promptsPath}`);
+        return [];
       }
+      
+      const newPrompts: SyncedPrompt[] = [];
+      
+      for (const file of mdFiles) {
+        try {
+          const content = await fetchGitHubFileContent(repo.repo, file.path, repo.branch);
+          const { metadata, body } = parseFrontmatter(content);
+          
+          newPrompts.push({
+            id: `${repoId}-${file.name.replace('.md', '')}`,
+            repoId,
+            title: metadata.title || file.name.replace('.md', ''),
+            content: body,
+            description: metadata.description || '',
+            tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+            filePath: file.path,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            enabled: true,
+          });
+        } catch (err) {
+          console.error(`Failed to fetch ${file.path}:`, err);
+        }
+      }
+      
+      // Update repo with new lastSyncedAt
+      const updatedRepo = { ...repo, lastSyncedAt: Date.now() };
+      const newRepos = syncedRepos.map(r => r.id === repoId ? updatedRepo : r);
+      
+      // Replace old prompts from this repo with new ones
+      const otherPrompts = syncedPrompts.filter(p => p.repoId !== repoId);
+      const newPromptsAll = [...otherPrompts, ...newPrompts];
+      
+      setSyncedRepos(newRepos);
+      setSyncedPrompts(newPromptsAll);
+      await persistData(customPrompts, disabledDefaultIds, newRepos, newPromptsAll, settings);
+      
+      return newPrompts;
+    } finally {
+      setSyncingMap(prev => {
+        const newMap = { ...prev };
+        delete newMap[repoId];
+        return newMap;
+      });
     }
-    
-    // Update repo with new lastSyncedAt
-    const updatedRepo = { ...repo, lastSyncedAt: Date.now() };
-    const newRepos = syncedRepos.map(r => r.id === repoId ? updatedRepo : r);
-    
-    // Replace old prompts from this repo with new ones
-    const otherPrompts = syncedPrompts.filter(p => p.repoId !== repoId);
-    const newPromptsAll = [...otherPrompts, ...newPrompts];
-    
-    setSyncedRepos(newRepos);
-    setSyncedPrompts(newPromptsAll);
-    await persistData(customPrompts, disabledDefaultIds, newRepos, newPromptsAll, settings);
-    
-    return newPrompts;
   };
 
   const handleToggleRepo = (repoId: string, enabled: boolean) => {
@@ -722,8 +734,9 @@ const SettingsApp: React.FC = () => {
                     <Button 
                       type="link" 
                       size="small" 
-                      icon={<SyncOutlined />} 
+                      icon={!!syncingMap[repo.id] ? <LoadingOutlined /> : <SyncOutlined spin={!syncingMap[repo.id]} />}
                       onClick={() => handleSyncRepo(repo.id)}
+                      loading={!!syncingMap[repo.id]}
                     >
                       Sync
                     </Button>
