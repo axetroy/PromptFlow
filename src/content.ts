@@ -246,24 +246,28 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
   // Check that the trigger is complete (no partial matches like /pa for /p)
   const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
   
-  // Only allow if:
-  // 1. Nothing after trigger (cursor is right after trigger)
-  // 2. Space/newline after trigger (trigger is a complete word)
-  if (textAfterTrigger.length > 0) {
-    const nextChar = textAfterTrigger[0];
-    // If there's a non-whitespace character after, it's a partial match - don't trigger
-    if (!/\s/.test(nextChar)) {
+  // CRITICAL: The cursor must be IMMEDIATELY after the trigger
+  // Examples:
+  // - "/prompts" with cursor at 8 → MATCH (cursor right after trigger)
+  // - "/prompts " with cursor at 9 → NO MATCH (space between trigger end and cursor)
+  // - "/prompts a" with cursor at 10 → NO MATCH (character 'a' after trigger)
+  
+  const triggerEndPosition = lastIndex + trigger.length;
+  
+  // If cursor is past the trigger, check what's between them
+  if (textBeforeCaret.length > triggerEndPosition) {
+    // There's text between trigger end and cursor
+    // If there's ANY whitespace there, the cursor is not at the trigger
+    const textBetween = textBeforeCaret.substring(triggerEndPosition);
+    if (textBetween.trim().length > 0) {
+      // Non-whitespace content between trigger and cursor - partial match
       return -1;
     }
+    // There's whitespace between trigger and cursor - cursor is not at trigger
+    return -1;
   }
-
-  const remainingText = inputValue.substring(lastIndex);
-  const nextSpace = remainingText.indexOf(' ');
-  const nextNewline = remainingText.indexOf('\n');
-  const endOfTrigger = nextSpace === -1 ? remainingText.length :
-                       nextNewline === -1 ? remainingText.length :
-                       Math.min(nextSpace, nextNewline);
-
+  
+  // Cursor is at or before trigger end - this is a match
   return lastIndex;
 }
 
