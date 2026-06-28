@@ -631,18 +631,28 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
   window.addEventListener('resize', debouncedPositionPanel);
 }
 
-function closePanel(): void {
+function closePanel(restoreFocus: boolean = true): void {
   if (!state.isPanelOpen) return;
-  
+
+  // Store input and position before closing
+  const previousInput = state.currentInput;
+  const previousPosition = state.triggerStartPosition;
+
   state.isPanelOpen = false;
   state.currentInput = null;
-  
+
   document.removeEventListener('scroll', debouncedPositionPanel, true);
   window.removeEventListener('resize', debouncedPositionPanel);
-  
+
   if (panelContainer) {
     panelContainer.remove();
     panelContainer = null;
+  }
+
+  // Restore focus to the input and set cursor position
+  if (restoreFocus && previousInput) {
+    previousInput.focus();
+    setCaretPosition(previousInput, previousPosition);
   }
 }
 
