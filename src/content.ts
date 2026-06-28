@@ -338,14 +338,37 @@ function selectPrompt(prompt: Prompt): void {
     const newPosition = state.triggerStartPosition + prompt.content.length;
     setCaretPosition(state.currentInput, newPosition);
   } else if (state.currentInput.hasAttribute('contenteditable')) {
-    state.currentInput.textContent = newValue;
-    
-    // Move cursor to end of inserted text
-    const newPosition = state.triggerStartPosition + prompt.content.length;
-    setCaretPosition(state.currentInput, newPosition);
+    // For contenteditable elements, we need to properly handle newlines
+    // by inserting <br> tags instead of just setting textContent
+    insertContentWithNewlines(state.currentInput, newValue, state.triggerStartPosition, prompt.content.length);
   }
   
   closePanel();
+}
+
+/**
+ * Insert content into contenteditable element, properly handling newlines
+ */
+function insertContentWithNewlines(element: Element, newValue: string, startPos: number, contentLength: number): void {
+  // Clear the element
+  element.textContent = '';
+  
+  // Insert the new content with proper newline handling
+  const lines = newValue.split('\n');
+  
+  for (let i = 0; i < lines.length; i++) {
+    if (i > 0) {
+      // Insert <br> for newlines between lines
+      element.appendChild(document.createElement('br'));
+    }
+    
+    if (lines[i].length > 0) {
+      element.appendChild(document.createTextNode(lines[i]));
+    }
+  }
+  
+  // Move cursor to end of inserted text
+  setCaretPosition(element, startPos + contentLength);
 }
 
 function positionPanel(): void {
