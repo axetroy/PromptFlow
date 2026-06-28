@@ -349,28 +349,6 @@ function createPanel(): HTMLElement {
 }
 
 async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): Promise<void> {
-  // Use system theme as default, default to light theme
-  const isDark = (theme || getCurrentTheme()) === 'dark';
-
-  const colors = isDark ? {
-    bg: 'rgba(30, 30, 30, 0.95)',
-    border: '#3a3a3a',
-    inputBg: 'rgba(42, 42, 42, 0.9)',
-    inputBorder: '#3a3a3a',
-    text: '#ffffff',
-    textSecondary: '#a0a0a0',
-    hover: '#333333',
-    selected: '#262626',
-  } : {
-    bg: 'rgba(255, 255, 255, 0.98)',
-    border: '#e0e0e0',
-    inputBg: 'rgba(255, 255, 255, 0.95)',
-    inputBorder: '#d0d0d0',
-    text: '#1a1a1a',
-    textSecondary: '#666666',
-    hover: '#f5f5f5',
-    selected: '#e8e8e8',
-  };
   // Create shadow DOM for style isolation
   const shadow = container.attachShadow({ mode: 'open' });
   
@@ -380,61 +358,37 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   linkEl.href = chrome.runtime.getURL('panel.css');
   shadow.appendChild(linkEl);
   
-  // Create panel container
+  // Create panel container with theme class
   const panelWrapper = document.createElement('div');
   panelWrapper.id = 'promptflow-panel';
-  panelWrapper.style.cssText = `
-    background: ${colors.bg};
-    border: 1px solid ${colors.border};
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    width: 400px;
-    max-height: 500px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  `;
+  const currentTheme = theme || getCurrentTheme();
+  if (currentTheme === 'light') {
+    panelWrapper.classList.add('light');
+  }
   shadow.appendChild(panelWrapper);
   
   // Create search input
   const searchContainer = document.createElement('div');
   searchContainer.style.cssText = `
     padding: 12px;
-    border-bottom: 1px solid ${colors.border};
+    border-bottom: 1px solid transparent;
   `;
   
   const searchInput = document.createElement('input');
   searchInput.type = 'text';
   searchInput.placeholder = 'Search prompts...';
   searchInput.id = 'promptflow-search';
-  searchInput.style.cssText = `
-    background: ${isDark ? '#2a2a2a' : '#f0f0f0'};
-  `;
   searchContainer.appendChild(searchInput);
   panelWrapper.appendChild(searchContainer);
   
   // Create prompt list
   const listContainer = document.createElement('div');
   listContainer.id = 'promptflow-list';
-  listContainer.style.cssText = `
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  `;
   panelWrapper.appendChild(listContainer);
   
   // Create footer
   const footer = document.createElement('div');
-  footer.style.cssText = `
-    padding: 10px 12px;
-    border-top: 1px solid ${'rgba(255, 255, 255, 0.08)'};
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: ${colors.textSecondary};
-    border-top: 1px solid ${colors.border};
-  `;
+  footer.id = 'promptflow-footer';
   footer.innerHTML = `
     <div class="footer-hint">
       <span class="footer-key">↑↓</span> Navigate
@@ -453,9 +407,6 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   
   // Settings button click handler
   const settingsBtn = shadow.getElementById('promptflow-settings-btn');
-  if (settingsBtn && !isDark) {
-    settingsBtn.classList.add('light');
-  }
   if (settingsBtn) {
     settingsBtn.addEventListener('click', () => {
       closePanel();
@@ -467,8 +418,6 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
         window.open(chrome.runtime.getURL('settings.html'), '_blank');
       }
     });
-    
-    
   }
   
   // Load prompts and render
@@ -493,17 +442,14 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
 }
 
 function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light' | 'dark'): void {
-  const isDark = theme !== 'light';
   const listContainer = shadow.getElementById('promptflow-list');
   if (!listContainer) return;
   
   listContainer.innerHTML = '';
-
-  const themeClass = isDark ? '' : ' light';
   
   if (prompts.length === 0) {
     listContainer.innerHTML = `
-      <div class="empty-state${themeClass}">
+      <div class="empty-state">
         No prompts found
       </div>
     `;
@@ -512,14 +458,13 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light'
   
   prompts.forEach((prompt, index) => {
     const item = document.createElement('div');
-    const selectedClass = index === state.selectedIndex ? ' selected' : '';
-    item.className = 'prompt-item' + selectedClass + themeClass;
+    item.className = 'prompt-item' + (index === state.selectedIndex ? ' selected' : '');
     
     item.innerHTML = `
-      <div class="prompt-item-title${themeClass}">
+      <div class="prompt-item-title">
         ${escapeHtml(prompt.title)}
       </div>
-      <div class="prompt-item-description${themeClass}">
+      <div class="prompt-item-description">
         ${escapeHtml(prompt.description || '')}
       </div>
       <div class="prompt-item-tags">
@@ -539,16 +484,14 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light'
   });
 }
 
-function updateSelection(shadow: ShadowRoot, index: number, theme?: 'light' | 'dark'): void {
-  const isDark = theme !== 'light';
-  const themeClass = isDark ? '' : ' light';
+function updateSelection(shadow: ShadowRoot, index: number): void {
   const items = shadow.querySelectorAll('#promptflow-list > .prompt-item');
   items.forEach((item, i) => {
     const el = item as HTMLElement;
     if (i === index) {
-      el.className = 'prompt-item selected' + themeClass;
+      el.classList.add('selected');
     } else {
-      el.className = 'prompt-item' + themeClass;
+      el.classList.remove('selected');
     }
   });
 }
