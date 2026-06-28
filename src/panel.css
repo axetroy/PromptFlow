@@ -81,11 +81,11 @@
 }
 
 .prompt-item:hover {
-  background: #2d2d2d;
+  background: #e0e0e0;
 }
 
 .prompt-item.selected {
-  background: #2d2d2d;
+  background: #e0e0e0;
 }
 
 .prompt-item-title {
@@ -185,11 +185,11 @@
   justify-content: center;
   padding: 2px 6px;
   min-width: 24px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 4px;
   font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(0, 0, 0, 0.7);
 }
 
 .empty-state {
