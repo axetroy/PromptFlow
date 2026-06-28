@@ -169,12 +169,16 @@ const SettingsApp: React.FC = () => {
     messageApi.success('Settings saved');
   };
 
-  // Export prompts to JSON file
+  // Export prompts to JSON file (custom prompts only, default prompts are always loaded from files)
   const handleExport = () => {
+    // Filter out default prompts (only export custom prompts)
+    const customPromptsOnly = customPrompts.filter(p => !p.isDefault);
+    
     const exportData = {
-      version: '1.0',
+      version: '2.0',
       exportedAt: new Date().toISOString(),
-      prompts: allPrompts,
+      prompts: customPromptsOnly,
+      disabledDefaultIds: disabledDefaultIds,
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -185,7 +189,7 @@ const SettingsApp: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    messageApi.success(`Exported ${allPrompts.length} prompts`);
+    messageApi.success(`Exported ${customPromptsOnly.length} custom prompts (${disabledDefaultIds.length} disabled defaults)`);
   };
 
   // Import prompts from JSON file
@@ -205,43 +209,40 @@ const SettingsApp: React.FC = () => {
         }
 
         // Filter out default prompts (they are always loaded from files)
-        // Only import custom prompts
+        // Only import custom prompts (id starts with 'custom-')
         const validCustomPrompts = importData.prompts.filter((p: any) => 
           p.id && p.title && p.content && p.id.startsWith('custom-')
         );
 
-        if (validCustomPrompts.length === 0) {
-          messageApi.error('No valid custom prompts found in file (default prompts are always loaded from files)');
+        // Get disabled default IDs from import
+        const importedDisabledDefaults = Array.isArray(importData.disabledDefaultIds) 
+          ? importData.disabledDefaultIds 
+          : [];
+
+        if (validCustomPrompts.length === 0 && importedDisabledDefaults.length === 0) {
+          messageApi.error('No valid custom prompts or disabled defaults found in file');
           return;
         }
 
         Modal.confirm({
-          title: 'Import Custom Prompts',
-          content: `Found ${validCustomPrompts.length} custom prompts. How would you like to import them?`,
-          okText: 'Merge',
+          title: 'Import Settings',
+          content: `Found ${validCustomPrompts.length} custom prompts and ${importedDisabledDefaults.length} disabled defaults. How would you like to import?`,
+          okText: 'Import',
           cancelText: 'Cancel',
           onOk: async () => {
-            // Merge with existing custom prompts (avoid duplicates by id)
+            // Merge custom prompts (avoid duplicates by id)
             const existingIds = new Set(customPrompts.map(p => p.id));
             const newCustomPrompts = customPrompts.concat(
               validCustomPrompts.filter((p: Prompt) => !existingIds.has(p.id))
             );
+            
+            // Merge disabled defaults (avoid duplicates)
+            const newDisabledDefaults = [...new Set([...disabledDefaultIds, ...importedDisabledDefaults])];
+            
             setCustomPrompts(newCustomPrompts);
-            await persistData(newCustomPrompts, disabledDefaultIds, settings);
-            messageApi.success(`Merged ${validCustomPrompts.length} prompts`);
-          },
-        });
-
-        // Replace option
-        Modal.confirm({
-          title: 'Or Replace Custom Prompts',
-          content: 'Would you like to replace all existing custom prompts with the imported ones?',
-          okText: 'Replace All',
-          cancelText: 'Cancel',
-          onOk: async () => {
-            setCustomPrompts(validCustomPrompts);
-            await persistData(validCustomPrompts, disabledDefaultIds, settings);
-            messageApi.success(`Replaced with ${validCustomPrompts.length} prompts`);
+            setDisabledDefaultIds(newDisabledDefaults);
+            await persistData(newCustomPrompts, newDisabledDefaults, settings);
+            messageApi.success(`Imported ${validCustomPrompts.length} prompts, ${newDisabledDefaults.length} disabled defaults`);
           },
         });
       } catch (error) {
