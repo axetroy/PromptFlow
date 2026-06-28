@@ -566,66 +566,33 @@ function positionPanel(): void {
   const shadow = panelContainer.shadowRoot;
   if (!shadow) return;
 
-  const inputRect = state.currentInput.getBoundingClientRect();
-  const caretRect = getCaretRect(state.currentInput);
-
-  // Use caret position for vertical, input position for horizontal reference
-  const caretTop = caretRect ? caretRect.top : inputRect.top;
-  const caretBottom = caretRect ? caretRect.bottom : inputRect.bottom;
-  const caretLeft = caretRect ? caretRect.left : inputRect.left;
-  const caretRight = caretRect ? caretRect.right : inputRect.right;
-
   const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
   if (!panel) return;
 
-  const viewportHeight = window.innerHeight;
-  const viewportWidth = window.innerWidth;
+  // Get panel dimensions
   const panelWidth = 420;
   const panelMinHeight = 200;
-  const padding = 8;
+  const panelMaxHeight = 500;
+  
+  // Calculate viewport dimensions
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
 
-  // Calculate available space from caret position
-  const spaceBelow = viewportHeight - caretBottom;
-  const spaceAbove = caretTop;
+  // Fixed position: center horizontally, with percentage padding from top
+  const topPaddingPercentage = 0.05; // 5% from top
+  const topPadding = viewportHeight * topPaddingPercentage;
+  
+  // Calculate panel height based on available space below the padding
+  const availableHeight = viewportHeight - topPadding - 20; // 20px bottom padding
+  const panelHeight = Math.min(Math.max(panelMinHeight, availableHeight), panelMaxHeight);
 
-  let top: number;
-  let panelHeight: number;
+  // Center horizontally
+  const leftPosition = (viewportWidth - panelWidth) / 2;
 
-  // Prefer below caret
-  if (spaceBelow >= panelMinHeight) {
-    top = caretBottom + padding;
-    panelHeight = Math.min(spaceBelow - padding, 500);
-  } else if (spaceAbove >= panelMinHeight) {
-    panelHeight = Math.min(spaceAbove - padding, 500);
-    top = caretTop - panelHeight - padding;
-  } else if (spaceBelow >= spaceAbove) {
-    top = caretBottom + padding;
-    panelHeight = Math.max(spaceBelow - padding, 150);
-  } else {
-    panelHeight = Math.max(spaceAbove - padding, 150);
-    top = padding;
-  }
-
+  // Apply panel dimensions and position
   panel.style.maxHeight = `${panelHeight}px`;
-
-  // Center panel horizontally relative to input
-  let left: number;
-  let preferredLeft = inputRect.left + (inputRect.width - panelWidth) / 2;
-
-  if (preferredLeft < padding) {
-    left = padding;
-  } else if (preferredLeft + panelWidth > viewportWidth - padding) {
-    left = viewportWidth - panelWidth - padding;
-  } else {
-    left = preferredLeft;
-  }
-
-  if (top < padding) {
-    top = padding;
-  }
-
-  panelContainer.style.top = `${top}px`;
-  panelContainer.style.left = `${left}px`;
+  panelContainer.style.top = `${topPadding}px`;
+  panelContainer.style.left = `${leftPosition}px`;
 }
 
 const debouncedPositionPanel = debounce(positionPanel, 50);
