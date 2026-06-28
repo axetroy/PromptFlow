@@ -423,7 +423,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   // Load prompts and render
   const prompts = await loadPrompts();
   state.prompts = prompts;
-  renderPromptList(shadow, prompts);
+  renderPromptList(shadow, prompts, '');
   
   // Focus search input
   setTimeout(() => searchInput.focus(), 50);
@@ -439,7 +439,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
     );
     state.prompts = filtered;
     state.selectedIndex = 0;
-    renderPromptList(shadow, filtered);
+    renderPromptList(shadow, filtered, query);
   });
 
   // Keyboard navigation in search input
@@ -484,7 +484,26 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   });
 }
 
-function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
+/**
+ * Highlight search query in text by wrapping matches with <mark> tags
+ */
+function highlightText(text: string, query: string): string {
+  if (!query) return escapeHtml(text);
+  
+  const escapedText = escapeHtml(text);
+  const escapedQuery = escapeHtml(query);
+  const regex = new RegExp(`(${escapeRegExp(escapedQuery)})`, 'gi');
+  return escapedText.replace(regex, '<mark>$1</mark>');
+}
+
+/**
+ * Escape special regex characters
+ */
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: string = ''): void {
   const listContainer = shadow.getElementById('promptflow-list');
   if (!listContainer) return;
   
@@ -505,10 +524,10 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
     
     item.innerHTML = `
       <div class="prompt-item-title">
-        ${escapeHtml(prompt.title)}
+        ${highlightText(prompt.title, searchQuery)}
       </div>
       <div class="prompt-item-description">
-        ${escapeHtml(prompt.description || '')}
+        ${highlightText(prompt.description || '', searchQuery)}
       </div>
       <div class="prompt-item-tags">
         ${prompt.tags.map(tag => `

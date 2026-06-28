@@ -204,6 +204,19 @@
   color: #ffffff;
 }
 
+/* Search highlight */
+#promptflow-panel mark,
+#promptflow-panel.dark mark {
+  background: rgba(255, 193, 7, 0.4);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+#promptflow-panel.dark mark {
+  background: rgba(255, 193, 7, 0.3);
+}
+
 /* ============================================
    Dark Theme - Uses .dark class
    ============================================ */
