@@ -275,6 +275,8 @@ function createPanel(): HTMLElement {
     position: fixed;
     z-index: 2147483647;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    visibility: hidden;
+    pointer-events: none;
   `;
   
   document.body.appendChild(container);
@@ -640,23 +642,18 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
   state.selectedIndex = 0;
   state.searchQuery = '';
   
-  panelContainer = createPanel();
-  
-  // Position panel after it's rendered
+
+  // Position panel after it's rendered (need 2 frames: 1 for render, 1 for layout)
   requestAnimationFrame(() => {
-    positionPanel();
-    
-    // Scroll panel into view if needed
-    const shadow = panelContainer?.shadowRoot;
-    if (shadow) {
-      const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
-      if (panel) {
-        const rect = panel.getBoundingClientRect();
-        if (rect.top < 0 || rect.bottom > window.innerHeight) {
-          panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+    requestAnimationFrame(() => {
+      positionPanel();
+
+      // Make panel visible now that position is set
+      if (panelContainer) {
+        panelContainer.style.visibility = 'visible';
+        panelContainer.style.pointerEvents = 'auto';
       }
-    }
+  });
   });
   
   // Listen for scroll/resize to reposition
