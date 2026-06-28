@@ -79,6 +79,17 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       
       setIsAddingRepo(true);
       
+      // Check if repo already exists
+      const existingRepo = repos.find(r => r.repo === values.repo);
+      
+      if (existingRepo) {
+        // Repo already exists, just sync it
+        messageApi.info(`Syncing existing repo ${values.repo}...`);
+        await handleSyncRepo(existingRepo.id);
+        form.resetFields();
+        return;
+      }
+      
       // Test fetch to validate repo exists
       const files = await fetchGitHubDirectory(values.repo, promptsPath, branch);
       if (files.length === 0) {
