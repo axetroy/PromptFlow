@@ -66,27 +66,25 @@ function parseFrontmatter(content: string): { metadata: Record<string, any>; bod
 }
 
 /**
- * Convert markdown to plain text (for prompt content)
- * Removes markdown formatting but keeps code blocks and structure
+ * Convert markdown to plain text for prompt content
+ * Preserves code block formatting (```) but removes other markdown styling
  */
 function markdownToPlainText(markdown: string): string {
-  // Convert markdown code blocks to plain text with newlines
   let result = markdown
-    // Convert ``` blocks to plain text with newlines
-    .replace(/```[\w]*\n([\s\S]*?)```/g, (_, code) => code.trim())
-    // Convert inline code
+    // Keep code blocks as-is (```code```)
+    // Convert inline code to plain text (remove backticks, keep content)
     .replace(/`([^`]+)`/g, '$1')
-    // Convert headers
+    // Convert headers to plain text (remove # prefix)
     .replace(/^#{1,6}\s+/gm, '')
-    // Convert bold
+    // Convert bold to plain text (remove **)
     .replace(/\*\*([^*]+)\*\*/g, '$1')
-    // Convert italic
+    // Convert italic to plain text (remove *)
     .replace(/\*([^*]+)\*/g, '$1')
-    // Convert links
+    // Convert links to plain text (keep text, remove URL)
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Convert list items
+    // Convert list items to plain text (remove - or * prefix)
     .replace(/^[-*]\s+/gm, '')
-    // Convert numbered lists
+    // Convert numbered lists to plain text (remove number. prefix)
     .replace(/^\d+\.\s+/gm, '');
   
   // Normalize multiple blank lines
