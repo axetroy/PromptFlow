@@ -385,7 +385,7 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light'
   
   if (prompts.length === 0) {
     listContainer.innerHTML = `
-      <div style="padding: 20px; text-align: center; color: ${isDark ? '#666' : '#999'};">
+      <div class="empty-state${themeClass}">
         No prompts found
       </div>
     `;
@@ -394,15 +394,10 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light'
   
   prompts.forEach((prompt, index) => {
     const item = document.createElement('div');
-    item.className = index === state.selectedIndex ? 'selected' : '';
-    item.style.cssText = `
-      padding: 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      margin-bottom: 4px;
-      transition: background 0.15s;
-      background: ${index === state.selectedIndex ? (isDark ? '#3a3a3a' : '#e8e8e8') : 'transparent'};
-    `;
+    const selectedClass = index === state.selectedIndex ? ' selected' : '';
+    const themeClass = isDark ? '' : ' light';
+    item.className = 'prompt-item' + selectedClass + themeClass;
+    
     
     item.innerHTML = `
       <div style="font-weight: 500; color: ${isDark ? '#fff' : '#1a1a1a'}; margin-bottom: 4px;">
@@ -436,9 +431,15 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light'
 
 function updateSelection(shadow: ShadowRoot, index: number, theme?: 'light' | 'dark'): void {
   const isDark = theme !== 'light';
-  const items = shadow.querySelectorAll('#promptflow-list > div');
+  const themeClass = isDark ? '' : ' light';
+  const items = shadow.querySelectorAll('#promptflow-list > .prompt-item');
   items.forEach((item, i) => {
-    (item as HTMLElement).style.background = i === index ? (isDark ? '#2d2d2d' : '#f0f0f0') : 'transparent';
+    const el = item as HTMLElement;
+    if (i === index) {
+      el.className = 'prompt-item selected' + themeClass;
+    } else {
+      el.className = 'prompt-item' + themeClass;
+    }
   });
 }
 
