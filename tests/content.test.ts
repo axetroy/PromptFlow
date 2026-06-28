@@ -319,3 +319,114 @@ test.describe('Content Script - Input Value Retrieval', () => {
     expect(value).toBe('Test /prompts contenteditable');
   });
 });
+
+test.describe('Trigger Detection - Strict Matching', () => {
+  test('should NOT trigger for partial match /pa when trigger is /p', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      // Simulating findTriggerPosition with trigger "/p"
+      function findTriggerPosition(inputValue: string, caretPos: number, trigger: string): number {
+        const textBeforeCaret = inputValue.substring(0, caretPos);
+        let lastIndex = -1;
+        let searchStart = 0;
+        while (true) {
+          const found = textBeforeCaret.indexOf(trigger, searchStart);
+          if (found === -1) break;
+          const isWordBoundary = found === 0 || /\s/.test(textBeforeCaret[found - 1]) || /[\(\[\{]/.test(textBeforeCaret[found - 1]);
+          if (isWordBoundary) lastIndex = found;
+          searchStart = found + 1;
+        }
+        if (lastIndex === -1) return -1;
+        const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
+        if (textAfterTrigger.length > 0) {
+          const nextChar = textAfterTrigger[0];
+          if (!/\s/.test(nextChar)) return -1;
+        }
+        return lastIndex;
+      }
+      
+      // Test: /pac should NOT trigger when trigger is /p
+      const value = '/pac';
+      const caretPos = 4; // After /pac
+      const trigger = '/p';
+      const pos = findTriggerPosition(value, caretPos, trigger);
+      
+      return { shouldNotTrigger: pos === -1, position: pos };
+    });
+    
+    expect(result.shouldNotTrigger).toBe(true);
+  });
+  
+  test('should trigger for exact match /p followed by space', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      function findTriggerPosition(inputValue: string, caretPos: number, trigger: string): number {
+        const textBeforeCaret = inputValue.substring(0, caretPos);
+        let lastIndex = -1;
+        let searchStart = 0;
+        while (true) {
+          const found = textBeforeCaret.indexOf(trigger, searchStart);
+          if (found === -1) break;
+          const isWordBoundary = found === 0 || /\s/.test(textBeforeCaret[found - 1]) || /[\(\[\{]/.test(textBeforeCaret[found - 1]);
+          if (isWordBoundary) lastIndex = found;
+          searchStart = found + 1;
+        }
+        if (lastIndex === -1) return -1;
+        const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
+        if (textAfterTrigger.length > 0) {
+          const nextChar = textAfterTrigger[0];
+          if (!/\s/.test(nextChar)) return -1;
+        }
+        return lastIndex;
+      }
+      
+      // Test: /p  (with space after) should trigger when trigger is /p
+      const value = '/p ';
+      const caretPos = 2; // After /p, before space
+      const trigger = '/p';
+      const pos = findTriggerPosition(value, caretPos, trigger);
+      
+      return { shouldTrigger: pos === 0, position: pos };
+    });
+    
+    expect(result.shouldTrigger).toBe(true);
+  });
+  
+  test('should trigger for /p at cursor without any following chars', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      function findTriggerPosition(inputValue: string, caretPos: number, trigger: string): number {
+        const textBeforeCaret = inputValue.substring(0, caretPos);
+        let lastIndex = -1;
+        let searchStart = 0;
+        while (true) {
+          const found = textBeforeCaret.indexOf(trigger, searchStart);
+          if (found === -1) break;
+          const isWordBoundary = found === 0 || /\s/.test(textBeforeCaret[found - 1]) || /[\(\[\{]/.test(textBeforeCaret[found - 1]);
+          if (isWordBoundary) lastIndex = found;
+          searchStart = found + 1;
+        }
+        if (lastIndex === -1) return -1;
+        const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
+        if (textAfterTrigger.length > 0) {
+          const nextChar = textAfterTrigger[0];
+          if (!/\s/.test(nextChar)) return -1;
+        }
+        return lastIndex;
+      }
+      
+      // Test: /p (cursor right after) should trigger when trigger is /p
+      const value = '/p';
+      const caretPos = 2; // At the end
+      const trigger = '/p';
+      const pos = findTriggerPosition(value, caretPos, trigger);
+      
+      return { shouldTrigger: pos === 0, position: pos };
+    });
+    
+    expect(result.shouldTrigger).toBe(true);
+  });
+});

@@ -139,26 +139,57 @@ function setCaretPosition(input: HTMLInputElement | HTMLTextAreaElement | Elemen
   }
 }
 
+
 function findTriggerPosition(inputValue: string, caretPos: number, trigger: string): number {
   const textBeforeCaret = inputValue.substring(0, caretPos);
-  const lastIndex = textBeforeCaret.lastIndexOf(trigger);
   
-  if (lastIndex === -1) return -1;
+  // Find the trigger - must be at word boundary (start of text or after space/newline/punctuation)
+  let lastIndex = -1;
   
-  const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
-  if (textAfterTrigger.includes(' ') || textAfterTrigger.includes('\n')) {
-    return -1;
+  // Find all occurrences and check word boundaries
+  let searchStart = 0;
+  while (true) {
+    const found = textBeforeCaret.indexOf(trigger, searchStart);
+    if (found === -1) break;
+    
+    // Check if it's at a word boundary
+    const isWordBoundary = found === 0 || 
+      /\s/.test(textBeforeCaret[found - 1]) ||
+      /[\(\[\{]/.test(textBeforeCaret[found - 1]);
+    
+    if (isWordBoundary) {
+      lastIndex = found;
+    }
+    
+    searchStart = found + 1;
   }
   
+  if (lastIndex === -1) return -1;
+
+  // Check that the trigger is complete (no partial matches like /pa for /p)
+  const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
+  
+  // Only allow if:
+  // 1. Nothing after trigger (cursor is right after trigger)
+  // 2. Space/newline after trigger (trigger is a complete word)
+  if (textAfterTrigger.length > 0) {
+    const nextChar = textAfterTrigger[0];
+    // If there's a non-whitespace character after, it's a partial match - don't trigger
+    if (!/\s/.test(nextChar)) {
+      return -1;
+    }
+  }
+
   const remainingText = inputValue.substring(lastIndex);
   const nextSpace = remainingText.indexOf(' ');
   const nextNewline = remainingText.indexOf('\n');
-  const endOfTrigger = nextSpace === -1 ? remainingText.length : 
+  const endOfTrigger = nextSpace === -1 ? remainingText.length :
                        nextNewline === -1 ? remainingText.length :
                        Math.min(nextSpace, nextNewline);
-  
+
   return lastIndex;
 }
+
 
 function createPanel(): HTMLElement {
   const container = document.createElement('div');
