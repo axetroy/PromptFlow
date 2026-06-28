@@ -382,19 +382,66 @@ function positionPanel(): void {
   const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
   if (!panel) return;
   
-  const panelRect = panel.getBoundingClientRect();
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
+  const panelWidth = 400; // Panel width from CSS
+  const panelMaxHeight = 500; // Panel max-height from CSS
+  const padding = 8; // Minimum distance from viewport edges
   
-  let top = rect.bottom + 8;
+  // Calculate initial position (below the input)
+  let top = rect.bottom + padding;
   let left = rect.left;
   
-  // Adjust if panel would go off screen
-  if (top + panelRect.height > viewportHeight) {
-    top = rect.top - panelRect.height - 8;
+  // Check if there's enough space below the input
+  const spaceBelow = viewportHeight - rect.bottom;
+  const spaceAbove = rect.top;
+  
+  // Choose vertical position: below or above input
+  if (spaceBelow >= panelMaxHeight + padding * 2) {
+    // Plenty of space below, use bottom position
+    top = rect.bottom + padding;
+  } else if (spaceAbove >= panelMaxHeight + padding * 2) {
+    // Not enough space below, but enough above
+    top = rect.top - panelMaxHeight - padding;
+  } else if (spaceBelow >= spaceAbove) {
+    // Use bottom but limit height
+    top = rect.bottom + padding;
+  } else {
+    // Use top but limit height
+    top = padding;
   }
-  if (left + panelRect.width > viewportWidth) {
-    left = viewportWidth - panelRect.width - 16;
+  
+  // Horizontal positioning: try to align with input, adjust if needed
+  // First, try to position to the right of the input
+  let preferredLeft = rect.left;
+  
+  // Check if panel fits to the right of input
+  if (preferredLeft + panelWidth > viewportWidth - padding) {
+    // Try to position to the left of input
+    preferredLeft = rect.right - panelWidth;
+    
+    // If still doesn't fit, center horizontally
+    if (preferredLeft < padding) {
+      preferredLeft = (viewportWidth - panelWidth) / 2;
+    }
+  }
+  
+  // Ensure left edge doesn't go off screen
+  if (preferredLeft < padding) {
+    left = padding;
+  } else if (preferredLeft + panelWidth > viewportWidth - padding) {
+    left = viewportWidth - panelWidth - padding;
+  } else {
+    left = preferredLeft;
+  }
+  
+  // Final safety check: ensure panel stays within viewport
+  // Clamp top to stay within viewport
+  if (top < padding) {
+    top = padding;
+  }
+  if (top + panelMaxHeight > viewportHeight - padding) {
+    top = Math.max(padding, viewportHeight - panelMaxHeight - padding);
   }
   
   panelContainer.style.top = `${top}px`;
