@@ -65,34 +65,6 @@ function parseFrontmatter(content: string): { metadata: Record<string, any>; bod
   return { metadata, body: body.trim() };
 }
 
-/**
- * Convert markdown to plain text for prompt content
- * Preserves code block formatting (```) but removes other markdown styling
- */
-function markdownToPlainText(markdown: string): string {
-  let result = markdown
-    // Keep code blocks as-is (```code```)
-    // Convert inline code to plain text (remove backticks, keep content)
-    .replace(/`([^`]+)`/g, '$1')
-    // Convert headers to plain text (remove # prefix)
-    .replace(/^#{1,6}\s+/gm, '')
-    // Convert bold to plain text (remove **)
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    // Convert italic to plain text (remove *)
-    .replace(/\*([^*]+)\*/g, '$1')
-    // Convert links to plain text (keep text, remove URL)
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Convert list items to plain text (remove - or * prefix)
-    .replace(/^[-*]\s+/gm, '')
-    // Convert numbered lists to plain text (remove number. prefix)
-    .replace(/^\d+\.\s+/gm, '');
-  
-  // Normalize multiple blank lines
-  result = result.replace(/\n{3,}/g, '\n\n');
-  
-  return result.trim();
-}
-
 // Import all markdown files
 import codeReview from './1-code-review.md';
 import explainCode from './2-explain-code.md';
@@ -112,6 +84,7 @@ const markdownFiles = [
 
 /**
  * Load all default prompts from markdown files
+ * Content is kept as-is (raw markdown)
  */
 export function loadDefaultPrompts(): Prompt[] {
   const now = Date.now();
@@ -122,7 +95,7 @@ export function loadDefaultPrompts(): Prompt[] {
     return {
       id,
       title: metadata.title || 'Untitled',
-      content: markdownToPlainText(body),
+      content: body, // Keep raw markdown content unchanged
       description: metadata.description || '',
       tags: Array.isArray(metadata.tags) ? metadata.tags : [],
       createdAt: now,

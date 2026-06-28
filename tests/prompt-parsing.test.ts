@@ -1,50 +1,51 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Prompt Parsing', () => {
-  test('should convert inline code to plain text', async ({ page }) => {
+  test('should preserve markdown content unchanged', async ({ page }) => {
     await page.goto('about:blank');
     
     const result = await page.evaluate(() => {
-      function removeInlineCode(markdown: string): string {
-        return markdown.replace(/`([^`]+)`/g, '$1');
+      // Simulate the parseFrontmatter function
+      function parseFrontmatter(content: string): { metadata: Record<string, any>; body: string } {
+        const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+        const match = content.match(frontmatterRegex);
+        
+        if (!match) {
+          return { metadata: {}, body: content };
+        }
+        
+        return { metadata: {}, body: match[2].trim() };
       }
       
-      return removeInlineCode('Use `console.log()` for debugging');
-    });
-    
-    expect(result).toBe('Use console.log() for debugging');
-    expect(result).not.toContain('`');
-  });
+      const markdown = `---
+title: Test
+---
 
-  test('should convert headers to plain text', async ({ page }) => {
-    await page.goto('about:blank');
-    
-    const result = await page.evaluate(() => {
-      function removeHeaders(markdown: string): string {
-        return markdown.replace(/^#{1,6}\s+/gm, '');
-      }
-      
-      return removeHeaders('# Header 1\n## Header 2\n### Header 3');
-    });
-    
-    expect(result).toBe('Header 1\nHeader 2\nHeader 3');
-  });
+# Header
 
-  test('should convert list items to plain text', async ({ page }) => {
-    await page.goto('about:blank');
-    
-    const result = await page.evaluate(() => {
-      function removeListPrefixes(markdown: string): string {
-        return markdown
-          .replace(/^[-*]\s+/gm, '')
-          .replace(/^\d+\.\s+/gm, '');
-      }
+\`\`\`js
+const x = 1;
+\`\`\`
+
+- Item 1
+- Item 2`;
+
+      const { body } = parseFrontmatter(markdown);
       
-      return removeListPrefixes('Focus on:\n- Code quality\n- Performance');
+      return {
+        body,
+        hasCodeBlock: body.includes('```'),
+        hasList: body.includes('- Item'),
+        hasHeader: body.includes('# Header'),
+      };
     });
     
-    expect(result).toContain('Code quality');
-    expect(result).toContain('Performance');
-    expect(result).not.toContain('- ');
+    // Content should be preserved as-is
+    expect(result.body).toContain('# Header');
+    expect(result.body).toContain('```js');
+    expect(result.body).toContain('- Item 1');
+    expect(result.hasCodeBlock).toBe(true);
+    expect(result.hasList).toBe(true);
+    expect(result.hasHeader).toBe(true);
   });
 });
