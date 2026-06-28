@@ -3,7 +3,6 @@ import { Prompt, DEFAULT_SETTINGS } from './types';
 interface ContentState {
   isPanelOpen: boolean;
   currentTrigger: string;
-  currentTheme: 'light' | 'dark' | 'auto';
   currentInput: HTMLInputElement | HTMLTextAreaElement | Element | null;
   caretPosition: number;
   triggerStartPosition: number;
@@ -15,7 +14,6 @@ interface ContentState {
 const state: ContentState = {
   isPanelOpen: false,
   currentTrigger: DEFAULT_SETTINGS.trigger,
-  currentTheme: DEFAULT_SETTINGS.theme,
   currentInput: null,
   caretPosition: 0,
   triggerStartPosition: 0,
@@ -25,6 +23,11 @@ const state: ContentState = {
 };
 
 let panelContainer: HTMLElement | null = null;
+
+// Detect system theme preference
+function getCurrentTheme(): 'light' | 'dark' {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 const DEBOUNCE_DELAY = 150;
 
@@ -51,9 +54,6 @@ async function loadSettings(): Promise<void> {
       if (data?.settings) {
         if (data.settings.trigger) {
           state.currentTrigger = data.settings.trigger;
-        }
-        if (data.settings.theme) {
-          state.currentTheme = data.settings.theme;
         }
       }
       resolve();
@@ -272,7 +272,7 @@ async function loadPanelApp(container: HTMLElement, theme: 'light' | 'dark' = 'd
     padding: 10px 14px;
     border: 1px solid ${colors.border};
     border-radius: 8px;
-    background: ${colors.inputBg};
+    background: ${isDark ? '#2a2a2a' : '#f0f0f0'};
     color: ${colors.text};
     font-size: 14px;
     outline: none;
@@ -358,7 +358,7 @@ async function loadPanelApp(container: HTMLElement, theme: 'light' | 'dark' = 'd
   // Load prompts and render
   const prompts = await loadPrompts();
   state.prompts = prompts;
-  renderPromptList(shadow, prompts);
+  renderPromptList(shadow, prompts, getCurrentTheme());
   
   // Focus search input
   setTimeout(() => searchInput.focus(), 50);
@@ -372,11 +372,12 @@ async function loadPanelApp(container: HTMLElement, theme: 'light' | 'dark' = 'd
       p.content.toLowerCase().includes(query) ||
       p.tags.some(t => t.toLowerCase().includes(query))
     );
-    renderPromptList(shadow, filtered);
+    renderPromptList(shadow, filtered, getCurrentTheme());
   });
 }
 
-function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
+function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light' | 'dark'): void {
+  const isDark = theme !== 'light';
   const listContainer = shadow.getElementById('promptflow-list');
   if (!listContainer) return;
   
@@ -414,7 +415,7 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
         ${prompt.tags.map(tag => `
           <span style="
             padding: 2px 8px;
-            background: ${colors.inputBg};
+            background: ${isDark ? '#2a2a2a' : '#f0f0f0'};
             border-radius: 4px;
             font-size: 11px;
             color: #6b7280;
@@ -784,7 +785,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'UPDATE_PROMPTS') {
     state.prompts = message.prompts;
     if (state.isPanelOpen && panelContainer?.shadowRoot) {
-      renderPromptList(panelContainer.shadowRoot, state.prompts);
+      renderPromptList(panelContainer.shadowRoot, state.prompts, getCurrentTheme());
     }
   }
 });

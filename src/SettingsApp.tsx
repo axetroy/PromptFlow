@@ -289,8 +289,7 @@ const SettingsApp: React.FC = () => {
         description: values.description,
         tags,
         createdAt: Date.now(),
-        updatedAt: Date.now(),
-        isDefault: false,
+        updatedAt: Date.now()
       };
       newPrompts = [...prompts, newPrompt];
       messageApi.success('Prompt added');
