@@ -203,14 +203,16 @@ function createPanel(): HTMLElement {
   document.body.appendChild(container);
   
   // Load React panel with current theme
-  loadPanelApp(container);
+  loadPanelApp(container, getCurrentTheme());
   
   return container;
 }
 
 async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): Promise<void> {
-  // Always use dark theme with slight transparency
-  const colors = {
+  // Use system theme as default, default to light theme
+  const isDark = (theme || getCurrentTheme()) === 'dark';
+
+  const colors = isDark ? {
     bg: 'rgba(30, 30, 30, 0.95)',
     border: '#3a3a3a',
     inputBg: 'rgba(42, 42, 42, 0.9)',
@@ -219,6 +221,15 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
     textSecondary: '#a0a0a0',
     hover: '#333333',
     selected: '#262626',
+  } : {
+    bg: 'rgba(255, 255, 255, 0.98)',
+    border: '#e0e0e0',
+    inputBg: 'rgba(255, 255, 255, 0.95)',
+    inputBorder: '#d0d0d0',
+    text: '#1a1a1a',
+    textSecondary: '#666666',
+    hover: '#f5f5f5',
+    selected: '#e8e8e8',
   };
   // Create shadow DOM for style isolation
   const shadow = container.attachShadow({ mode: 'open' });
@@ -261,7 +272,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
     padding: 10px 14px;
     border: 1px solid ${colors.border};
     border-radius: 8px;
-    background: ${'#2a2a2a'};
+    background: ${isDark ? '#2a2a2a' : '#f0f0f0'};
     color: ${colors.text};
     font-size: 14px;
     outline: none;
@@ -347,7 +358,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   // Load prompts and render
   const prompts = await loadPrompts();
   state.prompts = prompts;
-  renderPromptList(shadow, prompts);
+  renderPromptList(shadow, prompts, getCurrentTheme());
   
   // Focus search input
   setTimeout(() => searchInput.focus(), 50);
@@ -361,11 +372,12 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
       p.content.toLowerCase().includes(query) ||
       p.tags.some(t => t.toLowerCase().includes(query))
     );
-    renderPromptList(shadow, filtered);
+    renderPromptList(shadow, filtered, getCurrentTheme());
   });
 }
 
-function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
+function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light' | 'dark'): void {
+  const isDark = theme !== 'light';
   const listContainer = shadow.getElementById('promptflow-list');
   if (!listContainer) return;
   
@@ -373,7 +385,7 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
   
   if (prompts.length === 0) {
     listContainer.innerHTML = `
-      <div style="padding: 20px; text-align: center; color: #666;">
+      <div style="padding: 20px; text-align: center; color: ${isDark ? '#666' : '#999'};">
         No prompts found
       </div>
     `;
@@ -389,24 +401,24 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
       cursor: pointer;
       margin-bottom: 4px;
       transition: background 0.15s;
-      background: ${index === state.selectedIndex ? '#3a3a3a' : 'transparent'};
+      background: ${index === state.selectedIndex ? (isDark ? '#3a3a3a' : '#e8e8e8') : 'transparent'};
     `;
     
     item.innerHTML = `
-      <div style="font-weight: 500; color: #fff; margin-bottom: 4px;">
+      <div style="font-weight: 500; color: ${isDark ? '#fff' : '#1a1a1a'}; margin-bottom: 4px;">
         ${escapeHtml(prompt.title)}
       </div>
-      <div style="font-size: 12px; color: #888; margin-bottom: 6px;">
+      <div style="font-size: 12px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 6px;">
         ${escapeHtml(prompt.description || '')}
       </div>
       <div style="display: flex; gap: 4px; flex-wrap: wrap;">
         ${prompt.tags.map(tag => `
           <span style="
             padding: 2px 8px;
-            background: ${'#2a2a2a'};
+            background: ${isDark ? '#2a2a2a' : '#f0f0f0'};
             border-radius: 4px;
             font-size: 11px;
-            color: #6b7280;
+            color: ${isDark ? '#6b7280' : '#888'};
           ">${escapeHtml(tag)}</span>
         `).join('')}
       </div>
@@ -422,10 +434,11 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
   });
 }
 
-function updateSelection(shadow: ShadowRoot, index: number): void {
+function updateSelection(shadow: ShadowRoot, index: number, theme?: 'light' | 'dark'): void {
+  const isDark = theme !== 'light';
   const items = shadow.querySelectorAll('#promptflow-list > div');
   items.forEach((item, i) => {
-    (item as HTMLElement).style.background = i === index ? '#3a3a3a' : 'transparent';
+    (item as HTMLElement).style.background = i === index ? (isDark ? '#3a3a3a' : '#e8e8e8') : 'transparent';
   });
 }
 
@@ -773,7 +786,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'UPDATE_PROMPTS') {
     state.prompts = message.prompts;
     if (state.isPanelOpen && panelContainer?.shadowRoot) {
-      renderPromptList(panelContainer.shadowRoot, state.prompts);
+      renderPromptList(panelContainer.shadowRoot, state.prompts, getCurrentTheme());
     }
   }
 });
