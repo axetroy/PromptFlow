@@ -652,7 +652,7 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
       if (panelContainer) {
         panelContainer.style.visibility = 'visible';
         panelContainer.style.pointerEvents = 'auto';
-      }
+        }
   });
   });
   
