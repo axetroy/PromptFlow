@@ -486,7 +486,9 @@ function handleInput(e: Event): void {
   }
   
   const isInputElement = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
-  const isContentEditable = target.hasAttribute && target.hasAttribute('contenteditable');
+  // Check for contenteditable attribute - can be "", "true", or "contenteditable"
+  const isContentEditable = target.isContentEditable || 
+    (target.hasAttribute && target.hasAttribute('contenteditable'));
   
   if (!isInputElement && !isContentEditable) {
     return;
@@ -531,6 +533,16 @@ function init(): void {
       mutation.addedNodes.forEach((node) => {
         if (node instanceof Element) {
           attachListeners(node);
+          // Also check for contenteditable in the element itself
+          if (node instanceof HTMLElement && node.hasAttribute && (
+            node.hasAttribute('contenteditable') || 
+            node.getAttribute('contenteditable') !== null
+          )) {
+            if (!((node as HTMLElement).dataset).promptflowInit) {
+              ((node as HTMLElement).dataset).promptflowInit = 'true';
+              node.addEventListener('input', handleInput as EventListener, true);
+            }
+          }
         }
       });
     });
@@ -543,7 +555,15 @@ function init(): void {
 }
 
 function attachListeners(root: Element): void {
-  const inputs = root.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), textarea, [contenteditable="true"]');
+  // Select all input types, textareas, and contenteditable elements
+  // Contenteditable can be: contenteditable="", contenteditable="true", or contenteditable="contenteditable"
+  const inputs = root.querySelectorAll(
+    'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), ' +
+    'textarea, ' +
+    '[contenteditable], ' +
+    '[contenteditable="true"], ' +
+    '[contenteditable=""]'
+  );
   
   inputs.forEach((input) => {
     if (!(input as HTMLElement).dataset.promptflowInit) {
