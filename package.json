@@ -3,17 +3,30 @@
   "version": "0.1.0",
   "description": "Browser-level Prompt Command System",
   "scripts": {
-    "prebuild": "rm -rf dist",
-    "build": "npm run build:ts && npm run copy:assets && npm run generate-icons && npm run cleanup",
-    "build:ts": "tsc",
-    "copy:assets": "cp manifest.json dist/ && mkdir -p dist/icons && cp src/panel.css dist/",
-    "generate-icons": "node generate-icons.js",
-    "cleanup": "rm -rf dist/types dist/utils",
-    "typecheck": "tsc --noEmit"
+    "clean": "rimraf dist",
+    "build": "npm run clean && npm run build:copy && npm run build:compile",
+    "build:copy": "node scripts/copy-assets.js",
+    "build:compile": "tsc",
+    "dev": "npm run clean && npm run build",
+    "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "generate-icons": "node generate-icons.js"
   },
+  "keywords": [
+    "chrome-extension",
+    "prompt",
+    "productivity",
+    "browser-extension"
+  ],
+  "author": "",
+  "license": "MIT",
   "devDependencies": {
     "@types/chrome": "^0.2.0",
     "canvas": "^3.2.3",
+    "rimraf": "^5.0.7",
     "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

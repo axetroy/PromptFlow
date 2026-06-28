@@ -9,7 +9,7 @@ interface BackgroundMessage {
 
 async function initializeStorage(): Promise<void> {
   const result = await chrome.storage.local.get([STORAGE_KEY]);
-  
+
   if (!result[STORAGE_KEY]) {
     const defaultData: StorageData = {
       prompts: DEFAULT_PROMPTS,
@@ -40,29 +40,29 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, sender, sendRe
 
 async function handleMessage(message: BackgroundMessage, sender: chrome.runtime.MessageSender): Promise<any> {
   const { type, payload } = message;
-  
+
   switch (type) {
     case 'GET_PROMPTS':
       return await getPrompts();
-      
+
     case 'GET_SETTINGS':
       return await getSettings();
-      
+
     case 'ADD_PROMPT':
       return await addPrompt(payload as Prompt);
-      
+
     case 'UPDATE_PROMPT':
       return await updatePrompt(payload.id, payload.updates);
-      
+
     case 'DELETE_PROMPT':
       return await deletePrompt(payload.id);
-      
+
     case 'SAVE_SETTINGS':
       return await saveSettings(payload as PromptSettings);
-      
+
     case 'GET_STORAGE_DATA':
       return await getStorageData();
-      
+
     default:
       console.warn('[PromptFlow] Unknown message type:', type);
       return null;
@@ -95,17 +95,17 @@ async function addPrompt(prompt: Prompt): Promise<Prompt[]> {
   };
   data.prompts.push(newPrompt);
   await chrome.storage.local.set({ [STORAGE_KEY]: data });
-  
+
   // Notify all tabs
   notifyAllTabs('UPDATE_PROMPTS', data.prompts);
-  
+
   return data.prompts;
 }
 
 async function updatePrompt(id: string, updates: Partial<Prompt>): Promise<Prompt[]> {
   const data = await getStorageData();
   const index = data.prompts.findIndex(p => p.id === id);
-  
+
   if (index !== -1) {
     data.prompts[index] = {
       ...data.prompts[index],
@@ -113,11 +113,11 @@ async function updatePrompt(id: string, updates: Partial<Prompt>): Promise<Promp
       updatedAt: Date.now(),
     };
     await chrome.storage.local.set({ [STORAGE_KEY]: data });
-    
+
     // Notify all tabs
     notifyAllTabs('UPDATE_PROMPTS', data.prompts);
   }
-  
+
   return data.prompts;
 }
 
@@ -125,10 +125,10 @@ async function deletePrompt(id: string): Promise<Prompt[]> {
   const data = await getStorageData();
   data.prompts = data.prompts.filter(p => p.id !== id);
   await chrome.storage.local.set({ [STORAGE_KEY]: data });
-  
+
   // Notify all tabs
   notifyAllTabs('UPDATE_PROMPTS', data.prompts);
-  
+
   return data.prompts;
 }
 
@@ -136,7 +136,7 @@ async function saveSettings(settings: PromptSettings): Promise<void> {
   const data = await getStorageData();
   data.settings = settings;
   await chrome.storage.local.set({ [STORAGE_KEY]: data });
-  
+
   // Notify all tabs
   notifyAllTabs('UPDATE_SETTINGS', settings);
 }
