@@ -244,8 +244,8 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       <div style={{ marginTop: 16, padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           <strong>How it works:</strong> Add a GitHub repository to sync prompts from the <code>.agents/prompts/</code> directory.
-          Prompts are read from <code>.md</code> files using jsdelivr CDN (works globally including China).
-          Each prompt file should have YAML frontmatter with <code>title</code> and optionally <code>description</code> and <code>tags</code>.
+          Prompts are fetched using jsdelivr CDN (works globally including China, no rate limits).
+          Each <code>.md</code> file should have YAML frontmatter with <code>title</code> and optionally <code>description</code> and <code>tags</code>.
         </Text>
       </div>
     </Modal>

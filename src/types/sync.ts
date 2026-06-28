@@ -54,11 +54,13 @@ export interface GitHubContent {
  * Format: https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
  */
 export async function fetchGitHubFileContent(repo: string, filePath: string, branch: string = 'main'): Promise<string> {
-  // jsdelivr CDN format
   const url = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`;
   const response = await fetch(url);
   
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(`File not found: ${filePath}`);
+    }
     throw new Error(`Failed to fetch file ${filePath}: ${response.statusText}`);
   }
   
@@ -66,120 +68,74 @@ export async function fetchGitHubFileContent(repo: string, filePath: string, bra
 }
 
 /**
- * Fetch directory listing using jsdelivr web interface
+ * Fetch directory listing from jsdelivr CDN page
+ * Format: https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}/
  * Works globally including China
- * Format: https://www.jsdelivr.com/package/gh/{owner}/{repo}?version={branch}&path={path}
  */
 export async function fetchGitHubDirectory(
   repo: string,
   path: string,
   branch: string = 'main'
 ): Promise<GitHubContent[]> {
-  // jsdelivr package page to list files
-  const url = `https://www.jsdelivr.com/package/gh/${repo}?version=${branch}&path=${path}`;
+  // jsdelivr CDN directory listing URL (note the trailing slash)
+  const url = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${path}/`;
   
   try {
     const response = await fetch(url);
     
+    // 404 means the path doesn't exist
+    if (response.status === 404) {
+      return [];
+    }
+    
     if (!response.ok) {
-      if (response.status === 404) {
-        return []; // Path doesn't exist
-      }
       throw new Error(`Failed to fetch directory: ${response.statusText}`);
     }
     
     const html = await response.text();
     
-    // Parse the HTML to extract file information
-    // jsdelivr returns a JSON payload in a script tag or inline data
+    // Check if it's a 404 page (jsdelivr returns 404 page for non-existent paths)
+    if (html.includes('Page not found') || html.includes('404')) {
+      return [];
+    }
+    
     const files: GitHubContent[] = [];
     
-    // Try to extract file list from JSON data embedded in the page
-    // Pattern 1: Look for JSON data with file information
-    const jsonMatch = html.match(/window\.__NUXT__\s*=\s*({[\s\S]*?})\s*;?\s*<\/script>/);
-    if (jsonMatch) {
-      try {
-        const jsonData = JSON.parse(jsonMatch[1]);
-        // Navigate through the JSON structure to find files
-        const items = jsonData?.data?.files || jsonData?.files || [];
-        
-        for (const item of items) {
-          if (item.name?.endsWith('.md') || item.path?.endsWith('.md')) {
-            const fileName = item.name || item.path?.split('/').pop() || '';
-            const filePath = item.path || `${path}/${fileName}`;
-            
-            files.push({
-              name: fileName,
-              path: filePath,
-              sha: item.sha || '',
-              size: item.size || 0,
-              type: 'file',
-              download_url: `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`,
-            });
-          }
-        }
-        
-        if (files.length > 0) {
-          return files;
-        }
-      } catch (e) {
-        console.warn('Failed to parse Nuxt JSON, trying alternative method');
-      }
-    }
-    
-    // Pattern 2: Look for API response embedded in page
-    const apiMatch = html.match(/"files"\s*:\s*(\[[\s\S]*?\])/);
-    if (apiMatch) {
-      try {
-        const filesData = JSON.parse(apiMatch[1]);
-        
-        for (const item of filesData) {
-          if (item.name?.endsWith('.md') || item.path?.endsWith('.md')) {
-            const fileName = item.name || item.path?.split('/').pop() || '';
-            const filePath = item.path || `${path}/${fileName}`;
-            
-            files.push({
-              name: fileName,
-              path: filePath,
-              sha: item.sha || '',
-              size: item.size || 0,
-              type: 'file',
-              download_url: `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`,
-            });
-          }
-        }
-        
-        if (files.length > 0) {
-          return files;
-        }
-      } catch (e) {
-        console.warn('Failed to parse files JSON, trying alternative method');
-      }
-    }
-    
-    // Pattern 3: Regex fallback - look for file links in the HTML
-    const fileLinkPattern = /href=["']([^"']*cdn\.jsdelivr\.net[^"']*)["'][^>]*>([^<]*\.md)</gi;
+    // Parse file links from the HTML
+    // Pattern: <a rel="nofollow" href="/gh/{owner}/{repo}@{branch}/{filePath}">{fileName}</a>
+    // or: <a href="../">...</a> for parent directory
+    const linkPattern = /<a[^>]+href=["']([^"']+)["'][^>]*>([^<]+)<\/a>/gi;
     let match;
     
-    while ((match = fileLinkPattern.exec(html)) !== null) {
-      const url = match[1];
-      const fileName = match[2] || url.split('/').pop() || '';
+    while ((match = linkPattern.exec(html)) !== null) {
+      const href = match[1];
+      const text = match[2].trim();
       
-      // Extract path from jsdelivr URL
-      const pathMatch = url.match(/gh\/([^@]+)@([^/]+)\/(.+)/);
-      if (pathMatch) {
-        const [, ownerRepo, , filePath] = pathMatch;
-        
-        if (!files.some(f => f.path === filePath)) {
-          files.push({
-            name: fileName,
-            path: filePath,
-            sha: '',
-            size: 0,
-            type: 'file',
-            download_url: url,
-          });
-        }
+      // Skip parent directory links (..) and non-md files
+      if (href.includes('..') || !text.endsWith('.md')) {
+        continue;
+      }
+      
+      // Extract file path from href (remove the /gh/{owner}/{repo}@{branch}/ prefix)
+      // href format: /gh/owner/repo@branch/path/to/file.md
+      const ghMatch = href.match(/^\/gh\/[^/]+\/[^@]+@[^/]+\/(.+)$/);
+      if (!ghMatch) {
+        continue;
+      }
+      
+      const filePath = ghMatch[1];
+      const fileName = text;
+      
+      // Avoid duplicates
+      if (!files.some(f => f.path === filePath)) {
+        files.push({
+          name: fileName,
+          path: filePath,
+          sha: '',
+          size: 0,
+          type: 'file',
+          download_url: `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`,
+        });
       }
     }
     
@@ -191,55 +147,47 @@ export async function fetchGitHubDirectory(
 }
 
 /**
- * Alternative: Fetch directory listing using GitHub API with error handling
- * Falls back gracefully on rate limit
+ * Check if a repository exists and is accessible
  */
-export async function fetchGitHubDirectoryWithFallback(
-  repo: string,
-  path: string,
-  branch: string = 'main'
-): Promise<GitHubContent[]> {
-  // Try web scraping first (no rate limit)
-  const webResults = await fetchGitHubDirectory(repo, path, branch);
-  if (webResults.length > 0) {
-    return webResults;
-  }
-  
-  // Fallback to API (may be rate limited)
+export async function checkRepoExists(repo: string, branch: string = 'main'): Promise<{ exists: boolean; error?: string }> {
   try {
-    const url = `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`;
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    });
+    // Try to fetch the root of the repo
+    const url = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/`;
+    const response = await fetch(url);
     
-    if (!response.ok) {
-      if (response.status === 403) {
-        console.warn('GitHub API rate limit exceeded. Please try again later or add a GitHub token.');
-      }
-      return [];
+    if (response.ok) {
+      return { exists: true };
     }
     
-    const data = await response.json();
-    
-    if (!Array.isArray(data)) {
-      return [];
+    if (response.status === 404) {
+      return { exists: false, error: 'Repository or branch not found' };
     }
     
-    return data
-      .filter((item: any) => item.type === 'file' && item.name.endsWith('.md'))
-      .map((item: any) => ({
-        name: item.name,
-        path: item.path,
-        sha: item.sha,
-        size: item.size,
-        type: item.type,
-        download_url: item.download_url,
-      }));
+    return { exists: false, error: `HTTP ${response.status}` };
   } catch (error) {
-    console.error('Error fetching via API:', error);
-    return [];
+    return { exists: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Check if a path exists in a repository
+ */
+export async function checkPathExists(repo: string, path: string, branch: string = 'main'): Promise<{ exists: boolean; error?: string }> {
+  try {
+    const url = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${path}/`;
+    const response = await fetch(url);
+    
+    if (response.ok) {
+      return { exists: true };
+    }
+    
+    if (response.status === 404) {
+      return { exists: false, error: 'Path not found' };
+    }
+    
+    return { exists: false, error: `HTTP ${response.status}` };
+  } catch (error) {
+    return { exists: false, error: (error as Error).message };
   }
 }
 

@@ -26,18 +26,20 @@ test.describe('GitHub Sync', () => {
     const result = await page.evaluate(({ repo, branch, path }) => {
       // Test URL construction logic
       const filePath = `${path}/code-review.md`;
+      const dirUrl = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${path}/`;
       
-      // jsdelivr CDN URL format
+      // jsdelivr CDN file URL format
       const cdnUrl = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`;
       
-      // Verify URL format is correct
       return {
-        url: cdnUrl,
+        fileUrl: cdnUrl,
+        dirUrl,
         hasCorrectFormat: cdnUrl.startsWith('https://cdn.jsdelivr.net/gh/'),
         containsOwner: cdnUrl.includes(repo.split('/')[0]),
         containsRepo: cdnUrl.includes(repo.split('/')[1]),
         containsBranch: cdnUrl.includes(`@${branch}`),
         containsPath: cdnUrl.includes(path),
+        dirUrlHasTrailingSlash: dirUrl.endsWith('/'),
       };
     }, { repo: TEST_REPO, branch: TEST_BRANCH, path: TEST_PATH });
     
@@ -46,7 +48,9 @@ test.describe('GitHub Sync', () => {
     expect(result.containsRepo).toBe(true);
     expect(result.containsBranch).toBe(true);
     expect(result.containsPath).toBe(true);
-    expect(result.url).toBe('https://cdn.jsdelivr.net/gh/axetroy/prompts@main/.agents/prompts/code-review.md');
+    expect(result.fileUrl).toBe('https://cdn.jsdelivr.net/gh/axetroy/prompts@main/.agents/prompts/code-review.md');
+    expect(result.dirUrl).toBe('https://cdn.jsdelivr.net/gh/axetroy/prompts@main/.agents/prompts/');
+    expect(result.dirUrlHasTrailingSlash).toBe(true);
   });
 
   test('should parse frontmatter from markdown content', async ({ page }) => {
