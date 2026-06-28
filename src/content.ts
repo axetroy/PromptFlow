@@ -437,7 +437,50 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
       p.content.toLowerCase().includes(query) ||
       p.tags.some(t => t.toLowerCase().includes(query))
     );
-    renderPromptList(shadow, filtered);
+    state.prompts = filtered;
+    state.selectedIndex = 0;
+    renderPromptList(shadow, filtered, theme);
+  });
+
+  // Keyboard navigation in search input
+  searchInput.addEventListener('keydown', (e) => {
+    const filteredPrompts = state.prompts;
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        e.stopPropagation();
+        if (filteredPrompts.length > 0) {
+          state.selectedIndex = Math.min(state.selectedIndex + 1, filteredPrompts.length - 1);
+          updateSelection(shadow, state.selectedIndex);
+          scrollToSelected(shadow);
+        }
+        break;
+        
+      case 'ArrowUp':
+        e.preventDefault();
+        e.stopPropagation();
+        if (filteredPrompts.length > 0) {
+          state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
+          updateSelection(shadow, state.selectedIndex);
+          scrollToSelected(shadow);
+        }
+        break;
+        
+      case 'Enter':
+        e.preventDefault();
+        e.stopPropagation();
+        if (filteredPrompts[state.selectedIndex]) {
+          selectPrompt(filteredPrompts[state.selectedIndex]);
+        }
+        break;
+        
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        closePanel();
+        break;
+    }
   });
 }
 
