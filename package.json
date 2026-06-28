@@ -1,0 +1,31 @@
+{
+  "name": "promptflow",
+  "version": "0.1.0",
+  "description": "Browser-level Prompt Command System - Quick Prompt invocation in any input field",
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && npm run build:copy && npm run build:compile",
+    "build:copy": "node scripts/copy-assets.js",
+    "build:compile": "tsc",
+    "dev": "npm run clean && npm run build",
+    "watch": "tsc --watch",
+    "lint": "eslint src --ext .ts,.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "chrome-extension",
+    "prompt",
+    "productivity",
+    "browser-extension"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "rimraf": "^5.0.7",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

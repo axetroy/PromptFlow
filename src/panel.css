@@ -1,0 +1,57 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Scrollbar styling for the prompt list */
+#promptflow-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#promptflow-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#promptflow-list::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+    border-radius: 3px;
+}
+
+#promptflow-list::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
+}
+
+/* Selected item highlight */
+#promptflow-list > div:hover {
+    background: #333 !important;
+}
+
+#promptflow-list > div.selected {
+    background: #3a3a3a !important;
+}
+
+/* Focus styles for search input */
+#promptflow-search:focus {
+    border-color: #5a5a5a !important;
+}
+
+/* Animation for panel appearance */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#promptflow-panel {
+    animation: fadeIn 0.15s ease-out;
+}
