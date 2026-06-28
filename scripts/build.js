@@ -26,6 +26,14 @@ async function build() {
         format: 'iife',
     });
 
+    // Bundle settings script (IIFE for popup page)
+    await esbuild.build({
+        ...commonOptions,
+        entryPoints: [path.join(__dirname, '..', 'src', 'settings.ts')],
+        outfile: path.join(__dirname, '..', 'dist', 'settings.js'),
+        format: 'iife',
+    });
+
     console.log('Build completed successfully!');
 }
 

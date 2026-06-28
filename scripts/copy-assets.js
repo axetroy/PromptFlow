@@ -43,6 +43,13 @@ if (fs.existsSync(cssSrc)) {
     copyFileSync(cssSrc, cssDest);
 }
 
+// Copy settings.html
+const settingsHtmlSrc = path.join(__dirname, '..', 'src', 'settings.html');
+const settingsHtmlDest = path.join(distDir, 'settings.html');
+if (fs.existsSync(settingsHtmlSrc)) {
+    copyFileSync(settingsHtmlSrc, settingsHtmlDest);
+}
+
 // Copy icons directory
 const iconsSrc = path.join(__dirname, '..', 'src', 'icons');
 const iconsDest = path.join(distDir, 'icons');

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PromptFlow Settings</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #ffffff;
+      padding: 24px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .subtitle {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    
+    .section {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 20px;
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      border-radius: 2px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+    
+    label {
+      display: block;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #ffffff;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+    
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: rgba(99, 102, 241, 0.5);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+    
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    
+    .hint {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-top: 6px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #ffffff;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+    
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .prompt-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .prompt-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px;
+      transition: all 0.2s ease;
+    }
+    
+    .prompt-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    
+    .prompt-card.default {
+      border-left: 3px solid rgba(99, 102, 241, 0.5);
+    }
+    
+    .prompt-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    
+    .prompt-title {
+      font-weight: 600;
+      font-size: 15px;
+    }
+    
+    .prompt-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: rgba(99, 102, 241, 0.2);
+      color: #818cf8;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    
+    .prompt-description {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    
+    .prompt-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    
+    .prompt-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.6);
+      border-radius: 4px;
+    }
+    
+    .prompt-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    
+    .prompt-actions .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .modal {
+      background: #1e1e2e;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      transform: scale(0.95);
+      transition: transform 0.2s ease;
+    }
+    
+    .modal-overlay.active .modal {
+      transform: scale(1);
+    }
+    
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #ffffff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .modal-body {
+      padding: 24px;
+    }
+    
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 14px 20px;
+      background: #1e1e2e;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: #ffffff;
+      font-size: 14px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1001;
+    }
+    
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    
+    .toast.success {
+      border-left: 4px solid #22c55e;
+    }
+    
+    .toast.error {
+      border-left: 4px solid #ef4444;
+    }
+    
+    .empty-prompts {
+      text-align: center;
+      padding: 40px 20px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .empty-prompts-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    
+    .add-prompt-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .toggle-group {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .toggle-option {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .toggle-option.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(99, 102, 241, 0.5);
+      color: #ffffff;
+    }
+    
+    .toggle-option:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PromptFlow Settings</h1>
+    <p class="subtitle">Manage your prompts and customize your experience</p>
+    
+    <!-- General Settings -->
+    <div class="section">
+      <h2 class="section-title">General Settings</h2>
+      
+      <div class="form-group">
+        <label for="trigger">Trigger Command</label>
+        <input type="text" id="trigger" placeholder="/prompts" />
+        <p class="hint">Type this command in any input field to open the prompt panel</p>
+      </div>
+      
+      <div class="form-group">
+        <label>Theme</label>
+        <div class="toggle-group">
+          <button type="button" class="toggle-option" data-theme="light">Light</button>
+          <button type="button" class="toggle-option active" data-theme="dark">Dark</button>
+          <button type="button" class="toggle-option" data-theme="auto">Auto</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Prompts Management -->
+    <div class="section">
+      <h2 class="section-title">Prompts</h2>
+      
+      <div id="prompt-list" class="prompt-list">
+        <!-- Prompts will be rendered here -->
+      </div>
+      
+      <div class="add-prompt-section">
+        <button type="button" class="btn btn-primary" id="add-prompt-btn">
+          <span>+</span> Add New Prompt
+        </button>
+      </div>
+    </div>
+    
+    <!-- Danger Zone -->
+    <div class="section" style="border-color: rgba(239, 68, 68, 0.3);">
+      <h2 class="section-title" style="color: #ef4444;">Danger Zone</h2>
+      
+      <div class="form-group">
+        <label>Reset to Default Prompts</label>
+        <p class="hint" style="margin-bottom: 12px;">This will delete all custom prompts and restore the default ones.</p>
+        <button type="button" class="btn btn-danger" id="reset-prompts-btn">
+          Reset Prompts
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit/Add Prompt Modal -->
+  <div class="modal-overlay" id="prompt-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">Add Prompt</h3>
+        <button type="button" class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="prompt-id" />
+        
+        <div class="form-group">
+          <label for="prompt-title">Title *</label>
+          <input type="text" id="prompt-title" placeholder="My Custom Prompt" />
+        </div>
+        
+        <div class="form-group">
+          <label for="prompt-content">Content *</label>
+          <textarea id="prompt-content" placeholder="Enter your prompt template..."></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="prompt-description">Description</label>
+          <input type="text" id="prompt-description" placeholder="Brief description of this prompt" />
+        </div>
+        
+        <div class="form-group">
+          <label for="prompt-tags">Tags (comma separated)</label>
+          <input type="text" id="prompt-tags" placeholder="dev, code, review" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modal-save">Save Prompt</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+  
+  <script src="settings.js"></script>
+</body>
+</html>

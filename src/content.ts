@@ -213,21 +213,57 @@ async function loadPanelApp(container: HTMLElement): Promise<void> {
   
   // Create footer
   const footer = document.createElement('div');
+  footer.id = 'promptflow-footer';
   footer.style.cssText = `
     padding: 10px 12px;
-    border-top: 1px solid #3a3a3a;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 12px;
-    color: #888;
+    color: rgba(255, 255, 255, 0.4);
   `;
   footer.innerHTML = `
-    <span>↑↓ Navigate</span>
-    <span>Enter to select</span>
-    <span>Esc to close</span>
+    <div style="display: flex; gap: 16px;">
+      <span class="footer-hint"><span class="footer-key">↑↓</span> Navigate</span>
+      <span class="footer-hint"><span class="footer-key">Enter</span> Select</span>
+      <span class="footer-hint"><span class="footer-key">Esc</span> Close</span>
+    </div>
+    <button id="promptflow-settings-btn" style="
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    ">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+      Settings
+    </button>
   `;
   panelWrapper.appendChild(footer);
+  
+  // Settings button click handler
+  const settingsBtn = shadow.getElementById('promptflow-settings-btn');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      closePanel();
+      // Open settings page
+      if (chrome.action && chrome.action.openPopup) {
+        chrome.action.openPopup();
+      } else {
+        // Fallback: open settings in new tab
+        window.open(chrome.runtime.getURL('settings.html'), '_blank');
+      }
+    });
+  }
   
   // Load prompts and render
   const prompts = await loadPrompts();

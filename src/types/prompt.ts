@@ -6,6 +6,7 @@ export interface Prompt {
   tags: string[];
   createdAt: number;
   updatedAt: number;
+  isDefault?: boolean; // Default prompts cannot be modified/deleted
 }
 
 export interface PromptSettings {
@@ -34,6 +35,7 @@ export const DEFAULT_PROMPTS: Prompt[] = [
     tags: ['dev', 'review', 'code'],
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    isDefault: true,
   },
   {
     id: '2',
@@ -43,6 +45,7 @@ export const DEFAULT_PROMPTS: Prompt[] = [
     tags: ['dev', 'explanation', 'learning'],
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    isDefault: true,
   },
   {
     id: '3',
@@ -52,6 +55,7 @@ export const DEFAULT_PROMPTS: Prompt[] = [
     tags: ['dev', 'debug', 'fix'],
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    isDefault: true,
   },
   {
     id: '4',
@@ -61,6 +65,7 @@ export const DEFAULT_PROMPTS: Prompt[] = [
     tags: ['dev', 'testing', 'quality'],
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    isDefault: true,
   },
   {
     id: '5',
@@ -70,5 +75,6 @@ export const DEFAULT_PROMPTS: Prompt[] = [
     tags: ['dev', 'refactor', 'cleanup'],
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    isDefault: true,
   },
 ];
