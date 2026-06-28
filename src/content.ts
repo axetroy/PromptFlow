@@ -438,7 +438,7 @@ function updateSelection(shadow: ShadowRoot, index: number, theme?: 'light' | 'd
   const isDark = theme !== 'light';
   const items = shadow.querySelectorAll('#promptflow-list > div');
   items.forEach((item, i) => {
-    (item as HTMLElement).style.background = i === index ? (isDark ? '#3a3a3a' : '#e8e8e8') : 'transparent';
+    (item as HTMLElement).style.background = i === index ? (isDark ? '#2d2d2d' : '#f0f0f0') : 'transparent';
   });
 }
 
