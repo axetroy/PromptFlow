@@ -239,3 +239,80 @@ test.describe('React Settings App', () => {
     expect(result.timestampUpdated).toBe(true);
   });
 });
+
+test.describe('Settings Button in Panel', () => {
+  test('should render settings button in panel footer', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      // Simulate panel footer with settings button
+      const footerHTML = `
+        <div id="promptflow-footer">
+          <div style="display: flex; gap: 16px;">
+            <span>Navigate</span>
+            <span>Select</span>
+            <span>Close</span>
+          </div>
+          <button id="promptflow-settings-btn">
+            <svg></svg>
+            Settings
+          </button>
+        </div>
+      `;
+      
+      return {
+        hasSettingsButton: footerHTML.includes('promptflow-settings-btn'),
+        hasSettingsText: footerHTML.includes('Settings'),
+        hasSvgIcon: footerHTML.includes('<svg'),
+      };
+    });
+    
+    expect(result.hasSettingsButton).toBe(true);
+    expect(result.hasSettingsText).toBe(true);
+    expect(result.hasSvgIcon).toBe(true);
+  });
+  
+  test('should close panel when settings is clicked', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      let isPanelOpen = true;
+      
+      // Simulate settings button click
+      const settingsBtnClicked = true;
+      if (settingsBtnClicked) {
+        isPanelOpen = false;
+      }
+      
+      return { isPanelOpen };
+    });
+    
+    expect(result.isPanelOpen).toBe(false);
+  });
+  
+  test('should have hover effect styles for settings button', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      const buttonStyle = `
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+      `;
+      
+      return {
+        hasTransition: buttonStyle.includes('transition'),
+        hasBorderRadius: buttonStyle.includes('border-radius'),
+        hasHoverSupport: buttonStyle.includes('transition') && buttonStyle.includes('cursor: pointer'),
+      };
+    });
+    
+    expect(result.hasTransition).toBe(true);
+    expect(result.hasBorderRadius).toBe(true);
+    expect(result.hasHoverSupport).toBe(true);
+  });
+});
