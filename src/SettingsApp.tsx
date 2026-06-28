@@ -223,7 +223,7 @@ const SettingsApp: React.FC = () => {
             // Merge with existing prompts (avoid duplicates by id)
             const existingIds = new Set(prompts.map(p => p.id));
             const newPrompts = prompts.concat(
-              validPrompts.filter(p => !existingIds.has(p.id))
+              validPrompts.filter((p: Prompt) => !existingIds.has(p.id))
             );
             setPrompts(newPrompts);
             await persistData(newPrompts, settings);
