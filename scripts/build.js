@@ -8,17 +8,13 @@ async function build() {
         sourcemap: false,
         target: 'es2020',
         platform: 'browser',
-        loader: {
-            '.tsx': 'tsx',
-            '.ts': 'ts',
-        },
         jsx: 'automatic',
         jsxImportSource: 'react',
-        // Treat CSS imports as text
         loader: {
             '.tsx': 'tsx',
             '.ts': 'ts',
             '.css': 'css',
+            '.md': 'text',
         },
     };
 
