@@ -140,13 +140,18 @@
 }
 
 .footer-hint {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
 }
 
 .footer-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 2px 6px;
+  min-width: 24px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
