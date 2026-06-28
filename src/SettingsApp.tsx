@@ -34,6 +34,9 @@ import type { ColumnsType } from 'antd/es/table';
 // Import Ant Design styles
 import 'antd/dist/reset.css';
 
+// Import default prompts from markdown files
+import { DEFAULT_PROMPTS as defaultPromptsFromFiles } from './prompts';
+
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -60,54 +63,12 @@ interface StorageData {
   settings: PromptSettings;
 }
 
-// Default prompts
-const getDefaultPrompts = (): Prompt[] => [
-  {
-    id: '1',
-    title: 'Code Review',
-    content: 'Please review the following code and suggest improvements:\n\n```\n{code}\n```\n\nFocus on:\n- Code quality\n- Performance\n- Security',
-    description: 'Review code and provide improvement suggestions',
-    tags: ['dev', 'review', 'code'],
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  },
-  {
-    id: '2',
-    title: 'Explain Code',
-    content: 'Explain the following code in detail:\n\n```\n{code}\n```\n\nPlease include:\n- What the code does\n- How it works\n- Key components',
-    description: 'Get detailed explanation of any code',
-    tags: ['dev', 'explanation', 'learning'],
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  },
-  {
-    id: '3',
-    title: 'Bug Fix',
-    content: 'I have a bug in the following code:\n\n```\n{code}\n```\n\nError message:\n{error}\n\nPlease help me identify and fix the issue.',
-    description: 'Debug and fix code issues',
-    tags: ['dev', 'debug', 'fix'],
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  },
-  {
-    id: '4',
-    title: 'Write Tests',
-    content: 'Write comprehensive tests for the following code:\n\n```\n{code}\n```\n\nRequirements:\n- Cover edge cases\n- Use best practices\n- Include comments',
-    description: 'Generate test cases for code',
-    tags: ['dev', 'testing', 'quality'],
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  },
-  {
-    id: '5',
-    title: 'Refactor Code',
-    content: 'Refactor the following code to improve readability and maintainability:\n\n```\n{code}\n```\n\nGoals:\n- Cleaner architecture\n- Better naming\n- Reduced complexity',
-    description: 'Improve code structure and quality',
-    tags: ['dev', 'refactor', 'cleanup'],
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  },
-];
+// Default prompts - loaded from markdown files
+const getDefaultPrompts = (): Prompt[] => defaultPromptsFromFiles.map(prompt => ({
+  ...prompt,
+  createdAt: Date.now(),
+  updatedAt: Date.now()
+}));
 
 // Storage helpers
 const loadData = (): Promise<StorageData> => {
