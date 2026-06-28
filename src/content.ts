@@ -527,10 +527,12 @@ function findFirstPlaceholder(content: string): { start: number; end: number } |
  * Set text selection range for input/textarea elements
  */
 function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, start: number, end: number): void {
+  if (!input) return;
+  
   if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
     input.setSelectionRange(start, end);
     input.focus();
-  } else if (input.hasAttribute('contenteditable')) {
+  } else if (input.hasAttribute && input.hasAttribute('contenteditable')) {
     const range = document.createRange();
     const selection = window.getSelection();
     let charCount = 0;
@@ -601,7 +603,7 @@ function selectPrompt(prompt: Prompt): void {
     state.currentInput.value = newValue;
     state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
     setSelection(state.currentInput, selectionStart, selectionEnd);
-  } else if (state.currentInput.hasAttribute('contenteditable')) {
+  } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
     // For contenteditable elements, we need to properly handle newlines
     // by inserting <br> tags instead of just setting textContent
     insertContentWithNewlines(state.currentInput, newValue, selectionStart, selectionEnd);
