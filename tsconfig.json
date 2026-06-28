@@ -13,7 +13,8 @@
     "rootDir": "./src",
     "declaration": false,
     "noEmit": false,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "types": ["chrome"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

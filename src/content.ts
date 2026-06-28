@@ -1131,7 +1131,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'UPDATE_PROMPTS') {
     state.prompts = message.prompts;
     if (state.isPanelOpen && panelContainer?.shadowRoot) {
-      renderPromptList(panelContainer.shadowRoot, state.prompts, getCurrentTheme());
+      renderPromptList(panelContainer.shadowRoot, state.prompts);
     }
   }
 });
