@@ -650,14 +650,45 @@ function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, s
 function selectPrompt(prompt: Prompt): void {
   if (!state.currentInput) return;
   
+  // Get browser's display language
+  const browserLang = navigator.language || 'en';
+  const langCode = browserLang.split('-')[0];
+  const langNames: Record<string, string> = {
+    'zh': 'Chinese',
+    'en': 'English',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'pt': 'Portuguese',
+    'ru': 'Russian',
+    'ar': 'Arabic',
+    'hi': 'Hindi',
+    'th': 'Thai',
+    'vi': 'Vietnamese',
+    'id': 'Indonesian',
+    'ms': 'Malay',
+    'tr': 'Turkish',
+    'pl': 'Polish',
+    'nl': 'Dutch',
+    'it': 'Italian',
+    'uk': 'Ukrainian',
+  };
+  const langName = langNames[langCode] || 'English';
+  
+  // Append language instruction to prompt
+  const languageInstruction = `\n\nPlease respond in ${langName}.`;
+  const promptContent = prompt.content + languageInstruction;
+  
   const inputValue = getInputValue(state.currentInput);
   
   // Replace trigger with prompt content
   const before = inputValue.substring(0, state.triggerStartPosition);
   const after = inputValue.substring(state.caretPosition);
-  const newValue = before + prompt.content + after;
+  const newValue = before + promptContent + after;
   
-  // Find first placeholder position
+  // Find first placeholder position (relative to original prompt.content)
   const placeholder = findFirstPlaceholder(prompt.content);
   
   // Calculate selection range after insertion
@@ -669,7 +700,7 @@ function selectPrompt(prompt: Prompt): void {
     selectionStart = state.triggerStartPosition + placeholder.start;
     selectionEnd = state.triggerStartPosition + placeholder.end;
   } else {
-    // No placeholder found, position cursor at end of inserted text
+    // No placeholder found, position cursor at end of inserted text (before language instruction)
     selectionStart = state.triggerStartPosition + prompt.content.length;
     selectionEnd = selectionStart;
   }
@@ -698,7 +729,7 @@ function selectPrompt(prompt: Prompt): void {
     // For contenteditable, we need relative positions within prompt.content
     const relativeStart = placeholder ? placeholder.start : prompt.content.length;
     const relativeEnd = placeholder ? placeholder.end : prompt.content.length;
-    insertContentWithNewlines(state.currentInput, prompt.content, relativeStart, relativeEnd);
+    insertContentWithNewlines(state.currentInput, promptContent, relativeStart, relativeEnd);
   }
   
   closePanel(false, false);
