@@ -442,6 +442,8 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light'
   if (!listContainer) return;
   
   listContainer.innerHTML = '';
+
+  const themeClass = isDark ? '' : ' light';
   
   if (prompts.length === 0) {
     listContainer.innerHTML = `
@@ -455,9 +457,7 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light'
   prompts.forEach((prompt, index) => {
     const item = document.createElement('div');
     const selectedClass = index === state.selectedIndex ? ' selected' : '';
-    const themeClass = isDark ? '' : ' light';
     item.className = 'prompt-item' + selectedClass + themeClass;
-    
     
     item.innerHTML = `
       <div style="font-weight: 500; color: ${isDark ? '#fff' : '#1a1a1a'}; margin-bottom: 4px;">
