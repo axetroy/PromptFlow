@@ -530,8 +530,8 @@ function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, s
   if (!input) return;
   
   if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-    input.setSelectionRange(start, end);
     input.focus();
+    input.setSelectionRange(start, end);
   } else if (input.hasAttribute && input.hasAttribute('contenteditable')) {
     const range = document.createRange();
     const selection = window.getSelection();
@@ -599,17 +599,32 @@ function selectPrompt(prompt: Prompt): void {
     selectionEnd = selectionStart;
   }
   
-  if (state.currentInput instanceof HTMLInputElement || state.currentInput instanceof HTMLTextAreaElement) {
+  // For textarea, directly set value and selection synchronously
+  if (state.currentInput instanceof HTMLTextAreaElement) {
+    const textarea = state.currentInput;
+    textarea.value = newValue;
+    // Focus first
+    textarea.focus();
+    // Then set selection range
+    textarea.setSelectionRange(selectionStart, selectionEnd);
+    console.log('[PromptFlow] Before closePanel - Selection:', textarea.selectionStart, '-', textarea.selectionEnd);
+    // Close panel, don't restore caret position (we already set it)
+    closePanel(false, false);
+    console.log('[PromptFlow] After closePanel - Selection:', textarea.selectionStart, '-', textarea.selectionEnd);
+    // Double-check selection is set after closePanel
+    textarea.setSelectionRange(selectionStart, selectionEnd);
+    console.log('[PromptFlow] After double-check - Selection:', textarea.selectionStart, '-', textarea.selectionEnd);
+    return;
+  }
+  
+  if (state.currentInput instanceof HTMLInputElement) {
     state.currentInput.value = newValue;
     state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
     setSelection(state.currentInput, selectionStart, selectionEnd);
   } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
-    // For contenteditable elements, we need to properly handle newlines
-    // by inserting <br> tags instead of just setting textContent
     insertContentWithNewlines(state.currentInput, newValue, selectionStart, selectionEnd);
   }
   
-  // Don't restore caret position - we already set the selection above
   closePanel(false, false);
 }
 
