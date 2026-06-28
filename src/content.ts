@@ -102,28 +102,7 @@ function getCaretPosition(input: HTMLInputElement | HTMLTextAreaElement | Elemen
 }
 
 function getCaretRect(input: HTMLInputElement | HTMLTextAreaElement | Element): DOMRect | null {
-  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-    const pos = input.selectionStart || 0;
-    // Create a temporary range to get caret position
-    if (input.setSelectionRange) {
-      const div = document.createElement('div');
-      const style = getComputedStyle(input);
-      div.style.position = 'absolute';
-      div.style.top = '-9999px';
-      div.style.left = '-9999px';
-      div.style.font = style.font;
-      div.style.whiteSpace = 'pre-wrap';
-      div.textContent = input.value.substring(0, pos);
-      const span = document.createElement('span');
-      span.textContent = input.value.substring(pos) || '.';
-      div.appendChild(span);
-      document.body.appendChild(div);
-      const rect = span.getBoundingClientRect();
-      document.body.removeChild(div);
-      return rect;
-    }
-    return null;
-  }
+  // contenteditable elements - use selection range rect
   if (input.hasAttribute('contenteditable')) {
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
@@ -132,10 +111,70 @@ function getCaretRect(input: HTMLInputElement | HTMLTextAreaElement | Element): 
       if (rects.length > 0) {
         return rects[rects.length - 1];
       }
-      // Fallback to range bounding rect
       return range.getBoundingClientRect();
     }
+    return null;
   }
+  
+  // For input/textarea, use a mirror div technique
+  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+    const inputRect = input.getBoundingClientRect();
+    const pos = input.selectionStart || 0;
+    
+    // Create a mirror div with same styling
+    const mirror = document.createElement('div');
+    const style = getComputedStyle(input);
+    
+    // Copy essential styles
+    const props = [
+      'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
+      'letterSpacing', 'lineHeight', 'textTransform',
+      'borderWidth', 'borderStyle', 'borderColor',
+      'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+      'boxSizing', 'wordBreak'
+    ];
+    
+    props.forEach(prop => {
+      mirror.style.setProperty(prop, style.getPropertyValue(prop === 'borderWidth' ? 'border-width' : 
+        prop === 'borderStyle' ? 'border-style' : 
+        prop === 'borderColor' ? 'border-color' : 
+        prop === 'boxSizing' ? 'box-sizing' : 
+        prop === 'wordBreak' ? 'word-break' : prop));
+    });
+    
+    mirror.style.position = 'absolute';
+    mirror.style.top = '-9999px';
+    mirror.style.left = '-9999px';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.overflow = 'hidden';
+    mirror.style.width = inputRect.width + 'px';
+    
+    // Add text before caret
+    const textBefore = input.value.substring(0, pos);
+    const textAfter = input.value.substring(pos);
+    
+    // Create span at caret position
+    mirror.innerHTML = escapeHtml(textBefore) + '<span id="caret-span">|</span>' + escapeHtml(textAfter);
+    document.body.appendChild(mirror);
+    
+    const caretSpan = document.getElementById('caret-span');
+    let rect: DOMRect | null = null;
+    
+    if (caretSpan) {
+      rect = caretSpan.getBoundingClientRect();
+      // Create a new rect relative to viewport
+      rect = new DOMRect(
+        rect.left,
+        rect.top,
+        0, // caret width is 0
+        rect.height
+      );
+    }
+    
+    document.body.removeChild(mirror);
+    return rect;
+  }
+  
   return null;
 }
 
