@@ -36,6 +36,8 @@ console.log(`Building version: ${version}`);
 const manifestSrc = path.join(__dirname, '..', 'src', 'manifest.json');
 const manifestDest = path.join(distDir, 'manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestSrc, 'utf8'));
+manifest.name = packageJson.name;
+manifest.description = packageJson.description;
 manifest.version = version;
 fs.writeFileSync(manifestDest, JSON.stringify(manifest, null, 2));
 console.log(`Copied: ${manifestSrc} -> ${manifestDest} (version: ${version})`);
