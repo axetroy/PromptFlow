@@ -609,7 +609,8 @@ function selectPrompt(prompt: Prompt): void {
     insertContentWithNewlines(state.currentInput, newValue, selectionStart, selectionEnd);
   }
   
-  closePanel();
+  // Don't restore caret position - we already set the selection above
+  closePanel(false, false);
 }
 
 /**
@@ -708,7 +709,7 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
   window.addEventListener('resize', debouncedPositionPanel);
 }
 
-function closePanel(restoreFocus: boolean = true): void {
+function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean = true): void {
   if (!state.isPanelOpen) return;
 
   // Store input and actual caret position before closing
@@ -726,10 +727,12 @@ function closePanel(restoreFocus: boolean = true): void {
     panelContainer = null;
   }
 
-  // Restore focus to the input and set cursor position to where it was
+  // Restore focus to the input and optionally restore cursor position
   if (restoreFocus && previousInput) {
     previousInput.focus();
-    setCaretPosition(previousInput, previousPosition);
+    if (restoreCaretPosition) {
+      setCaretPosition(previousInput, previousPosition);
+    }
   }
 }
 
