@@ -418,6 +418,259 @@ test.describe('insertContentIntoContentEditable', () => {
     expect(result.selectedText).toBe('');
     expect(result.isCollapsed).toBe(true);
   });
+
+  test('should select placeholder after newline with br tags', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      function findFirstPlaceholder(content: string): { start: number; end: number } | null {
+        const match = content.match(/\{[^}]+\}/);
+        if (match && match.index !== undefined) {
+          return { start: match.index, end: match.index + match[0].length };
+        }
+        return null;
+      }
+      
+      function findDOMPosition(element: Element, targetCharPos: number): { node: Node; offset: number } | null {
+        let charCount = 0;
+        
+        for (const node of Array.from(element.childNodes)) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const nodeLength = node.textContent!.length;
+            if (charCount <= targetCharPos && targetCharPos <= charCount + nodeLength) {
+              return { node, offset: targetCharPos - charCount };
+            }
+            charCount += nodeLength;
+          } else if (node.nodeName === 'BR') {
+            if (charCount === targetCharPos) {
+              // Find next text node
+              for (const n of Array.from(element.childNodes)) {
+                if (n !== node && n.nodeType === Node.TEXT_NODE) {
+                  return { node: n, offset: 0 };
+                }
+              }
+            }
+            charCount += 1;
+          }
+        }
+        return null;
+      }
+      
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      document.body.appendChild(div);
+      
+      // Content: "Line 1\n{template}\nLine 3"
+      // {template} is at position 7-17 (after "Line 1\n")
+      const content = 'Line 1\n{template}\nLine 3';
+      const placeholder = findFirstPlaceholder(content);
+      
+      // Insert with br tags (like insertContentWithNewlines)
+      div.textContent = '';
+      const lines = content.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (i > 0) {
+          div.appendChild(document.createElement('br'));
+        }
+        if (lines[i].length > 0) {
+          div.appendChild(document.createTextNode(lines[i]));
+        }
+      }
+      
+      // Use findDOMPosition to correctly map placeholder position to DOM
+      if (placeholder) {
+        const startPos = findDOMPosition(div, placeholder.start);
+        const endPos = findDOMPosition(div, placeholder.end);
+        
+        if (startPos && endPos) {
+          const range = document.createRange();
+          const selection = window.getSelection();
+          range.setStart(startPos.node, startPos.offset);
+          range.setEnd(endPos.node, endPos.offset);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        }
+      }
+      
+      return {
+        selectedText: window.getSelection()?.toString(),
+        placeholder: placeholder
+      };
+    });
+    
+    expect(result.selectedText).toBe('{template}');
+    expect(result.placeholder?.start).toBe(7);
+    expect(result.placeholder?.end).toBe(17);
+  });
+
+  test('should select placeholder spanning multiple lines', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      function findFirstPlaceholder(content: string): { start: number; end: number } | null {
+        const match = content.match(/\{[^}]+\}/);
+        if (match && match.index !== undefined) {
+          return { start: match.index, end: match.index + match[0].length };
+        }
+        return null;
+      }
+      
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      document.body.appendChild(div);
+      
+      // Placeholder at start: "{start} middle\n{end}"
+      const content = '{start} middle\n{end}';
+      const placeholder = findFirstPlaceholder(content);
+      
+      // Insert with br tags
+      div.textContent = '';
+      const lines = content.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (i > 0) {
+          div.appendChild(document.createElement('br'));
+        }
+        if (lines[i].length > 0) {
+          div.appendChild(document.createTextNode(lines[i]));
+        }
+      }
+      
+      // Select {start} at position 0-7
+      if (placeholder) {
+        const range = document.createRange();
+        const selection = window.getSelection();
+        range.setStart(div.firstChild!, 0);
+        range.setEnd(div.firstChild!, 7);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+      
+      return {
+        selectedText: window.getSelection()?.toString(),
+        placeholder: placeholder
+      };
+    });
+    
+    expect(result.selectedText).toBe('{start}');
+    expect(result.placeholder?.start).toBe(0);
+  });
+
+  test('should position cursor at end of multiline content', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      function findLastTextNode(element: Element): Node | null {
+        for (let i = element.childNodes.length - 1; i >= 0; i--) {
+          if (element.childNodes[i].nodeType === Node.TEXT_NODE) {
+            return element.childNodes[i];
+          }
+        }
+        return null;
+      }
+      
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      document.body.appendChild(div);
+      
+      // Insert multiline content
+      const content = 'Line 1\nLine 2\nLine 3';
+      const lines = content.split('\n');
+      
+      div.textContent = '';
+      for (let i = 0; i < lines.length; i++) {
+        if (i > 0) {
+          div.appendChild(document.createElement('br'));
+        }
+        if (lines[i].length > 0) {
+          div.appendChild(document.createTextNode(lines[i]));
+        }
+      }
+      
+      // Collapse at end
+      const lastNode = findLastTextNode(div);
+      if (lastNode) {
+        const range = document.createRange();
+        const selection = window.getSelection();
+        range.setStart(lastNode, lastNode.textContent!.length);
+        range.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+      
+      return {
+        childNodesCount: div.childNodes.length,
+        isCollapsed: window.getSelection()?.isCollapsed
+      };
+    });
+    
+    expect(result.childNodesCount).toBe(5); // 3 text nodes + 2 br elements
+    expect(result.isCollapsed).toBe(true);
+  });
+
+  test('should select placeholder at start of content', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      document.body.appendChild(div);
+      
+      // Content with placeholder at start
+      const content = '{greeting}! How are you?';
+      
+      div.textContent = '';
+      div.appendChild(document.createTextNode(content));
+      
+      // Select {greeting} (positions 0-10)
+      const range = document.createRange();
+      const selection = window.getSelection();
+      range.setStart(div.firstChild!, 0);
+      range.setEnd(div.firstChild!, 10);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      
+      return {
+        textContent: div.textContent,
+        selectedText: selection?.toString()
+      };
+    });
+    
+    expect(result.textContent).toBe('{greeting}! How are you?');
+    expect(result.selectedText).toBe('{greeting}');
+  });
+
+  test('should select placeholder at end of content', async ({ page }) => {
+    await page.goto('about:blank');
+    
+    const result = await page.evaluate(() => {
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      document.body.appendChild(div);
+      
+      // Content with placeholder at end
+      const content = 'Please fill in {name}';
+      // {name} is at positions 15-21
+      
+      div.textContent = '';
+      div.appendChild(document.createTextNode(content));
+      
+      // Select {name}
+      const range = document.createRange();
+      const selection = window.getSelection();
+      range.setStart(div.firstChild!, 15);
+      range.setEnd(div.firstChild!, 21);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      
+      return {
+        textContent: div.textContent,
+        selectedText: selection?.toString()
+      };
+    });
+    
+    expect(result.textContent).toBe('Please fill in {name}');
+    expect(result.selectedText).toBe('{name}');
+  });
 });
 
 test.describe('Integration: Prompt Insertion', () => {

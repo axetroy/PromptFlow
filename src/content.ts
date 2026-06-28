@@ -548,17 +548,56 @@ function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, s
       if (node.nodeType === Node.TEXT_NODE) {
         const nodeLength = node.textContent!.length;
         const nextCount = charCount + nodeLength;
+        const offset = start - charCount;
         
-        if (!foundStart && start <= nextCount) {
-          range.setStart(node, start - charCount);
+        // Check if start position is within this text node
+        // Only use this node if offset is within valid range (0 to nodeLength)
+        if (!foundStart && offset >= 0 && offset <= nodeLength) {
+          // If offset equals nodeLength, we need to move to next node
+          if (offset === nodeLength) {
+            // Don't set foundStart yet, will continue to next node
+          } else {
+            range.setStart(node, offset);
+            foundStart = true;
+          }
+        }
+        
+        // Check if end position is within this text node
+        const endOffset = end - charCount;
+        if (foundStart && !foundEnd && endOffset >= 0 && endOffset <= nodeLength) {
+          if (endOffset === nodeLength) {
+            // Don't set foundEnd yet, will continue to next node
+          } else {
+            range.setEnd(node, endOffset);
+            foundEnd = true;
+          }
+        }
+        
+        // If we're at the boundary of this node, continue to next
+        if (!foundStart && offset > nodeLength) {
           foundStart = true;
+          range.setStartAfter(node);
         }
-        if (foundStart && !foundEnd && end <= nextCount) {
-          range.setEnd(node, end - charCount);
+        if (foundStart && !foundEnd && endOffset > nodeLength) {
           foundEnd = true;
+          range.setEndBefore(node);
         }
+        
         charCount = nextCount;
       } else {
+        // For non-text nodes (like br), count as 1 character
+        if (node.nodeName === 'BR') {
+          const nextCount = charCount + 1;
+          if (!foundStart && start === nextCount) {
+            // Position is at the br, find next text node
+            foundStart = true;
+          }
+          if (foundStart && !foundEnd && end === nextCount) {
+            foundEnd = true;
+          }
+          charCount = nextCount;
+        }
+        
         for (const child of Array.from(node.childNodes)) {
           traverseNodes(child);
           if (foundStart && foundEnd) break;
@@ -567,10 +606,42 @@ function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, s
     }
 
     traverseNodes(input);
-    if (!foundEnd) {
-      range.selectNodeContents(input);
-      range.collapse(false);
+    
+    // Handle case where positions are at boundaries
+    if (!foundStart || !foundEnd) {
+      // Try to collapse to appropriate position
+      const allTextNodes: Text[] = [];
+      function collectTextNodes(node: Node): void {
+        if (node.nodeType === Node.TEXT_NODE) {
+          allTextNodes.push(node as Text);
+        }
+        for (const child of Array.from(node.childNodes)) {
+          collectTextNodes(child);
+        }
+      }
+      collectTextNodes(input);
+      
+      if (allTextNodes.length > 0) {
+        if (!foundStart) {
+          // Start at beginning of first text node
+          range.setStart(allTextNodes[0], 0);
+        }
+        if (!foundEnd) {
+          // End at end of last text node (or at start if no nodes)
+          const lastNode = allTextNodes[allTextNodes.length - 1];
+          if (start <= lastNode.textContent!.length) {
+            range.setEnd(lastNode, start);
+          } else {
+            range.setEndAfter(lastNode);
+          }
+        }
+      } else {
+        // No text nodes, select entire contents
+        range.selectNodeContents(input);
+        range.collapse(false);
+      }
     }
+    
     selection?.removeAllRanges();
     selection?.addRange(range);
   }
@@ -624,7 +695,10 @@ function selectPrompt(prompt: Prompt): void {
     state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
     setSelection(state.currentInput, selectionStart, selectionEnd);
   } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
-    insertContentWithNewlines(state.currentInput, prompt.content, selectionStart, selectionEnd);
+    // For contenteditable, we need relative positions within prompt.content
+    const relativeStart = placeholder ? placeholder.start : prompt.content.length;
+    const relativeEnd = placeholder ? placeholder.end : prompt.content.length;
+    insertContentWithNewlines(state.currentInput, prompt.content, relativeStart, relativeEnd);
   }
   
   closePanel(false, false);
@@ -632,8 +706,14 @@ function selectPrompt(prompt: Prompt): void {
 
 /**
  * Insert content into contenteditable element, properly handling newlines
+ * Returns the actual text content length for selection calculation
  */
-function insertContentWithNewlines(element: Element, content: string, selectionStart: number, selectionEnd: number): void {
+function insertContentWithNewlines(
+  element: Element,
+  content: string,
+  selectionStart: number,
+  selectionEnd: number
+): void {
   // Clear the element
   element.textContent = '';
   
@@ -651,8 +731,123 @@ function insertContentWithNewlines(element: Element, content: string, selectionS
     }
   }
   
-  // Set selection (may select placeholder or position cursor at end)
-  setSelection(element, selectionStart, selectionEnd);
+  // Adjust selection positions to account for br tags
+  // In content string, \n is 1 char, but in DOM, <br> is a separate node
+  // We need to find the corresponding DOM position
+  const adjustedStart = findDOMPosition(element, selectionStart);
+  const adjustedEnd = findDOMPosition(element, selectionEnd);
+  
+  // Set selection using adjusted positions
+  setSelectionAtPosition(element, adjustedStart, adjustedEnd);
+}
+
+/**
+ * Find the DOM position (node + offset) corresponding to a character position in content
+ * This accounts for <br> tags being separate nodes in the DOM
+ */
+function findDOMPosition(element: Element, targetCharPos: number): { node: Node; offset: number } | null {
+  let charCount = 0;
+  
+  for (const node of Array.from(element.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const nodeLength = node.textContent!.length;
+      
+      // Check if target position is within this text node
+      if (charCount <= targetCharPos && targetCharPos <= charCount + nodeLength) {
+        return {
+          node,
+          offset: targetCharPos - charCount
+        };
+      }
+      charCount += nodeLength;
+    } else if (node.nodeName === 'BR') {
+      // br tag represents a newline character in the content
+      // If target is at this newline position, find next text node
+      if (charCount === targetCharPos) {
+        // Target is exactly at this br position
+        // Move to next text node or return null
+        const nextTextNode = findNextTextNode(element, node);
+        if (nextTextNode) {
+          return { node: nextTextNode, offset: 0 };
+        }
+      }
+      charCount += 1; // br counts as 1 character in content
+    }
+  }
+  
+  // If position beyond all content, return end of last text node
+  const lastTextNode = findLastTextNode(element);
+  if (lastTextNode) {
+    return { node: lastTextNode, offset: lastTextNode.textContent!.length };
+  }
+  
+  return null;
+}
+
+function findNextTextNode(element: Element, afterNode: Node): Node | null {
+  let foundAfter = false;
+  for (const node of Array.from(element.childNodes)) {
+    if (foundAfter && node.nodeType === Node.TEXT_NODE) {
+      return node;
+    }
+    if (node === afterNode) {
+      foundAfter = true;
+    }
+  }
+  return null;
+}
+
+function findLastTextNode(element: Element): Node | null {
+  for (let i = element.childNodes.length - 1; i >= 0; i--) {
+    if (element.childNodes[i].nodeType === Node.TEXT_NODE) {
+      return element.childNodes[i];
+    }
+  }
+  return null;
+}
+
+/**
+ * Set selection at a specific DOM position
+ */
+function setSelectionAtPosition(element: Element, start: { node: Node; offset: number } | null, end: { node: Node; offset: number } | null): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  
+  const range = document.createRange();
+  
+  if (start) {
+    range.setStart(start.node, start.offset);
+  } else {
+    // Default to beginning
+    const firstText = findFirstTextNode(element);
+    if (firstText) {
+      range.setStart(firstText, 0);
+    } else {
+      range.selectNodeContents(element);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return;
+    }
+  }
+  
+  if (end) {
+    range.setEnd(end.node, end.offset);
+  } else {
+    range.collapse(false);
+  }
+  
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function findFirstTextNode(element: Element): Node | null {
+  for (const node of Array.from(element.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node;
+    }
+  }
+  return null;
 }
 
 function positionPanel(): void {
