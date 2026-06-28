@@ -28,6 +28,9 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
+// Import Ant Design styles
+import 'antd/dist/reset.css';
+
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -182,21 +185,13 @@ const SettingsApp: React.FC = () => {
   // Handle form submit
   const handleSubmit = async (values: { title: string; content: string; description?: string; tags?: string[] }) => {
     const tags = values.tags || [];
-
     let newPrompts: Prompt[];
 
     if (editingPrompt) {
       // Update existing prompt
       newPrompts = prompts.map((p) =>
         p.id === editingPrompt.id
-          ? {
-              ...p,
-              title: values.title,
-              content: values.content,
-              description: values.description,
-              tags: tags,
-              updatedAt: Date.now(),
-            }
+          ? { ...p, title: values.title, content: values.content, description: values.description, tags, updatedAt: Date.now() }
           : p
       );
       messageApi.success('Prompt updated');
@@ -207,7 +202,7 @@ const SettingsApp: React.FC = () => {
         title: values.title,
         content: values.content,
         description: values.description,
-        tags: tags,
+        tags,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         isDefault: false,
@@ -264,9 +259,7 @@ const SettingsApp: React.FC = () => {
       key: 'tags',
       render: (tags: string[]) => (
         <Space wrap>
-          {tags.map((tag) => (
-            <Tag key={tag}>{tag}</Tag>
-          ))}
+          {tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}
         </Space>
       ),
     },
@@ -277,12 +270,7 @@ const SettingsApp: React.FC = () => {
       render: (_, record) => (
         <Space>
           <Tooltip title={record.isDefault ? 'Default prompts cannot be edited' : 'Edit'}>
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              disabled={record.isDefault}
-              onClick={() => openModal(record)}
-            />
+            <Button type="text" icon={<EditOutlined />} disabled={record.isDefault} onClick={() => openModal(record)} />
           </Tooltip>
           <Tooltip title={record.isDefault ? 'Default prompts cannot be deleted' : 'Delete'}>
             <Popconfirm
@@ -294,12 +282,7 @@ const SettingsApp: React.FC = () => {
               okButtonProps={{ danger: true }}
               disabled={record.isDefault}
             >
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-                disabled={record.isDefault}
-              />
+              <Button type="text" danger icon={<DeleteOutlined />} disabled={record.isDefault} />
             </Popconfirm>
           </Tooltip>
         </Space>
@@ -308,58 +291,23 @@ const SettingsApp: React.FC = () => {
   ];
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#1890ff',
-          borderRadius: 8,
-        },
-      }}
-    >
+    <ConfigProvider theme={{ token: { colorPrimary: '#1890ff', borderRadius: 8 } }}>
       {contextHolder}
       <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
-        <Header
-          style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            padding: '20px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
+        <Header style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <CodeOutlined style={{ fontSize: 28, color: '#fff' }} />
           <div>
-            <Title level={4} style={{ color: '#fff', margin: 0 }}>
-              PromptFlow Settings
-            </Title>
-            <Text style={{ color: 'rgba(255,255,255,0.8)' }}>
-              Manage your prompts and customize your experience
-            </Text>
+            <Title level={4} style={{ color: '#fff', margin: 0 }}>PromptFlow Settings</Title>
+            <Text style={{ color: 'rgba(255,255,255,0.8)' }}>Manage your prompts and customize your experience</Text>
           </div>
         </Header>
 
         <Content style={{ padding: 24, maxWidth: 900, margin: '0 auto', width: '100%' }}>
-          {/* General Settings */}
-          <Card
-            title={
-              <Space>
-                <SettingOutlined />
-                General Settings
-              </Space>
-            }
-            style={{ marginBottom: 24 }}
-          >
+          <Card title={<Space><SettingOutlined />General Settings</Space>} style={{ marginBottom: 24 }}>
             <Form layout="vertical">
               <Form.Item label="Trigger Command" tooltip="Type this command in any input field to open the prompt panel">
-                <Input
-                  value={settings.trigger}
-                  onChange={(e) => handleSettingsChange('trigger', e.target.value)}
-                  placeholder="/prompts"
-                  style={{ maxWidth: 300 }}
-                  prefix="/"
-                />
+                <Input value={settings.trigger} onChange={(e) => handleSettingsChange('trigger', e.target.value)} placeholder="/prompts" style={{ maxWidth: 300 }} prefix="/" />
               </Form.Item>
-
               <Form.Item label="Theme">
                 <Select
                   value={settings.theme}
@@ -375,40 +323,15 @@ const SettingsApp: React.FC = () => {
             </Form>
           </Card>
 
-          {/* Prompts Management */}
           <Card
-            title={
-              <Space>
-                <FileTextOutlined />
-                Prompts ({prompts.length})
-              </Space>
-            }
-            extra={
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>
-                Add Prompt
-              </Button>
-            }
+            title={<Space><FileTextOutlined />Prompts ({prompts.length})</Space>}
+            extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>Add Prompt</Button>}
             style={{ marginBottom: 24 }}
           >
-            <Table
-              columns={columns}
-              dataSource={prompts}
-              rowKey="id"
-              pagination={false}
-              loading={loading}
-              size="middle"
-            />
+            <Table columns={columns} dataSource={prompts} rowKey="id" pagination={false} loading={loading} size="middle" />
           </Card>
 
-          {/* Danger Zone */}
-          <Card
-            title={
-              <Text type="danger">
-                <SettingOutlined /> Danger Zone
-              </Text>
-            }
-            style={{ borderColor: '#ff4d4f' }}
-          >
+          <Card title={<Text type="danger"><SettingOutlined /> Danger Zone</Text>} style={{ borderColor: '#ff4d4f' }}>
             <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
               This will delete all custom prompts and restore the default ones. This action cannot be undone.
             </Text>
@@ -425,67 +348,30 @@ const SettingsApp: React.FC = () => {
           </Card>
         </Content>
 
-        {/* Add/Edit Modal */}
         <Modal
           title={editingPrompt ? 'Edit Prompt' : 'Add New Prompt'}
           open={modalVisible}
-          onCancel={() => {
-            setModalVisible(false);
-            form.resetFields();
-          }}
+          onCancel={() => { setModalVisible(false); form.resetFields(); }}
           footer={null}
           width={600}
         >
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
-            <Form.Item
-              name="title"
-              label="Title"
-              rules={[{ required: true, message: 'Please enter a title' }]}
-            >
+            <Form.Item name="title" label="Title" rules={[{ required: true, message: 'Please enter a title' }]}>
               <Input placeholder="My Custom Prompt" />
             </Form.Item>
-
-            <Form.Item
-              name="content"
-              label="Content"
-              rules={[{ required: true, message: 'Please enter content' }]}
-            >
-              <TextArea
-                rows={6}
-                placeholder="Enter your prompt template..."
-              />
+            <Form.Item name="content" label="Content" rules={[{ required: true, message: 'Please enter content' }]}>
+              <TextArea rows={6} placeholder="Enter your prompt template..." />
             </Form.Item>
-
             <Form.Item name="description" label="Description">
               <Input placeholder="Brief description of this prompt" />
             </Form.Item>
-
-            <Form.Item
-              name="tags"
-              label="Tags"
-              tooltip="Press enter or comma to create tags"
-            >
-              <Select
-                mode="tags"
-                placeholder="Add tags"
-                style={{ width: '100%' }}
-                tokenSeparators={[',']}
-              />
+            <Form.Item name="tags" label="Tags" tooltip="Press enter or comma to create tags">
+              <Select mode="tags" placeholder="Add tags" style={{ width: '100%' }} tokenSeparators={[',']} />
             </Form.Item>
-
             <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
               <Space>
-                <Button
-                  onClick={() => {
-                    setModalVisible(false);
-                    form.resetFields();
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="primary" htmlType="submit">
-                  {editingPrompt ? 'Update' : 'Create'}
-                </Button>
+                <Button onClick={() => { setModalVisible(false); form.resetFields(); }}>Cancel</Button>
+                <Button type="primary" htmlType="submit">{editingPrompt ? 'Update' : 'Create'}</Button>
               </Space>
             </Form.Item>
           </Form>

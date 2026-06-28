@@ -12,6 +12,14 @@ async function build() {
             '.tsx': 'tsx',
             '.ts': 'ts',
         },
+        jsx: 'automatic',
+        jsxImportSource: 'react',
+        // Treat CSS imports as text
+        loader: {
+            '.tsx': 'tsx',
+            '.ts': 'ts',
+            '.css': 'css',
+        },
     };
 
     // Bundle background script (ESM for service worker)
@@ -20,6 +28,8 @@ async function build() {
         entryPoints: [path.join(__dirname, '..', 'src', 'background.ts')],
         outfile: path.join(__dirname, '..', 'dist', 'background.js'),
         format: 'esm',
+        jsx: undefined,
+        jsxImportSource: undefined,
     });
 
     // Bundle content script (IIFE for content scripts)
@@ -28,16 +38,16 @@ async function build() {
         entryPoints: [path.join(__dirname, '..', 'src', 'content.ts')],
         outfile: path.join(__dirname, '..', 'dist', 'content.js'),
         format: 'iife',
+        jsx: undefined,
+        jsxImportSource: undefined,
     });
 
-    // Bundle settings React app (IIFE for popup page with React)
+    // Bundle settings React app with Ant Design (IIFE for popup page)
     await esbuild.build({
         ...commonOptions,
         entryPoints: [path.join(__dirname, '..', 'src', 'SettingsApp.tsx')],
         outfile: path.join(__dirname, '..', 'dist', 'settings.js'),
         format: 'iife',
-        jsx: 'automatic',
-        jsxImportSource: 'react',
     });
 
     console.log('Build completed successfully!');
