@@ -10,7 +10,6 @@ export interface Prompt {
 
 export interface PromptSettings {
   trigger: string;
-  theme: 'light' | 'dark' | 'auto';
   insertMode: 'replace' | 'append';
 }
 
@@ -21,7 +20,6 @@ export interface StorageData {
 
 export const DEFAULT_SETTINGS: PromptSettings = {
   trigger: '/prompts',
-  theme: 'auto',
   insertMode: 'replace',
 };
 

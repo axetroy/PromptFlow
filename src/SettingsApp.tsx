@@ -51,7 +51,7 @@ interface Prompt {
 
 interface PromptSettings {
   trigger: string;
-  theme: 'light' | 'dark' | 'auto';
+  insertMode: 'replace' | 'append';
 }
 
 interface StorageData {
@@ -123,7 +123,7 @@ const loadData = (): Promise<StorageData> => {
       } else {
         resolve({
           prompts: getDefaultPrompts(),
-          settings: { trigger: '/prompts', theme: 'dark' },
+          settings: { trigger: '/prompts', insertMode: 'replace' },
         });
       }
     });
@@ -139,7 +139,7 @@ const saveData = (data: StorageData): Promise<void> => {
 // Settings App Component
 const SettingsApp: React.FC = () => {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
-  const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', theme: 'dark' });
+  const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', insertMode: 'replace' });
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
@@ -408,18 +408,6 @@ const SettingsApp: React.FC = () => {
                   onChange={(e) => handleSettingsChange('trigger', e.target.value)} 
                   placeholder="/prompts" 
                   style={{ maxWidth: 300 }}
-                />
-              </Form.Item>
-              <Form.Item label="Theme">
-                <Select
-                  value={settings.theme}
-                  onChange={(value) => handleSettingsChange('theme', value)}
-                  style={{ width: 200 }}
-                  options={[
-                    { value: 'light', label: 'Light' },
-                    { value: 'dark', label: 'Dark' },
-                    { value: 'auto', label: 'Auto (System)' },
-                  ]}
                 />
               </Form.Item>
             </Form>
