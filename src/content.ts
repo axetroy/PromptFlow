@@ -444,13 +444,13 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
     border-top: 1px solid ${colors.border};
   `;
   footer.innerHTML = `
-    <div style="display: flex; gap: 16px;">
-      <span class="footer-hint"><span class="footer-key">↑↓</span> Navigate</span>
-      <span class="footer-hint"><span class="footer-key">Enter</span> Select</span>
-      <span class="footer-hint"><span class="footer-key">Esc</span> Close</span>
+    <div class="footer-hint">
+      <span class="footer-key">↑↓</span> Navigate
+      <span class="footer-key">Enter</span> Select
+      <span class="footer-key">Esc</span> Close
     </div>
     <button id="promptflow-settings-btn">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
@@ -524,21 +524,15 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], theme?: 'light'
     item.className = 'prompt-item' + selectedClass + themeClass;
     
     item.innerHTML = `
-      <div style="font-weight: 500; color: ${isDark ? '#fff' : '#1a1a1a'}; margin-bottom: 4px;">
+      <div class="prompt-item-title${themeClass}">
         ${escapeHtml(prompt.title)}
       </div>
-      <div style="font-size: 12px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 6px;">
+      <div class="prompt-item-description${themeClass}">
         ${escapeHtml(prompt.description || '')}
       </div>
-      <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+      <div class="prompt-item-tags">
         ${prompt.tags.map(tag => `
-          <span style="
-            padding: 2px 8px;
-            background: ${isDark ? '#2a2a2a' : '#f0f0f0'};
-            border-radius: 4px;
-            font-size: 11px;
-            color: ${isDark ? '#6b7280' : '#888'};
-          ">${escapeHtml(tag)}</span>
+          <span class="prompt-tag">${escapeHtml(tag)}</span>
         `).join('')}
       </div>
     `;
