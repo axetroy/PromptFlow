@@ -4,6 +4,15 @@
 [![Release](https://img.shields.io/github/v/release/axetroy/PromptFlow?include_prereleases&label=release)](https://github.com/axetroy/PromptFlow/releases)
 [![License](https://img.shields.io/github/license/axetroy/PromptFlow)](LICENSE)
 
+<!-- Video Demo Placeholder -->
+<p align="center">
+  <a href="VIDEO_URL_HERE">
+    <img src="https://img.shields.io/badge/Video-Demo-blue?style=for-the-badge" alt="Video Demo">
+  </a>
+</p>
+
+---
+
 A browser-level Prompt Command System that provides quick prompt invocation in any input field.
 
 ## Features
