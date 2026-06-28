@@ -7,7 +7,7 @@ export interface SyncedPrompt {
   content: string;
   description?: string;
   tags: string[];
-  filePath: string; // Path in the repo, e.g., ".agent/prompts/1-code-review.md"
+  filePath: string; // Path in the repo, e.g., ".agents/prompts/1-code-review.md"
   createdAt: number;
   updatedAt: number;
   enabled?: boolean;
@@ -18,7 +18,7 @@ export interface SyncedRepo {
   id: string;
   repo: string; // e.g., "owner/repo"
   branch: string;
-  promptsPath: string; // e.g., ".agent/prompts"
+  promptsPath: string; // e.g., ".agents/prompts"
   lastSyncedAt?: number;
   enabled: boolean;
   enabledPromptIds: string[]; // IDs of enabled prompts within this repo

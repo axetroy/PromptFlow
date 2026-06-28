@@ -61,7 +61,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
 
   const handleAddRepo = async (values: { repo: string; branch?: string; promptsPath?: string }) => {
     const branch = values.branch || 'main';
-    const promptsPath = values.promptsPath || '.agent/prompts';
+    const promptsPath = values.promptsPath || '.agents/prompts';
     
     try {
       // Validate repo format
@@ -149,7 +149,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
           <Input placeholder="branch (default: main)" defaultValue="main" />
         </Form.Item>
         <Form.Item name="promptsPath" style={{ flex: 1 }}>
-          <Input placeholder="path (default: .agent/prompts)" defaultValue=".agent/prompts" />
+          <Input placeholder="path (default: .agents/prompts)" defaultValue=".agents/prompts" />
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit">Add Repo</Button>
@@ -215,7 +215,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                   description={
                     <Space direction="vertical" size="small" style={{ width: '100%' }}>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        Path: <code>{repo.promptsPath}</code> • Last synced: {formatLastSynced(repo.lastSyncedAt)}
+                        Path: <code>.agents/prompts</code> • Last synced: {formatLastSynced(repo.lastSyncedAt)}
                       </Text>
                       {repoPrompts.length > 0 && (
                         <Space wrap>
@@ -243,7 +243,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       {/* Help text */}
       <div style={{ marginTop: 16, padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          <strong>How it works:</strong> Add a GitHub repository to sync prompts from the specified path.
+          <strong>How it works:</strong> Add a GitHub repository to sync prompts from the <code>.agents/prompts/</code> directory.
           Prompts are read from <code>.md</code> files in the configured directory.
           Each prompt file should have YAML frontmatter with <code>title</code> and optionally <code>description</code> and <code>tags</code>.
         </Text>
