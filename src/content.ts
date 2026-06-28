@@ -602,22 +602,16 @@ function selectPrompt(prompt: Prompt): void {
   // For textarea, directly set value and selection synchronously
   if (state.currentInput instanceof HTMLTextAreaElement) {
     const textarea = state.currentInput;
-    console.log('[PromptFlow] newValue:', JSON.stringify(newValue));
-    console.log('[PromptFlow] selectionStart:', selectionStart, 'selectionEnd:', selectionEnd);
-    textarea.value = newValue;
-    console.log('[PromptFlow] After set value, textarea.value length:', textarea.value.length);
-    // Focus first
+    // Use native setter to bypass any framework overrides
+    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
+    nativeSetter.call(textarea, newValue);
+    // Dispatch input event so frameworks can detect the change
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    // Focus and set selection
     textarea.focus();
-    // Then set selection range
     textarea.setSelectionRange(selectionStart, selectionEnd);
-    console.log('[PromptFlow] Before closePanel - Selection:', textarea.selectionStart, '-', textarea.selectionEnd);
-    // Close panel, don't restore caret position (we already set it)
+    // Close panel
     closePanel(false, false);
-    console.log('[PromptFlow] After closePanel - Selection:', textarea.selectionStart, '-', textarea.selectionEnd);
-    // Double-check selection is set after closePanel
-    textarea.setSelectionRange(selectionStart, selectionEnd);
-    console.log('[PromptFlow] After double-check - Selection:', textarea.selectionStart, '-', textarea.selectionEnd);
-    console.log('[PromptFlow] Final textarea.value:', JSON.stringify(textarea.value));
     return;
   }
   
