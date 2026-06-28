@@ -237,15 +237,21 @@ const SettingsApp: React.FC = () => {
   const handleAddRepo = async (repoData: Omit<SyncedRepo, 'id' | 'lastSyncedAt'>): Promise<SyncedPrompt[]> => {
     const repoId = `sync-${Date.now()}`;
     
-    // Fetch prompts from the repo
+    // Fetch prompts from the repo (using web scraping, no API rate limit)
     const files = await fetchGitHubDirectory(repoData.repo, repoData.promptsPath, repoData.branch);
     const mdFiles = files.filter((f: any) => f.name.endsWith('.md') && f.type === 'file');
+    
+    if (mdFiles.length === 0) {
+      messageApi.warning(`No markdown files found at ${repoData.promptsPath}`);
+      return [];
+    }
     
     const newPrompts: SyncedPrompt[] = [];
     
     for (const file of mdFiles) {
       try {
-        const content = await fetchGitHubFileContent(file.download_url!);
+        // Use raw.githubusercontent.com (no rate limit)
+        const content = await fetchGitHubFileContent(repoData.repo, file.path, repoData.branch);
         const { metadata, body } = parseFrontmatter(content);
         
         newPrompts.push({
@@ -295,15 +301,21 @@ const SettingsApp: React.FC = () => {
     const repo = syncedRepos.find(r => r.id === repoId);
     if (!repo) return [];
     
-    // Fetch prompts from the repo
+    // Fetch prompts from the repo (using web scraping, no API rate limit)
     const files = await fetchGitHubDirectory(repo.repo, repo.promptsPath, repo.branch);
     const mdFiles = files.filter((f: any) => f.name.endsWith('.md') && f.type === 'file');
+    
+    if (mdFiles.length === 0) {
+      messageApi.warning(`No markdown files found at ${repo.promptsPath}`);
+      return [];
+    }
     
     const newPrompts: SyncedPrompt[] = [];
     
     for (const file of mdFiles) {
       try {
-        const content = await fetchGitHubFileContent(file.download_url!);
+        // Use raw.githubusercontent.com (no rate limit)
+        const content = await fetchGitHubFileContent(repo.repo, file.path, repo.branch);
         const { metadata, body } = parseFrontmatter(content);
         
         newPrompts.push({
