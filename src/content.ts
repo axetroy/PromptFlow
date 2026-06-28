@@ -485,60 +485,46 @@ function insertContentWithNewlines(element: Element, newValue: string, startPos:
 
 function positionPanel(): void {
   if (!panelContainer || !state.currentInput) return;
-  
+
   const shadow = panelContainer.shadowRoot;
   if (!shadow) return;
-  
+
   const rect = state.currentInput.getBoundingClientRect();
-  
+
   const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
   if (!panel) return;
-  
+
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
-  const panelWidth = 400; // Panel width from CSS
-  const panelMaxHeight = 500; // Panel max-height from CSS
-  const padding = 8; // Minimum distance from viewport edges
-  
-  // Calculate initial position (below the input)
-  let top = rect.bottom + padding;
-  let left = rect.left;
-  
-  // Check if there's enough space below the input
+  const panelWidth = 420;
+  const panelMinHeight = 200;
+  const padding = 8;
+
   const spaceBelow = viewportHeight - rect.bottom;
   const spaceAbove = rect.top;
-  
-  // Choose vertical position: below or above input
-  if (spaceBelow >= panelMaxHeight + padding * 2) {
-    // Plenty of space below, use bottom position
+
+  let top: number;
+  let panelHeight: number;
+
+  if (spaceBelow >= panelMinHeight) {
     top = rect.bottom + padding;
-  } else if (spaceAbove >= panelMaxHeight + padding * 2) {
-    // Not enough space below, but enough above
-    top = rect.top - panelMaxHeight - padding;
+    panelHeight = Math.min(spaceBelow - padding, 500);
+  } else if (spaceAbove >= panelMinHeight) {
+    panelHeight = Math.min(spaceAbove - padding, 500);
+    top = rect.top - panelHeight - padding;
   } else if (spaceBelow >= spaceAbove) {
-    // Use bottom but limit height
     top = rect.bottom + padding;
+    panelHeight = Math.max(spaceBelow - padding, 150);
   } else {
-    // Use top but limit height
+    panelHeight = Math.max(spaceAbove - padding, 150);
     top = padding;
   }
-  
-  // Horizontal positioning: try to align with input, adjust if needed
-  // First, try to position to the right of the input
-  let preferredLeft = rect.left;
-  
-  // Check if panel fits to the right of input
-  if (preferredLeft + panelWidth > viewportWidth - padding) {
-    // Try to position to the left of input
-    preferredLeft = rect.right - panelWidth;
-    
-    // If still doesn't fit, center horizontally
-    if (preferredLeft < padding) {
-      preferredLeft = (viewportWidth - panelWidth) / 2;
-    }
-  }
-  
-  // Ensure left edge doesn't go off screen
+
+  panel.style.maxHeight = `${panelHeight}px`;
+
+  let left: number;
+  let preferredLeft = rect.left + (rect.width - panelWidth) / 2;
+
   if (preferredLeft < padding) {
     left = padding;
   } else if (preferredLeft + panelWidth > viewportWidth - padding) {
@@ -546,16 +532,11 @@ function positionPanel(): void {
   } else {
     left = preferredLeft;
   }
-  
-  // Final safety check: ensure panel stays within viewport
-  // Clamp top to stay within viewport
+
   if (top < padding) {
     top = padding;
   }
-  if (top + panelMaxHeight > viewportHeight - padding) {
-    top = Math.max(padding, viewportHeight - panelMaxHeight - padding);
-  }
-  
+
   panelContainer.style.top = `${top}px`;
   panelContainer.style.left = `${left}px`;
 }
