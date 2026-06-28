@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ConfigProvider,
@@ -25,6 +25,8 @@ import {
   ReloadOutlined,
   CodeOutlined,
   FileTextOutlined,
+  UploadOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -143,6 +145,7 @@ const SettingsApp: React.FC = () => {
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -164,6 +167,92 @@ const SettingsApp: React.FC = () => {
     setSettings(newSettings);
     await persistData(prompts, newSettings);
     messageApi.success('Settings saved');
+  };
+
+  // Export prompts to JSON file
+  const handleExport = () => {
+    const exportData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      prompts: prompts,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `promptflow-prompts-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    messageApi.success(`Exported ${prompts.length} prompts`);
+  };
+
+  // Import prompts from JSON file
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const importData = JSON.parse(content);
+
+        if (!importData.prompts || !Array.isArray(importData.prompts)) {
+          messageApi.error('Invalid file format: missing prompts array');
+          return;
+        }
+
+        // Validate prompts structure
+        const validPrompts = importData.prompts.filter((p: any) => 
+          p.id && p.title && p.content
+        );
+
+        if (validPrompts.length === 0) {
+          messageApi.error('No valid prompts found in file');
+          return;
+        }
+
+        Modal.confirm({
+          title: 'Import Prompts',
+          content: `Found ${validPrompts.length} prompts. How would you like to import them?`,
+          okText: 'Merge',
+          cancelText: 'Cancel',
+          onOk: async () => {
+            // Merge with existing prompts (avoid duplicates by id)
+            const existingIds = new Set(prompts.map(p => p.id));
+            const newPrompts = prompts.concat(
+              validPrompts.filter(p => !existingIds.has(p.id))
+            );
+            setPrompts(newPrompts);
+            await persistData(newPrompts, settings);
+            messageApi.success(`Merged ${validPrompts.length} prompts`);
+          },
+        });
+
+        // Replace option
+        Modal.confirm({
+          title: 'Or Replace All',
+          content: 'Would you like to replace all existing prompts with the imported ones?',
+          okText: 'Replace All',
+          cancelText: 'Cancel',
+          onOk: async () => {
+            setPrompts(validPrompts);
+            await persistData(validPrompts, settings);
+            messageApi.success(`Replaced with ${validPrompts.length} prompts`);
+          },
+        });
+      } catch (error) {
+        messageApi.error('Failed to parse file: ' + (error as Error).message);
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   // Open modal for add/edit
@@ -338,7 +427,20 @@ const SettingsApp: React.FC = () => {
 
           <Card
             title={<Space><FileTextOutlined />Prompts ({prompts.length})</Space>}
-            extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>Add Prompt</Button>}
+            extra={
+              <Space>
+                <Button icon={<UploadOutlined />} onClick={handleExport}>Export</Button>
+                <Button icon={<DownloadOutlined />} onClick={() => fileInputRef.current?.click()}>Import</Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  style={{ display: 'none' }}
+                  onChange={handleImport}
+                />
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>Add Prompt</Button>
+              </Space>
+            }
             style={{ marginBottom: 24 }}
           >
             <Table columns={columns} dataSource={prompts} rowKey="id" pagination={false} loading={loading} size="middle" />

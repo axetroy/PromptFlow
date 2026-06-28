@@ -3,6 +3,7 @@ import { Prompt, DEFAULT_SETTINGS } from './types';
 interface ContentState {
   isPanelOpen: boolean;
   currentTrigger: string;
+  currentTheme: 'light' | 'dark' | 'auto';
   currentInput: HTMLInputElement | HTMLTextAreaElement | Element | null;
   caretPosition: number;
   triggerStartPosition: number;
@@ -14,6 +15,7 @@ interface ContentState {
 const state: ContentState = {
   isPanelOpen: false,
   currentTrigger: DEFAULT_SETTINGS.trigger,
+  currentTheme: DEFAULT_SETTINGS.theme,
   currentInput: null,
   caretPosition: 0,
   triggerStartPosition: 0,
@@ -34,10 +36,35 @@ function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
   }) as T;
 }
 
+interface StorageData {
+  prompts?: Prompt[];
+  settings?: {
+    trigger?: string;
+    theme?: 'light' | 'dark' | 'auto';
+  };
+}
+
+async function loadSettings(): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['promptflow-data'], (result) => {
+      const data = result['promptflow-data'] as StorageData | undefined;
+      if (data?.settings) {
+        if (data.settings.trigger) {
+          state.currentTrigger = data.settings.trigger;
+        }
+        if (data.settings.theme) {
+          state.currentTheme = data.settings.theme;
+        }
+      }
+      resolve();
+    });
+  });
+}
+
 async function loadPrompts(): Promise<Prompt[]> {
   return new Promise((resolve) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
-      const data = result['promptflow-data'] as { prompts?: Prompt[] } | undefined;
+      const data = result['promptflow-data'] as StorageData | undefined;
       if (data?.prompts) {
         resolve(data.prompts);
       } else {
@@ -633,7 +660,10 @@ function handleClick(e: MouseEvent): void {
 }
 
 // Initialize
-function init(): void {
+async function init(): Promise<void> {
+  // Load settings from storage first
+  await loadSettings();
+
   // Listen for input events on editable elements
   document.addEventListener('input', handleInput, true);
   
