@@ -6,6 +6,7 @@ export interface Prompt {
   tags: string[];
   createdAt: number;
   updatedAt: number;
+  enabled?: boolean;
 }
 
 export interface PromptSettings {

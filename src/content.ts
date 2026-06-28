@@ -66,7 +66,7 @@ async function loadPrompts(): Promise<Prompt[]> {
     chrome.storage.local.get(['promptflow-data'], (result) => {
       const data = result['promptflow-data'] as StorageData | undefined;
       if (data?.prompts) {
-        resolve(data.prompts);
+        resolve(data.prompts.filter(p => p.enabled !== false));
       } else {
         resolve([]);
       }

@@ -8,6 +8,7 @@ import {
   Form,
   Input,
   Button,
+  Switch,
   Table,
   Tag,
   Space,
@@ -46,6 +47,7 @@ interface Prompt {
   tags: string[];
   createdAt: number;
   updatedAt: number;
+  enabled?: boolean;
   }
 
 interface PromptSettings {
@@ -308,6 +310,16 @@ const SettingsApp: React.FC = () => {
     messageApi.success('Prompt deleted');
   };
 
+  // Toggle prompt enabled status
+  const handleToggleEnabled = async (id: string, enabled: boolean) => {
+    const newPrompts = prompts.map((p) =>
+      p.id === id ? { ...p, enabled } : p
+    );
+    setPrompts(newPrompts);
+    await persistData(newPrompts, settings);
+    messageApi.success(enabled ? 'Prompt enabled' : 'Prompt disabled');
+  };
+
   // Reset prompts
   const handleReset = async () => {
     const defaultPrompts = getDefaultPrompts();
@@ -344,6 +356,19 @@ const SettingsApp: React.FC = () => {
         <Space wrap>
           {tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}
         </Space>
+      ),
+    },
+    {
+      title: 'Status',
+      key: 'enabled',
+      width: 100,
+      render: (_, record) => (
+        <Switch
+          checked={record.enabled !== false}
+          onChange={(checked) => handleToggleEnabled(record.id, checked)}
+          checkedChildren='On'
+          unCheckedChildren='Off'
+        />
       ),
     },
     {
