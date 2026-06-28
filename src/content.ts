@@ -534,12 +534,12 @@ function init(): void {
         if (node instanceof Element) {
           attachListeners(node);
           // Also check for contenteditable in the element itself
-          if (node.hasAttribute && (
+          if (node instanceof HTMLElement && node.hasAttribute && (
             node.hasAttribute('contenteditable') || 
             node.getAttribute('contenteditable') !== null
           )) {
-            if (!node.dataset.promptflowInit) {
-              node.dataset.promptflowInit = 'true';
+            if (!((node as HTMLElement).dataset).promptflowInit) {
+              ((node as HTMLElement).dataset).promptflowInit = 'true';
               node.addEventListener('input', handleInput as EventListener, true);
             }
           }
