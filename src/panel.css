@@ -234,3 +234,34 @@
   background: rgba(99, 102, 241, 0.4);
   color: #ffffff;
 }
+
+
+/* Settings button */
+#promptflow-settings-btn {
+  background: none;
+  border: none;
+  color: #a0a0a0;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+#promptflow-settings-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #c0c0c0;
+}
+
+/* Light theme settings button */
+#promptflow-settings-btn.light {
+  color: #666;
+}
+
+#promptflow-settings-btn.light:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #333;
+}
