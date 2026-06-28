@@ -101,6 +101,44 @@ function getCaretPosition(input: HTMLInputElement | HTMLTextAreaElement | Elemen
   return 0;
 }
 
+function getCaretRect(input: HTMLInputElement | HTMLTextAreaElement | Element): DOMRect | null {
+  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+    const pos = input.selectionStart || 0;
+    // Create a temporary range to get caret position
+    if (input.setSelectionRange) {
+      const div = document.createElement('div');
+      const style = getComputedStyle(input);
+      div.style.position = 'absolute';
+      div.style.top = '-9999px';
+      div.style.left = '-9999px';
+      div.style.font = style.font;
+      div.style.whiteSpace = 'pre-wrap';
+      div.textContent = input.value.substring(0, pos);
+      const span = document.createElement('span');
+      span.textContent = input.value.substring(pos) || '.';
+      div.appendChild(span);
+      document.body.appendChild(div);
+      const rect = span.getBoundingClientRect();
+      document.body.removeChild(div);
+      return rect;
+    }
+    return null;
+  }
+  if (input.hasAttribute('contenteditable')) {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const rects = range.getClientRects();
+      if (rects.length > 0) {
+        return rects[rects.length - 1];
+      }
+      // Fallback to range bounding rect
+      return range.getBoundingClientRect();
+    }
+  }
+  return null;
+}
+
 function setCaretPosition(input: HTMLInputElement | HTMLTextAreaElement | Element, position: number): void {
   if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
     input.setSelectionRange(position, position);
@@ -489,7 +527,14 @@ function positionPanel(): void {
   const shadow = panelContainer.shadowRoot;
   if (!shadow) return;
 
-  const rect = state.currentInput.getBoundingClientRect();
+  const inputRect = state.currentInput.getBoundingClientRect();
+  const caretRect = getCaretRect(state.currentInput);
+
+  // Use caret position for vertical, input position for horizontal reference
+  const caretTop = caretRect ? caretRect.top : inputRect.top;
+  const caretBottom = caretRect ? caretRect.bottom : inputRect.bottom;
+  const caretLeft = caretRect ? caretRect.left : inputRect.left;
+  const caretRight = caretRect ? caretRect.right : inputRect.right;
 
   const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
   if (!panel) return;
@@ -500,20 +545,22 @@ function positionPanel(): void {
   const panelMinHeight = 200;
   const padding = 8;
 
-  const spaceBelow = viewportHeight - rect.bottom;
-  const spaceAbove = rect.top;
+  // Calculate available space from caret position
+  const spaceBelow = viewportHeight - caretBottom;
+  const spaceAbove = caretTop;
 
   let top: number;
   let panelHeight: number;
 
+  // Prefer below caret
   if (spaceBelow >= panelMinHeight) {
-    top = rect.bottom + padding;
+    top = caretBottom + padding;
     panelHeight = Math.min(spaceBelow - padding, 500);
   } else if (spaceAbove >= panelMinHeight) {
     panelHeight = Math.min(spaceAbove - padding, 500);
-    top = rect.top - panelHeight - padding;
+    top = caretTop - panelHeight - padding;
   } else if (spaceBelow >= spaceAbove) {
-    top = rect.bottom + padding;
+    top = caretBottom + padding;
     panelHeight = Math.max(spaceBelow - padding, 150);
   } else {
     panelHeight = Math.max(spaceAbove - padding, 150);
@@ -522,8 +569,9 @@ function positionPanel(): void {
 
   panel.style.maxHeight = `${panelHeight}px`;
 
+  // Center panel horizontally relative to input
   let left: number;
-  let preferredLeft = rect.left + (rect.width - panelWidth) / 2;
+  let preferredLeft = inputRect.left + (inputRect.width - panelWidth) / 2;
 
   if (preferredLeft < padding) {
     left = padding;
