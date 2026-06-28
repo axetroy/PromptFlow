@@ -991,7 +991,11 @@ function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean 
 
   // Restore focus to the input and optionally restore cursor position
   if (restoreFocus && previousInput) {
-    previousInput.focus();
+    if (previousInput instanceof HTMLInputElement || previousInput instanceof HTMLTextAreaElement) {
+      previousInput.focus();
+    } else if (previousInput.hasAttribute('contenteditable')) {
+      (previousInput as HTMLElement).focus();
+    }
     if (restoreCaretPosition) {
       setCaretPosition(previousInput, previousPosition);
     }

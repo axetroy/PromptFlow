@@ -136,8 +136,8 @@ const SettingsApp: React.FC = () => {
   useEffect(() => {
     loadData().then((data) => {
       setCustomPrompts(data.customPrompts);
-      setDisabledDefaultIds(data.disabledDefaultIds);
-      setAllPrompts(getAllPrompts(data.customPrompts, data.disabledDefaultIds));
+      setDisabledDefaultIds(data.disabledDefaultIds || []);
+      setAllPrompts(getAllPrompts(data.customPrompts, data.disabledDefaultIds || []));
       setSettings(data.settings);
       setLoading(false);
     });
