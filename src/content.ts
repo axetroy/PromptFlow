@@ -753,7 +753,7 @@ function insertContentWithNewlines(
   
   for (let i = 0; i < lines.length; i++) {
     if (i > 0) {
-      // Insert <br> for newlines between lines
+      // Insert <br> for newlines between lines (including empty lines)
       element.appendChild(document.createElement('br'));
     }
     
