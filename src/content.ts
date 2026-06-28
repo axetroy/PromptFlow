@@ -408,15 +408,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   searchInput.placeholder = 'Search prompts...';
   searchInput.id = 'promptflow-search';
   searchInput.style.cssText = `
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid ${colors.border};
-    border-radius: 8px;
     background: ${isDark ? '#2a2a2a' : '#f0f0f0'};
-    color: ${colors.text};
-    font-size: 14px;
-    outline: none;
-    box-sizing: border-box;
   `;
   searchContainer.appendChild(searchInput);
   panelWrapper.appendChild(searchContainer);
