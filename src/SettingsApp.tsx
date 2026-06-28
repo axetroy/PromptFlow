@@ -583,9 +583,10 @@ const SettingsApp: React.FC = () => {
       key: 'title',
       render: (title: string, record) => (
         <Space>
+          {
+            record.id.startsWith('sync-') ? <Tag color="purple">Synced</Tag> : record.isDefault ? <Tag color="blue">Default</Tag> : <Tag color="green">Custom</Tag>
+          }
           <Text strong>{title}</Text>
-          {record.isDefault && !record.id.startsWith('sync-') && <Tag color="blue">Default</Tag>}
-          {record.id.startsWith('sync-') && <Tag color="purple">Synced</Tag>}
         </Space>
       ),
     },
