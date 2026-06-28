@@ -4,11 +4,10 @@
   "description": "Browser-level Prompt Command System",
   "scripts": {
     "clean": "rimraf dist",
-    "build": "npm run clean && npm run build:copy && npm run build:compile",
+    "build": "npm run clean && npm run build:copy && npm run build:bundle",
     "build:copy": "node scripts/copy-assets.js",
-    "build:compile": "tsc",
+    "build:bundle": "node scripts/build.js",
     "dev": "npm run clean && npm run build",
-    "watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "generate-icons": "node generate-icons.js"
   },
@@ -23,6 +22,7 @@
   "devDependencies": {
     "@types/chrome": "^0.2.0",
     "canvas": "^3.2.3",
+    "esbuild": "^0.20.2",
     "rimraf": "^5.0.7",
     "typescript": "^5.4.0"
   },
