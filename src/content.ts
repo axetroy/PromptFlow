@@ -363,7 +363,10 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   // Create panel container with theme class
   const panelWrapper = document.createElement('div');
   panelWrapper.id = 'promptflow-panel';
-  const currentTheme = theme;
+  const currentTheme = theme || getCurrentTheme();
+  if (currentTheme === 'dark') {
+    panelWrapper.classList.add('dark');
+  }
   shadow.appendChild(panelWrapper);
   
   // Create search input
