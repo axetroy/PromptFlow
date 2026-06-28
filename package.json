@@ -1,6 +1,7 @@
 {
   "name": "promptflow-extension",
   "version": "0.1.0",
+  "private": true,
   "description": "Browser-level Prompt Command System - Quick Prompt invocation in any input field",
   "scripts": {
     "clean": "rimraf dist",
@@ -19,7 +20,7 @@
     "productivity",
     "browser-extension"
   ],
-  "author": "",
+  "author": "Axetroy <axetroy.dev@gmail.com>",
   "license": "MIT",
   "devDependencies": {
     "@playwright/test": "^1.61.1",
