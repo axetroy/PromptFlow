@@ -191,7 +191,11 @@
 }
 
 #promptflow-settings-btn svg {
-  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+#promptflow-settings-btn:hover svg {
+  opacity: 1;
 }
 
 /* Selection */
@@ -276,10 +280,10 @@
 }
 
 #promptflow-panel.dark #promptflow-settings-btn {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 #promptflow-panel.dark #promptflow-settings-btn:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
 }
