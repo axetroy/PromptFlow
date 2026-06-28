@@ -27,11 +27,18 @@ if (!fs.existsSync(distDir)) {
     fs.mkdirSync(distDir, { recursive: true });
 }
 
-// Copy manifest.json
-copyFileSync(
-    path.join(__dirname, '..', 'src', 'manifest.json'),
-    path.join(distDir, 'manifest.json')
-);
+// Read version from package.json
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+const version = packageJson.version;
+console.log(`Building version: ${version}`);
+
+// Copy and update manifest.json with version from package.json
+const manifestSrc = path.join(__dirname, '..', 'src', 'manifest.json');
+const manifestDest = path.join(distDir, 'manifest.json');
+const manifest = JSON.parse(fs.readFileSync(manifestSrc, 'utf8'));
+manifest.version = version;
+fs.writeFileSync(manifestDest, JSON.stringify(manifest, null, 2));
+console.log(`Copied: ${manifestSrc} -> ${manifestDest} (version: ${version})`);
 
 // Copy panel.css
 copyFileSync(
