@@ -218,7 +218,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
         <Form.Item name="branch" style={{ flex: 1 }}>
           <Input placeholder="branch (default: main)" defaultValue="main" disabled={isAddingRepo || isSyncingAll} />
         </Form.Item>
-        <Form.Item name="promptsPath" style={{ flex: 1 }}>
+        <Form.Item name="promptsPath" style={{ flex: 2 }}>
           <Input 
             placeholder=".agents/prompts" 
             defaultValue=".agents/prompts" 
