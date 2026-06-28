@@ -20,6 +20,11 @@ async function initializeStorage(): Promise<void> {
   }
 }
 
+chrome.action.onClicked.addListener(async () => {
+  // Open the settings page when the extension icon is clicked
+  await openSettings();
+})
+
 // Initialize on install
 chrome.runtime.onInstalled.addListener(async () => {
   await initializeStorage();
@@ -63,9 +68,34 @@ async function handleMessage(message: BackgroundMessage, sender: chrome.runtime.
     case 'GET_STORAGE_DATA':
       return await getStorageData();
 
+    case 'OPEN_SETTINGS':
+      return await openSettings();
+
     default:
       console.warn('[PromptFlow] Unknown message type:', type);
       return null;
+  }
+}
+
+async function openSettings(): Promise<void> {
+  // Try to open the extension's settings page
+  // For Chrome extensions, we can try to open the settings page
+  const settingsUrl = chrome.runtime.getURL('settings.html');
+  
+  try {
+    // Check if we can open a tab
+    const existingTabs = await chrome.tabs.query({ url: settingsUrl });
+    
+    if (existingTabs.length > 0) {
+      // Focus existing settings tab
+      await chrome.tabs.update(existingTabs[0].id!, { active: true });
+    } else {
+      // Open new settings tab
+      await chrome.tabs.create({ url: settingsUrl });
+    }
+  } catch (error) {
+    console.error('[PromptFlow] Failed to open settings:', error);
+    throw error;
   }
 }
 

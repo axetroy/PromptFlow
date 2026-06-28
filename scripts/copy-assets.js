@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-// Cross-platform file copy utility
 function copyFileSync(src, dest) {
     fs.copyFileSync(src, dest);
     console.log(`Copied: ${src} -> ${dest}`);
@@ -23,31 +22,42 @@ function copyDirSync(src, dest) {
     }
 }
 
-// Ensure dist directory exists
 const distDir = path.join(__dirname, '..', 'dist');
 if (!fs.existsSync(distDir)) {
     fs.mkdirSync(distDir, { recursive: true });
 }
 
-// Copy manifest.json
+// Read version from package.json
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+const version = packageJson.version;
+console.log(`Building version: ${version}`);
+
+// Copy and update manifest.json with version from package.json
 const manifestSrc = path.join(__dirname, '..', 'src', 'manifest.json');
 const manifestDest = path.join(distDir, 'manifest.json');
-if (fs.existsSync(manifestSrc)) {
-    copyFileSync(manifestSrc, manifestDest);
-}
+const manifest = JSON.parse(fs.readFileSync(manifestSrc, 'utf8'));
+manifest.name = packageJson.name;
+manifest.description = packageJson.description;
+manifest.version = version;
+fs.writeFileSync(manifestDest, JSON.stringify(manifest, null, 2));
+console.log(`Copied: ${manifestSrc} -> ${manifestDest} (version: ${version})`);
 
 // Copy panel.css
-const cssSrc = path.join(__dirname, '..', 'src', 'panel.css');
-const cssDest = path.join(distDir, 'panel.css');
-if (fs.existsSync(cssSrc)) {
-    copyFileSync(cssSrc, cssDest);
-}
+copyFileSync(
+    path.join(__dirname, '..', 'src', 'panel.css'),
+    path.join(distDir, 'panel.css')
+);
+
+// Copy settings.html
+copyFileSync(
+    path.join(__dirname, '..', 'src', 'settings.html'),
+    path.join(distDir, 'settings.html')
+);
 
 // Copy icons directory
-const iconsSrc = path.join(__dirname, '..', 'src', 'icons');
-const iconsDest = path.join(distDir, 'icons');
-if (fs.existsSync(iconsSrc)) {
-    copyDirSync(iconsSrc, iconsDest);
-}
+copyDirSync(
+    path.join(__dirname, '..', 'src', 'icons'),
+    path.join(distDir, 'icons')
+);
 
 console.log('Assets copied successfully!');

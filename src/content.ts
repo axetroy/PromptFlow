@@ -1,4 +1,4 @@
-import { Prompt, DEFAULT_SETTINGS } from './types';
+import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -24,7 +24,10 @@ const state: ContentState = {
 
 let panelContainer: HTMLElement | null = null;
 
-const DEBOUNCE_DELAY = 150;
+// Detect system theme preference
+function getCurrentTheme(): 'light' | 'dark' {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -34,17 +37,98 @@ function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
   }) as T;
 }
 
+interface StorageData {
+  prompts?: Prompt[];
+  settings?: {
+    trigger?: string;
+    theme?: 'light' | 'dark' | 'auto';
+  };
+}
+
+async function loadSettings(): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['promptflow-data'], (result) => {
+      const data = result['promptflow-data'] as StorageData | undefined;
+      if (data?.settings) {
+        if (data.settings.trigger) {
+          state.currentTrigger = data.settings.trigger;
+        }
+      }
+      resolve();
+    });
+  });
+}
+
 async function loadPrompts(): Promise<Prompt[]> {
   return new Promise((resolve) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
-      const data = result['promptflow-data'] as { prompts?: Prompt[] } | undefined;
-      if (data?.prompts) {
-        resolve(data.prompts);
-      } else {
-        resolve([]);
-      }
+      const data = result['promptflow-data'] as { 
+        customPrompts?: Prompt[]; 
+        disabledDefaultIds?: string[];
+        syncedRepos?: SyncedRepo[];
+        syncedPrompts?: SyncedPrompt[];
+        settings?: any;
+      } | undefined;
+      
+      // Get custom prompts and disabled default IDs
+      const customPrompts: Prompt[] = data?.customPrompts || [];
+      const disabledDefaultIds: string[] = data?.disabledDefaultIds || [];
+      const syncedRepos: SyncedRepo[] = data?.syncedRepos || [];
+      const syncedPrompts: SyncedPrompt[] = data?.syncedPrompts || [];
+      
+      // Merge default prompts with custom prompts
+      const allPrompts: Prompt[] = [];
+      
+      // Add default prompts (sorted by ID), excluding disabled ones
+      const sortedDefaults = [...DEFAULT_PROMPTS]
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .filter(p => !disabledDefaultIds.includes(p.id));
+      
+      allPrompts.push(...sortedDefaults);
+      
+      // Add custom prompts that are enabled
+      allPrompts.push(...customPrompts.filter(p => p.enabled !== false));
+      
+      // Add synced prompts (only enabled ones from enabled repos)
+      const enabledRepoIds = new Set(
+        syncedRepos.filter(r => r.enabled).map(r => r.id)
+      );
+      
+      const enabledSyncedPrompts = syncedPrompts
+        .filter(p => 
+          enabledRepoIds.has(p.repoId) && 
+          p.enabled !== false
+        );
+      
+      allPrompts.push(...enabledSyncedPrompts);
+      
+      resolve(allPrompts);
     });
   });
+}
+
+// Types for synced prompts (duplicated to avoid circular imports)
+interface SyncedRepo {
+  id: string;
+  repo: string;
+  branch: string;
+  promptsPath: string;
+  lastSyncedAt?: number;
+  enabled: boolean;
+  enabledPromptIds: string[];
+}
+
+interface SyncedPrompt {
+  id: string;
+  repoId: string;
+  title: string;
+  content: string;
+  description?: string;
+  tags: string[];
+  filePath: string;
+  createdAt: number;
+  updatedAt: number;
+  enabled?: boolean;
 }
 
 function getInputValue(input: HTMLInputElement | HTMLTextAreaElement | Element): string {
@@ -72,6 +156,83 @@ function getCaretPosition(input: HTMLInputElement | HTMLTextAreaElement | Elemen
     }
   }
   return 0;
+}
+
+function getCaretRect(input: HTMLInputElement | HTMLTextAreaElement | Element): DOMRect | null {
+  // contenteditable elements - use selection range rect
+  if (input.hasAttribute('contenteditable')) {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const rects = range.getClientRects();
+      if (rects.length > 0) {
+        return rects[rects.length - 1];
+      }
+      return range.getBoundingClientRect();
+    }
+    return null;
+  }
+  
+  // For input/textarea, use a mirror div technique
+  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+    const inputRect = input.getBoundingClientRect();
+    const pos = input.selectionStart || 0;
+    
+    // Create a mirror div with same styling
+    const mirror = document.createElement('div');
+    const style = getComputedStyle(input);
+    
+    // Copy essential styles
+    const props = [
+      'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
+      'letterSpacing', 'lineHeight', 'textTransform',
+      'borderWidth', 'borderStyle', 'borderColor',
+      'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+      'boxSizing', 'wordBreak'
+    ];
+    
+    props.forEach(prop => {
+      mirror.style.setProperty(prop, style.getPropertyValue(prop === 'borderWidth' ? 'border-width' : 
+        prop === 'borderStyle' ? 'border-style' : 
+        prop === 'borderColor' ? 'border-color' : 
+        prop === 'boxSizing' ? 'box-sizing' : 
+        prop === 'wordBreak' ? 'word-break' : prop));
+    });
+    
+    mirror.style.position = 'absolute';
+    mirror.style.top = '-9999px';
+    mirror.style.left = '-9999px';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.overflow = 'hidden';
+    mirror.style.width = inputRect.width + 'px';
+    
+    // Add text before caret
+    const textBefore = input.value.substring(0, pos);
+    const textAfter = input.value.substring(pos);
+    
+    // Create span at caret position
+    mirror.innerHTML = escapeHtml(textBefore) + '<span id="caret-span">|</span>' + escapeHtml(textAfter);
+    document.body.appendChild(mirror);
+    
+    const caretSpan = document.getElementById('caret-span');
+    let rect: DOMRect | null = null;
+    
+    if (caretSpan) {
+      rect = caretSpan.getBoundingClientRect();
+      // Create a new rect relative to viewport
+      rect = new DOMRect(
+        rect.left,
+        rect.top,
+        0, // caret width is 0
+        rect.height
+      );
+    }
+    
+    document.body.removeChild(mirror);
+    return rect;
+  }
+  
+  return null;
 }
 
 function setCaretPosition(input: HTMLInputElement | HTMLTextAreaElement | Element, position: number): void {
@@ -112,30 +273,69 @@ function setCaretPosition(input: HTMLInputElement | HTMLTextAreaElement | Elemen
   }
 }
 
+
 function findTriggerPosition(inputValue: string, caretPos: number, trigger: string): number {
   const textBeforeCaret = inputValue.substring(0, caretPos);
-  const lastIndex = textBeforeCaret.lastIndexOf(trigger);
+  
+  // Find the trigger - must be at word boundary (start of text or after space/newline/punctuation)
+  let lastIndex = -1;
+  
+  // Find all occurrences and check word boundaries
+  let searchStart = 0;
+  while (true) {
+    const found = textBeforeCaret.indexOf(trigger, searchStart);
+    if (found === -1) break;
+    
+    // Check if it's at a word boundary
+    const isWordBoundary = found === 0 || 
+      /\s/.test(textBeforeCaret[found - 1]) ||
+      /[\(\[\{]/.test(textBeforeCaret[found - 1]);
+    
+    if (isWordBoundary) {
+      lastIndex = found;
+    }
+    
+    searchStart = found + 1;
+  }
   
   if (lastIndex === -1) return -1;
-  
+
+  // Check that the trigger is complete (no partial matches like /pa for /p)
   const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
-  if (textAfterTrigger.includes(' ') || textAfterTrigger.includes('\n')) {
+  
+  // CRITICAL: The cursor must be IMMEDIATELY after the trigger
+  // Examples:
+  // - "/prompts" with cursor at 8 → MATCH (cursor right after trigger)
+  // - "/prompts " with cursor at 9 → NO MATCH (space between trigger end and cursor)
+  // - "/prompts a" with cursor at 10 → NO MATCH (character 'a' after trigger)
+  
+  const triggerEndPosition = lastIndex + trigger.length;
+  
+  // If cursor is past the trigger, check what's between them
+  if (textBeforeCaret.length > triggerEndPosition) {
+    // There's text between trigger end and cursor
+    // If there's ANY whitespace there, the cursor is not at the trigger
+    const textBetween = textBeforeCaret.substring(triggerEndPosition);
+    if (textBetween.trim().length > 0) {
+      // Non-whitespace content between trigger and cursor - partial match
+      return -1;
+    }
+    // There's whitespace between trigger and cursor - cursor is not at trigger
     return -1;
   }
   
-  const remainingText = inputValue.substring(lastIndex);
-  const nextSpace = remainingText.indexOf(' ');
-  const nextNewline = remainingText.indexOf('\n');
-  const endOfTrigger = nextSpace === -1 ? remainingText.length : 
-                       nextNewline === -1 ? remainingText.length :
-                       Math.min(nextSpace, nextNewline);
-  
+  // Cursor is at or before trigger end - this is a match
   return lastIndex;
 }
 
+
 function createPanel(): HTMLElement {
   const container = document.createElement('div');
+  // Use system theme as default, default to light theme
+  const theme = getCurrentTheme()
+  const isDark = theme === 'dark';
   container.id = 'promptflow-panel-container';
+  container.classList.add(isDark ? 'dark' : 'light');
   container.style.cssText = `
     position: fixed;
     z-index: 2147483647;
@@ -144,13 +344,13 @@ function createPanel(): HTMLElement {
   
   document.body.appendChild(container);
   
-  // Load React panel
-  loadPanelApp(container);
+  // Load React panel with current theme
+  loadPanelApp(container, theme);
   
   return container;
 }
 
-async function loadPanelApp(container: HTMLElement): Promise<void> {
+async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): Promise<void> {
   // Create shadow DOM for style isolation
   const shadow = container.attachShadow({ mode: 'open' });
   
@@ -160,79 +360,70 @@ async function loadPanelApp(container: HTMLElement): Promise<void> {
   linkEl.href = chrome.runtime.getURL('panel.css');
   shadow.appendChild(linkEl);
   
-  // Create panel container
+  // Create panel container with theme class
   const panelWrapper = document.createElement('div');
   panelWrapper.id = 'promptflow-panel';
-  panelWrapper.style.cssText = `
-    background: #1e1e1e;
-    border: 1px solid #3a3a3a;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    width: 400px;
-    max-height: 500px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  `;
+  const currentTheme = theme || getCurrentTheme();
+  if (currentTheme === 'dark') {
+    panelWrapper.classList.add('dark');
+  }
   shadow.appendChild(panelWrapper);
   
   // Create search input
   const searchContainer = document.createElement('div');
   searchContainer.style.cssText = `
     padding: 12px;
-    border-bottom: 1px solid #3a3a3a;
+    border-bottom: 1px solid transparent;
   `;
   
   const searchInput = document.createElement('input');
   searchInput.type = 'text';
   searchInput.placeholder = 'Search prompts...';
   searchInput.id = 'promptflow-search';
-  searchInput.style.cssText = `
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid #3a3a3a;
-    border-radius: 8px;
-    background: #2a2a2a;
-    color: #ffffff;
-    font-size: 14px;
-    outline: none;
-    box-sizing: border-box;
-  `;
   searchContainer.appendChild(searchInput);
   panelWrapper.appendChild(searchContainer);
   
   // Create prompt list
   const listContainer = document.createElement('div');
   listContainer.id = 'promptflow-list';
-  listContainer.style.cssText = `
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  `;
   panelWrapper.appendChild(listContainer);
   
   // Create footer
   const footer = document.createElement('div');
-  footer.style.cssText = `
-    padding: 10px 12px;
-    border-top: 1px solid #3a3a3a;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: #888;
-  `;
+  footer.id = 'promptflow-footer';
   footer.innerHTML = `
-    <span>↑↓ Navigate</span>
-    <span>Enter to select</span>
-    <span>Esc to close</span>
+    <div class="footer-hint">
+      <span class="footer-key">↑↓</span> Navigate
+      <span class="footer-key">Enter</span> Select
+      <span class="footer-key">Esc</span> Close
+    </div>
+    <button id="promptflow-settings-btn">
+        <svg viewBox="64 64 896 896" focusable="false" data-icon="setting" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+          <path d="M924.8 625.7l-65.5-56c3.1-19 4.7-38.4 4.7-57.8s-1.6-38.8-4.7-57.8l65.5-56a32.03 32.03 0 009.3-35.2l-.9-2.6a443.74 443.74 0 00-79.7-137.9l-1.8-2.1a32.12 32.12 0 00-35.1-9.5l-81.3 28.9c-30-24.6-63.5-44-99.7-57.6l-15.7-85a32.05 32.05 0 00-25.8-25.7l-2.7-.5c-52.1-9.4-106.9-9.4-159 0l-2.7.5a32.05 32.05 0 00-25.8 25.7l-15.8 85.4a351.86 351.86 0 00-99 57.4l-81.9-29.1a32 32 0 00-35.1 9.5l-1.8 2.1a446.02 446.02 0 00-79.7 137.9l-.9 2.6c-4.5 12.5-.8 26.5 9.3 35.2l66.3 56.6c-3.1 18.8-4.6 38-4.6 57.1 0 19.2 1.5 38.4 4.6 57.1L99 625.5a32.03 32.03 0 00-9.3 35.2l.9 2.6c18.1 50.4 44.9 96.9 79.7 137.9l1.8 2.1a32.12 32.12 0 0035.1 9.5l81.9-29.1c29.8 24.5 63.1 43.9 99 57.4l15.8 85.4a32.05 32.05 0 0025.8 25.7l2.7.5a449.4 449.4 0 00159 0l2.7-.5a32.05 32.05 0 0025.8-25.7l15.7-85a350 350 0 0099.7-57.6l81.3 28.9a32 32 0 0035.1-9.5l1.8-2.1c34.8-41.1 61.6-87.5 79.7-137.9l.9-2.6c4.5-12.3.8-26.3-9.3-35zM788.3 465.9c2.5 15.1 3.8 30.6 3.8 46.1s-1.3 31-3.8 46.1l-6.6 40.1 74.7 63.9a370.03 370.03 0 01-42.6 73.6L721 702.8l-31.4 25.8c-23.9 19.6-50.5 35-79.3 45.8l-38.1 14.3-17.9 97a377.5 377.5 0 01-85 0l-17.9-97.2-37.8-14.5c-28.5-10.8-55-26.2-78.7-45.7l-31.4-25.9-93.4 33.2c-17-22.9-31.2-47.6-42.6-73.6l75.5-64.5-6.5-40c-2.4-14.9-3.7-30.3-3.7-45.5 0-15.3 1.2-30.6 3.7-45.5l6.5-40-75.5-64.5c11.3-26.1 25.6-50.7 42.6-73.6l93.4 33.2 31.4-25.9c23.7-19.5 50.2-34.9 78.7-45.7l37.9-14.3 17.9-97.2c28.1-3.2 56.8-3.2 85 0l17.9 97 38.1 14.3c28.7 10.8 55.4 26.2 79.3 45.8l31.4 25.8 92.8-32.9c17 22.9 31.2 47.6 42.6 73.6L781.8 426l6.5 39.9zM512 326c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176zm79.2 255.2A111.6 111.6 0 01512 614c-29.9 0-58-11.7-79.2-32.8A111.6 111.6 0 01400 502c0-29.9 11.7-58 32.8-79.2C454 401.6 482.1 390 512 390c29.9 0 58 11.6 79.2 32.8A111.6 111.6 0 01624 502c0 29.9-11.7 58-32.8 79.2z">
+          </path>
+        </svg>
+      Settings
+    </button>
   `;
   panelWrapper.appendChild(footer);
+  
+  // Settings button click handler
+  const settingsBtn = shadow.getElementById('promptflow-settings-btn');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      closePanel();
+      // Send message to background script to open settings
+      chrome.runtime.sendMessage({ type: 'OPEN_SETTINGS' }).catch(() => {
+        // Fallback: open settings in new tab
+        window.open(chrome.runtime.getURL('settings.html'), '_blank');
+      });
+    });
+  }
   
   // Load prompts and render
   const prompts = await loadPrompts();
   state.prompts = prompts;
-  renderPromptList(shadow, prompts);
+  renderPromptList(shadow, prompts, '');
   
   // Focus search input
   setTimeout(() => searchInput.focus(), 50);
@@ -246,11 +437,73 @@ async function loadPanelApp(container: HTMLElement): Promise<void> {
       p.content.toLowerCase().includes(query) ||
       p.tags.some(t => t.toLowerCase().includes(query))
     );
-    renderPromptList(shadow, filtered);
+    state.prompts = filtered;
+    state.selectedIndex = 0;
+    renderPromptList(shadow, filtered, query);
+  });
+
+  // Keyboard navigation in search input
+  searchInput.addEventListener('keydown', (e) => {
+    const filteredPrompts = state.prompts;
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        e.stopPropagation();
+        if (filteredPrompts.length > 0) {
+          state.selectedIndex = Math.min(state.selectedIndex + 1, filteredPrompts.length - 1);
+          updateSelection(shadow, state.selectedIndex);
+          scrollToSelected(shadow);
+        }
+        break;
+        
+      case 'ArrowUp':
+        e.preventDefault();
+        e.stopPropagation();
+        if (filteredPrompts.length > 0) {
+          state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
+          updateSelection(shadow, state.selectedIndex);
+          scrollToSelected(shadow);
+        }
+        break;
+        
+      case 'Enter':
+        e.preventDefault();
+        e.stopPropagation();
+        if (filteredPrompts[state.selectedIndex]) {
+          selectPrompt(filteredPrompts[state.selectedIndex]);
+        }
+        break;
+        
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        closePanel();
+        break;
+    }
   });
 }
 
-function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
+/**
+ * Highlight search query in text by wrapping matches with <mark> tags
+ */
+function highlightText(text: string, query: string): string {
+  if (!query) return escapeHtml(text);
+  
+  const escapedText = escapeHtml(text);
+  const escapedQuery = escapeHtml(query);
+  const regex = new RegExp(`(${escapeRegExp(escapedQuery)})`, 'gi');
+  return escapedText.replace(regex, '<mark>$1</mark>');
+}
+
+/**
+ * Escape special regex characters
+ */
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: string = ''): void {
   const listContainer = shadow.getElementById('promptflow-list');
   if (!listContainer) return;
   
@@ -258,7 +511,7 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
   
   if (prompts.length === 0) {
     listContainer.innerHTML = `
-      <div style="padding: 20px; text-align: center; color: #666;">
+      <div class="empty-state">
         No prompts found
       </div>
     `;
@@ -267,32 +520,18 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
   
   prompts.forEach((prompt, index) => {
     const item = document.createElement('div');
-    item.className = index === state.selectedIndex ? 'selected' : '';
-    item.style.cssText = `
-      padding: 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      margin-bottom: 4px;
-      transition: background 0.15s;
-      background: ${index === state.selectedIndex ? '#3a3a3a' : 'transparent'};
-    `;
+    item.className = 'prompt-item' + (index === state.selectedIndex ? ' selected' : '');
     
     item.innerHTML = `
-      <div style="font-weight: 500; color: #fff; margin-bottom: 4px;">
-        ${escapeHtml(prompt.title)}
+      <div class="prompt-item-title">
+        ${highlightText(prompt.title, searchQuery)}
       </div>
-      <div style="font-size: 12px; color: #888; margin-bottom: 6px;">
-        ${escapeHtml(prompt.description || '')}
+      <div class="prompt-item-description">
+        ${highlightText(prompt.description || '', searchQuery)}
       </div>
-      <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+      <div class="prompt-item-tags">
         ${prompt.tags.map(tag => `
-          <span style="
-            padding: 2px 8px;
-            background: #2a2a2a;
-            border-radius: 4px;
-            font-size: 11px;
-            color: #6b7280;
-          ">${escapeHtml(tag)}</span>
+          <span class="prompt-tag">${escapeHtml(tag)}</span>
         `).join('')}
       </div>
     `;
@@ -308,9 +547,14 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[]): void {
 }
 
 function updateSelection(shadow: ShadowRoot, index: number): void {
-  const items = shadow.querySelectorAll('#promptflow-list > div');
+  const items = shadow.querySelectorAll('#promptflow-list > .prompt-item');
   items.forEach((item, i) => {
-    (item as HTMLElement).style.background = i === index ? '#3a3a3a' : 'transparent';
+    const el = item as HTMLElement;
+    if (i === index) {
+      el.classList.add('selected');
+    } else {
+      el.classList.remove('selected');
+    }
   });
 }
 
@@ -320,45 +564,247 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
+/**
+ * Find the first placeholder in the content (e.g., {variable})
+ */
+function findFirstPlaceholder(content: string): { start: number; end: number } | null {
+  const match = content.match(/\{[^}]+\}/);
+  if (match && match.index !== undefined) {
+    return {
+      start: match.index,
+      end: match.index + match[0].length
+    };
+  }
+  return null;
+}
+
+/**
+ * Set text selection range for input/textarea elements
+ */
+function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, start: number, end: number): void {
+  if (!input) return;
+  
+  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+    input.focus();
+    input.setSelectionRange(start, end);
+  } else if (input.hasAttribute && input.hasAttribute('contenteditable')) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+    let charCount = 0;
+    let foundStart = false;
+    let foundEnd = false;
+
+    function traverseNodes(node: Node): void {
+      if (foundStart && foundEnd) return;
+      if (node.nodeType === Node.TEXT_NODE) {
+        const nodeLength = node.textContent!.length;
+        const nextCount = charCount + nodeLength;
+        const offset = start - charCount;
+        
+        // Check if start position is within this text node
+        // Only use this node if offset is within valid range (0 to nodeLength)
+        if (!foundStart && offset >= 0 && offset <= nodeLength) {
+          // If offset equals nodeLength, we need to move to next node
+          if (offset === nodeLength) {
+            // Don't set foundStart yet, will continue to next node
+          } else {
+            range.setStart(node, offset);
+            foundStart = true;
+          }
+        }
+        
+        // Check if end position is within this text node
+        const endOffset = end - charCount;
+        if (foundStart && !foundEnd && endOffset >= 0 && endOffset <= nodeLength) {
+          if (endOffset === nodeLength) {
+            // Don't set foundEnd yet, will continue to next node
+          } else {
+            range.setEnd(node, endOffset);
+            foundEnd = true;
+          }
+        }
+        
+        // If we're at the boundary of this node, continue to next
+        if (!foundStart && offset > nodeLength) {
+          foundStart = true;
+          range.setStartAfter(node);
+        }
+        if (foundStart && !foundEnd && endOffset > nodeLength) {
+          foundEnd = true;
+          range.setEndBefore(node);
+        }
+        
+        charCount = nextCount;
+      } else {
+        // For non-text nodes (like br), count as 1 character
+        if (node.nodeName === 'BR') {
+          const nextCount = charCount + 1;
+          if (!foundStart && start === nextCount) {
+            // Position is at the br, find next text node
+            foundStart = true;
+          }
+          if (foundStart && !foundEnd && end === nextCount) {
+            foundEnd = true;
+          }
+          charCount = nextCount;
+        }
+        
+        for (const child of Array.from(node.childNodes)) {
+          traverseNodes(child);
+          if (foundStart && foundEnd) break;
+        }
+      }
+    }
+
+    traverseNodes(input);
+    
+    // Handle case where positions are at boundaries
+    if (!foundStart || !foundEnd) {
+      // Try to collapse to appropriate position
+      const allTextNodes: Text[] = [];
+      function collectTextNodes(node: Node): void {
+        if (node.nodeType === Node.TEXT_NODE) {
+          allTextNodes.push(node as Text);
+        }
+        for (const child of Array.from(node.childNodes)) {
+          collectTextNodes(child);
+        }
+      }
+      collectTextNodes(input);
+      
+      if (allTextNodes.length > 0) {
+        if (!foundStart) {
+          // Start at beginning of first text node
+          range.setStart(allTextNodes[0], 0);
+        }
+        if (!foundEnd) {
+          // End at end of last text node (or at start if no nodes)
+          const lastNode = allTextNodes[allTextNodes.length - 1];
+          if (start <= lastNode.textContent!.length) {
+            range.setEnd(lastNode, start);
+          } else {
+            range.setEndAfter(lastNode);
+          }
+        }
+      } else {
+        // No text nodes, select entire contents
+        range.selectNodeContents(input);
+        range.collapse(false);
+      }
+    }
+    
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+}
+
 function selectPrompt(prompt: Prompt): void {
   if (!state.currentInput) return;
+  
+  // Get browser's display language
+  const browserLang = navigator.language || 'en';
+  const langCode = browserLang.split('-')[0];
+  const langNames: Record<string, string> = {
+    'zh': 'Chinese',
+    'en': 'English',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'pt': 'Portuguese',
+    'ru': 'Russian',
+    'ar': 'Arabic',
+    'hi': 'Hindi',
+    'th': 'Thai',
+    'vi': 'Vietnamese',
+    'id': 'Indonesian',
+    'ms': 'Malay',
+    'tr': 'Turkish',
+    'pl': 'Polish',
+    'nl': 'Dutch',
+    'it': 'Italian',
+    'uk': 'Ukrainian',
+  };
+  const langName = langNames[langCode] || 'English';
+  
+  // Append language instruction to prompt
+  const languageInstruction = `\n\nPlease respond in ${langName}.`;
+  const promptContent = prompt.content + languageInstruction;
   
   const inputValue = getInputValue(state.currentInput);
   
   // Replace trigger with prompt content
   const before = inputValue.substring(0, state.triggerStartPosition);
   const after = inputValue.substring(state.caretPosition);
-  const newValue = before + prompt.content + after;
+  const newValue = before + promptContent + after;
   
-  if (state.currentInput instanceof HTMLInputElement || state.currentInput instanceof HTMLTextAreaElement) {
-    state.currentInput.value = newValue;
-    state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
-    
-    // Move cursor to end of inserted text
-    const newPosition = state.triggerStartPosition + prompt.content.length;
-    setCaretPosition(state.currentInput, newPosition);
-  } else if (state.currentInput.hasAttribute('contenteditable')) {
-    // For contenteditable elements, we need to properly handle newlines
-    // by inserting <br> tags instead of just setting textContent
-    insertContentWithNewlines(state.currentInput, newValue, state.triggerStartPosition, prompt.content.length);
+  // Find first placeholder position (relative to original prompt.content)
+  const placeholder = findFirstPlaceholder(prompt.content);
+  
+  // Calculate selection range after insertion
+  let selectionStart: number;
+  let selectionEnd: number;
+  
+  if (placeholder) {
+    // Select the entire first placeholder (including braces)
+    selectionStart = state.triggerStartPosition + placeholder.start;
+    selectionEnd = state.triggerStartPosition + placeholder.end;
+  } else {
+    // No placeholder found, position cursor at end of inserted text (before language instruction)
+    selectionStart = state.triggerStartPosition + prompt.content.length;
+    selectionEnd = selectionStart;
   }
   
-  closePanel();
+  // For textarea, directly set value and selection synchronously
+  if (state.currentInput instanceof HTMLTextAreaElement) {
+    const textarea = state.currentInput;
+    // Use native setter to bypass any framework overrides
+    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
+    nativeSetter.call(textarea, newValue);
+    // Dispatch input event so frameworks can detect the change
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    // Focus and set selection
+    textarea.focus();
+    textarea.setSelectionRange(selectionStart, selectionEnd);
+    // Close panel
+    closePanel(false, false);
+    return;
+  }
+  
+  if (state.currentInput instanceof HTMLInputElement) {
+    state.currentInput.value = newValue;
+    state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
+    setSelection(state.currentInput, selectionStart, selectionEnd);
+  } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
+    // For contenteditable, we need relative positions within prompt.content
+    const relativeStart = placeholder ? placeholder.start : prompt.content.length;
+    const relativeEnd = placeholder ? placeholder.end : prompt.content.length;
+    insertContentWithNewlines(state.currentInput, promptContent, relativeStart, relativeEnd);
+  }
+  
+  closePanel(false, false);
 }
 
 /**
  * Insert content into contenteditable element, properly handling newlines
+ * Returns the actual text content length for selection calculation
  */
-function insertContentWithNewlines(element: Element, newValue: string, startPos: number, contentLength: number): void {
+function insertContentWithNewlines(
+  element: Element,
+  content: string,
+  selectionStart: number,
+  selectionEnd: number
+): void {
   // Clear the element
   element.textContent = '';
   
   // Insert the new content with proper newline handling
-  const lines = newValue.split('\n');
+  const lines = content.split('\n');
   
   for (let i = 0; i < lines.length; i++) {
     if (i > 0) {
-      // Insert <br> for newlines between lines
+      // Insert <br> for newlines between lines (including empty lines)
       element.appendChild(document.createElement('br'));
     }
     
@@ -367,85 +813,158 @@ function insertContentWithNewlines(element: Element, newValue: string, startPos:
     }
   }
   
-  // Move cursor to end of inserted text
-  setCaretPosition(element, startPos + contentLength);
+  // Adjust selection positions to account for br tags
+  // In content string, \n is 1 char, but in DOM, <br> is a separate node
+  // We need to find the corresponding DOM position
+  const adjustedStart = findDOMPosition(element, selectionStart);
+  const adjustedEnd = findDOMPosition(element, selectionEnd);
+  
+  // Set selection using adjusted positions
+  setSelectionAtPosition(element, adjustedStart, adjustedEnd);
+}
+
+/**
+ * Find the DOM position (node + offset) corresponding to a character position in content
+ * This accounts for <br> tags being separate nodes in the DOM
+ */
+function findDOMPosition(element: Element, targetCharPos: number): { node: Node; offset: number } | null {
+  let charCount = 0;
+  
+  for (const node of Array.from(element.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const nodeLength = node.textContent!.length;
+      
+      // Check if target position is within this text node
+      if (charCount <= targetCharPos && targetCharPos <= charCount + nodeLength) {
+        return {
+          node,
+          offset: targetCharPos - charCount
+        };
+      }
+      charCount += nodeLength;
+    } else if (node.nodeName === 'BR') {
+      // br tag represents a newline character in the content
+      // If target is at this newline position, find next text node
+      if (charCount === targetCharPos) {
+        // Target is exactly at this br position
+        // Move to next text node or return null
+        const nextTextNode = findNextTextNode(element, node);
+        if (nextTextNode) {
+          return { node: nextTextNode, offset: 0 };
+        }
+      }
+      charCount += 1; // br counts as 1 character in content
+    }
+  }
+  
+  // If position beyond all content, return end of last text node
+  const lastTextNode = findLastTextNode(element);
+  if (lastTextNode) {
+    return { node: lastTextNode, offset: lastTextNode.textContent!.length };
+  }
+  
+  return null;
+}
+
+function findNextTextNode(element: Element, afterNode: Node): Node | null {
+  let foundAfter = false;
+  for (const node of Array.from(element.childNodes)) {
+    if (foundAfter && node.nodeType === Node.TEXT_NODE) {
+      return node;
+    }
+    if (node === afterNode) {
+      foundAfter = true;
+    }
+  }
+  return null;
+}
+
+function findLastTextNode(element: Element): Node | null {
+  for (let i = element.childNodes.length - 1; i >= 0; i--) {
+    if (element.childNodes[i].nodeType === Node.TEXT_NODE) {
+      return element.childNodes[i];
+    }
+  }
+  return null;
+}
+
+/**
+ * Set selection at a specific DOM position
+ */
+function setSelectionAtPosition(element: Element, start: { node: Node; offset: number } | null, end: { node: Node; offset: number } | null): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  
+  const range = document.createRange();
+  
+  if (start) {
+    range.setStart(start.node, start.offset);
+  } else {
+    // Default to beginning
+    const firstText = findFirstTextNode(element);
+    if (firstText) {
+      range.setStart(firstText, 0);
+    } else {
+      range.selectNodeContents(element);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return;
+    }
+  }
+  
+  if (end) {
+    range.setEnd(end.node, end.offset);
+  } else {
+    range.collapse(false);
+  }
+  
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function findFirstTextNode(element: Element): Node | null {
+  for (const node of Array.from(element.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node;
+    }
+  }
+  return null;
 }
 
 function positionPanel(): void {
   if (!panelContainer || !state.currentInput) return;
-  
+
   const shadow = panelContainer.shadowRoot;
   if (!shadow) return;
-  
-  const rect = state.currentInput.getBoundingClientRect();
-  
+
   const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
   if (!panel) return;
+
+  // Get panel dimensions
+  const panelWidth = 420;
+  const panelMinHeight = 200;
+  const panelMaxHeight = 500;
   
+  // Calculate viewport dimensions
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
-  const panelWidth = 400; // Panel width from CSS
-  const panelMaxHeight = 500; // Panel max-height from CSS
-  const padding = 8; // Minimum distance from viewport edges
+
+  // Fixed position: center horizontally, with percentage padding from top
+  const topPaddingPercentage = 0.05; // 5% from top
+  const topPadding = viewportHeight * topPaddingPercentage;
   
-  // Calculate initial position (below the input)
-  let top = rect.bottom + padding;
-  let left = rect.left;
-  
-  // Check if there's enough space below the input
-  const spaceBelow = viewportHeight - rect.bottom;
-  const spaceAbove = rect.top;
-  
-  // Choose vertical position: below or above input
-  if (spaceBelow >= panelMaxHeight + padding * 2) {
-    // Plenty of space below, use bottom position
-    top = rect.bottom + padding;
-  } else if (spaceAbove >= panelMaxHeight + padding * 2) {
-    // Not enough space below, but enough above
-    top = rect.top - panelMaxHeight - padding;
-  } else if (spaceBelow >= spaceAbove) {
-    // Use bottom but limit height
-    top = rect.bottom + padding;
-  } else {
-    // Use top but limit height
-    top = padding;
-  }
-  
-  // Horizontal positioning: try to align with input, adjust if needed
-  // First, try to position to the right of the input
-  let preferredLeft = rect.left;
-  
-  // Check if panel fits to the right of input
-  if (preferredLeft + panelWidth > viewportWidth - padding) {
-    // Try to position to the left of input
-    preferredLeft = rect.right - panelWidth;
-    
-    // If still doesn't fit, center horizontally
-    if (preferredLeft < padding) {
-      preferredLeft = (viewportWidth - panelWidth) / 2;
-    }
-  }
-  
-  // Ensure left edge doesn't go off screen
-  if (preferredLeft < padding) {
-    left = padding;
-  } else if (preferredLeft + panelWidth > viewportWidth - padding) {
-    left = viewportWidth - panelWidth - padding;
-  } else {
-    left = preferredLeft;
-  }
-  
-  // Final safety check: ensure panel stays within viewport
-  // Clamp top to stay within viewport
-  if (top < padding) {
-    top = padding;
-  }
-  if (top + panelMaxHeight > viewportHeight - padding) {
-    top = Math.max(padding, viewportHeight - panelMaxHeight - padding);
-  }
-  
-  panelContainer.style.top = `${top}px`;
-  panelContainer.style.left = `${left}px`;
+  // Calculate panel height based on available space below the padding
+  const availableHeight = viewportHeight - topPadding - 20; // 20px bottom padding
+  const panelHeight = Math.min(Math.max(panelMinHeight, availableHeight), panelMaxHeight);
+
+  // Center horizontally
+  const leftPosition = (viewportWidth - panelWidth) / 2;
+
+  // Apply panel dimensions and position
+  panel.style.maxHeight = `${panelHeight}px`;
+  panelContainer.style.top = `${topPadding}px`;
+  panelContainer.style.left = `${leftPosition}px`;
 }
 
 const debouncedPositionPanel = debounce(positionPanel, 50);
@@ -484,18 +1003,34 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
   window.addEventListener('resize', debouncedPositionPanel);
 }
 
-function closePanel(): void {
+function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean = true): void {
   if (!state.isPanelOpen) return;
-  
+
+  // Store input and actual caret position before closing
+  const previousInput = state.currentInput;
+  const previousPosition = state.caretPosition;
+
   state.isPanelOpen = false;
   state.currentInput = null;
-  
+
   document.removeEventListener('scroll', debouncedPositionPanel, true);
   window.removeEventListener('resize', debouncedPositionPanel);
-  
+
   if (panelContainer) {
     panelContainer.remove();
     panelContainer = null;
+  }
+
+  // Restore focus to the input and optionally restore cursor position
+  if (restoreFocus && previousInput) {
+    if (previousInput instanceof HTMLInputElement || previousInput instanceof HTMLTextAreaElement) {
+      previousInput.focus();
+    } else if (previousInput.hasAttribute('contenteditable')) {
+      (previousInput as HTMLElement).focus();
+    }
+    if (restoreCaretPosition) {
+      setCaretPosition(previousInput, previousPosition);
+    }
   }
 }
 
@@ -587,7 +1122,10 @@ function handleClick(e: MouseEvent): void {
 }
 
 // Initialize
-function init(): void {
+async function init(): Promise<void> {
+  // Load settings from storage first
+  await loadSettings();
+
   // Listen for input events on editable elements
   document.addEventListener('input', handleInput, true);
   
