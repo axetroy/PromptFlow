@@ -234,12 +234,11 @@ const SettingsApp: React.FC = () => {
   };
 
   // Sync handlers
-  const handleAddRepo = async (repoData: Omit<SyncedRepo, 'id' | 'lastSyncedAt'>): Promise<SyncedPrompt[]> => {
+  const handleAddRepo = async (repoData: Omit<SyncedRepo, 'id' | 'lastSyncedAt' | 'lastCommit'>): Promise<SyncedPrompt[]> => {
     const repoId = `sync-${Date.now()}`;
     
-    // Fetch prompts from the repo (using web scraping, no API rate limit)
-    const files = await fetchGitHubDirectory(repoData.repo, repoData.promptsPath, repoData.branch);
-    const mdFiles = files.filter((f: any) => f.name.endsWith('.md') && f.type === 'file');
+    // Fetch prompts from the repo using jsdelivr
+    const { files: mdFiles, commit } = await fetchGitHubDirectory(repoData.repo, repoData.promptsPath);
     
     if (mdFiles.length === 0) {
       messageApi.warning(`No markdown files found at ${repoData.promptsPath}`);
@@ -250,8 +249,7 @@ const SettingsApp: React.FC = () => {
     
     for (const file of mdFiles) {
       try {
-        // Use raw.githubusercontent.com (no rate limit)
-        const content = await fetchGitHubFileContent(repoData.repo, file.path, repoData.branch);
+        const content = await fetchGitHubFileContent(repoData.repo, file.path, commit);
         const { metadata, body } = parseFrontmatter(content);
         
         newPrompts.push({
@@ -274,6 +272,7 @@ const SettingsApp: React.FC = () => {
     const newRepo: SyncedRepo = {
       ...repoData,
       id: repoId,
+      lastCommit: commit,
       lastSyncedAt: Date.now(),
       enabledPromptIds: newPrompts.map(p => p.id),
     };
@@ -301,9 +300,8 @@ const SettingsApp: React.FC = () => {
     const repo = syncedRepos.find(r => r.id === repoId);
     if (!repo) return [];
     
-    // Fetch prompts from the repo (using web scraping, no API rate limit)
-    const files = await fetchGitHubDirectory(repo.repo, repo.promptsPath, repo.branch);
-    const mdFiles = files.filter((f: any) => f.name.endsWith('.md') && f.type === 'file');
+    // Fetch prompts from the repo using jsdelivr
+    const { files: mdFiles, commit } = await fetchGitHubDirectory(repo.repo, repo.promptsPath);
     
     if (mdFiles.length === 0) {
       messageApi.warning(`No markdown files found at ${repo.promptsPath}`);
@@ -314,8 +312,7 @@ const SettingsApp: React.FC = () => {
     
     for (const file of mdFiles) {
       try {
-        // Use raw.githubusercontent.com (no rate limit)
-        const content = await fetchGitHubFileContent(repo.repo, file.path, repo.branch);
+        const content = await fetchGitHubFileContent(repo.repo, file.path, commit);
         const { metadata, body } = parseFrontmatter(content);
         
         newPrompts.push({
@@ -335,8 +332,8 @@ const SettingsApp: React.FC = () => {
       }
     }
     
-    // Update repo with new lastSyncedAt
-    const updatedRepo = { ...repo, lastSyncedAt: Date.now() };
+    // Update repo with new commit and lastSyncedAt
+    const updatedRepo = { ...repo, lastCommit: commit, lastSyncedAt: Date.now() };
     const newRepos = syncedRepos.map(r => r.id === repoId ? updatedRepo : r);
     
     // Replace old prompts from this repo with new ones

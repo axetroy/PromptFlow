@@ -3,54 +3,119 @@ import { test, expect } from '@playwright/test';
 test.describe('GitHub Sync', () => {
   const TEST_REPO = 'axetroy/prompts';
   const TEST_BRANCH = 'main';
-  const TEST_PATH = '.agents/prompts';
+  const TEST_PATH = '.agents/promtps'; // Note: typo in repo, using actual path
 
-  test('should fetch directory listing from GitHub via jsdelivr', async ({ page }) => {
-    // This test fetches the actual GitHub repository via jsdelivr
-    // Note: Skipped in CI due to CORS restrictions, but works in browser
-    test.skip(true, 'Skipped - CORS restrictions in test environment');
-    
-    await page.goto(`https://www.jsdelivr.com/package/gh/${TEST_REPO}?version=${TEST_BRANCH}&path=${TEST_PATH}`);
-    
-    // Wait for the page to load
-    await page.waitForLoadState('networkidle');
-    
-    // Get the page content
-    const html = await page.content();
-    
-    // Verify page loaded
-    expect(html).toContain('jsdelivr');
-  });
-
-  test('should construct correct jsdelivr CDN URL format', async ({ page }) => {
+  test('should construct correct jsdelivr URLs', async ({ page }) => {
     const result = await page.evaluate(({ repo, branch, path }) => {
-      // Test URL construction logic
-      const filePath = `${path}/code-review.md`;
-      const dirUrl = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${path}/`;
+      const commit = 'fa153dbe655f6cc44136d9258f84fdee6fc37108';
       
-      // jsdelivr CDN file URL format
-      const cdnUrl = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`;
+      // Package page URL
+      const packagePageUrl = `https://www.jsdelivr.com/package/gh/${repo}`;
+      
+      // Data API URL
+      const dataApiUrl = `https://data.jsdelivr.com/v1/packages/gh/${repo}@${commit}/!${path}`;
+      
+      // CDN file URL format
+      const filePath = `${path}/test.md`;
+      const cdnUrl = `https://cdn.jsdelivr.net/gh/${repo}@${commit}/${filePath}`;
       
       return {
-        fileUrl: cdnUrl,
-        dirUrl,
-        hasCorrectFormat: cdnUrl.startsWith('https://cdn.jsdelivr.net/gh/'),
-        containsOwner: cdnUrl.includes(repo.split('/')[0]),
-        containsRepo: cdnUrl.includes(repo.split('/')[1]),
-        containsBranch: cdnUrl.includes(`@${branch}`),
-        containsPath: cdnUrl.includes(path),
-        dirUrlHasTrailingSlash: dirUrl.endsWith('/'),
+        packagePageUrl,
+        dataApiUrl,
+        cdnUrl,
+        hasCorrectPackageUrl: packagePageUrl.includes('www.jsdelivr.com/package/gh/'),
+        hasCorrectDataApi: dataApiUrl.includes('data.jsdelivr.com/v1/packages/gh/'),
+        hasCorrectCdnUrl: cdnUrl.includes('cdn.jsdelivr.net/gh/'),
+        hasCommit: cdnUrl.includes(`@${commit}`),
       };
     }, { repo: TEST_REPO, branch: TEST_BRANCH, path: TEST_PATH });
     
-    expect(result.hasCorrectFormat).toBe(true);
-    expect(result.containsOwner).toBe(true);
-    expect(result.containsRepo).toBe(true);
-    expect(result.containsBranch).toBe(true);
-    expect(result.containsPath).toBe(true);
-    expect(result.fileUrl).toBe('https://cdn.jsdelivr.net/gh/axetroy/prompts@main/.agents/prompts/code-review.md');
-    expect(result.dirUrl).toBe('https://cdn.jsdelivr.net/gh/axetroy/prompts@main/.agents/prompts/');
-    expect(result.dirUrlHasTrailingSlash).toBe(true);
+    expect(result.hasCorrectPackageUrl).toBe(true);
+    expect(result.hasCorrectDataApi).toBe(true);
+    expect(result.hasCorrectCdnUrl).toBe(true);
+    expect(result.hasCommit).toBe(true);
+    expect(result.packagePageUrl).toBe('https://www.jsdelivr.com/package/gh/axetroy/prompts');
+    expect(result.dataApiUrl).toBe('https://data.jsdelivr.com/v1/packages/gh/axetroy/prompts@fa153dbe655f6cc44136d9258f84fdee6fc37108/!.agents/promtps');
+  });
+
+  test('should parse commit hash from HTML pattern', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      // Simulate the HTML pattern from jsdelivr package page
+      const html = `<span title="fa153dbe655f6cc44136d9258f84fdee6fc37108">Version <span>fa153dbe655f6cc44136d9258f84fdee6fc37108</span></span>`;
+      
+      // Pattern: <span title="hash">Version <span>hash</span></span>
+      const match = html.match(/<span[^>]*title="([a-f0-9]{40})"[^>]*>[\s\S]*?Version[\s\S]*?<span>([a-f0-9]{40})<\/span>/);
+      
+      if (match) {
+        return { hash: match[1] || match[2], found: true };
+      }
+      return { hash: '', found: false };
+    });
+    
+    expect(result.found).toBe(true);
+    expect(result.hash).toBe('fa153dbe655f6cc44136d9258f84fdee6fc37108');
+  });
+
+  test('should parse JSON response from data API', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      // Simulate the JSON structure from data.jsdelivr.com
+      const jsonResponse = {
+        type: 'gh',
+        name: 'axetroy/prompts',
+        version: 'fa153dbe655f6cc44136d9258f84fdee6fc37108',
+        files: [
+          {
+            type: 'directory',
+            name: '.agents',
+            files: [
+              {
+                type: 'directory',
+                name: 'promtps',
+                files: [
+                  {
+                    type: 'file',
+                    name: 'architecture-whitepaper.md',
+                    hash: 'abc123',
+                    size: 2597
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+      
+      // Recursively find markdown files
+      function findMdFiles(files: any[], basePath = ''): any[] {
+        const result: any[] = [];
+        for (const file of files) {
+          const filePath = basePath ? `${basePath}/${file.name}` : file.name;
+          if (file.type === 'file' && file.name.endsWith('.md')) {
+            result.push({
+              name: file.name,
+              path: filePath,
+              sha: file.hash || '',
+              size: file.size || 0
+            });
+          } else if (file.type === 'directory' && file.files) {
+            result.push(...findMdFiles(file.files, filePath));
+          }
+        }
+        return result;
+      }
+      
+      const mdFiles = findMdFiles(jsonResponse.files);
+      
+      return {
+        totalFiles: mdFiles.length,
+        firstFile: mdFiles[0]?.name,
+        firstPath: mdFiles[0]?.path
+      };
+    });
+    
+    expect(result.totalFiles).toBe(1);
+    expect(result.firstFile).toBe('architecture-whitepaper.md');
+    expect(result.firstPath).toBe('.agents/promtps/architecture-whitepaper.md');
   });
 
   test('should parse frontmatter from markdown content', async ({ page }) => {

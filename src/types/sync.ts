@@ -17,7 +17,8 @@ export interface SyncedPrompt {
 export interface SyncedRepo {
   id: string;
   repo: string; // e.g., "owner/repo"
-  branch: string;
+  branch: string; // Original branch name (for display only)
+  lastCommit: string; // Actual commit hash from jsdelivr
   promptsPath: string; // e.g., ".agents/prompts"
   lastSyncedAt?: number;
   enabled: boolean;
@@ -51,10 +52,10 @@ export interface GitHubContent {
 /**
  * Fetch file content using jsdelivr CDN
  * Works globally including China, no rate limits
- * Format: https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
+ * Format: https://cdn.jsdelivr.net/gh/{owner}/{repo}@{commit}/{path}
  */
-export async function fetchGitHubFileContent(repo: string, filePath: string, branch: string = 'main'): Promise<string> {
-  const url = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`;
+export async function fetchGitHubFileContent(repo: string, filePath: string, commit: string): Promise<string> {
+  const url = `https://cdn.jsdelivr.net/gh/${repo}@${commit}/${filePath}`;
   const response = await fetch(url);
   
   if (!response.ok) {
@@ -68,102 +69,152 @@ export async function fetchGitHubFileContent(repo: string, filePath: string, bra
 }
 
 /**
- * Fetch directory listing from jsdelivr CDN page
- * Format: https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}/
- * Works globally including China
+ * Get the latest commit hash from jsdelivr package page
  */
-export async function fetchGitHubDirectory(
-  repo: string,
-  path: string,
-  branch: string = 'main'
-): Promise<GitHubContent[]> {
-  // jsdelivr CDN directory listing URL (note the trailing slash)
-  const url = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${path}/`;
+async function getLatestCommitHash(repo: string): Promise<string> {
+  const url = `https://www.jsdelivr.com/package/gh/${repo}`;
+  const response = await fetch(url);
   
-  try {
-    const response = await fetch(url);
-    
-    // 404 means the path doesn't exist
+  if (!response.ok) {
+    throw new Error(`Failed to fetch package page: ${response.statusText}`);
+  }
+  
+  const html = await response.text();
+  
+  // Parse commit hash from HTML
+  // Pattern: <span title="hash">Version <span>hash</span></span>
+  const match = html.match(/<span[^>]*title="([a-f0-9]{40})"[^>]*>[\s\S]*?Version[\s\S]*?<span>([a-f0-9]{40})<\/span>/);
+  
+  if (match) {
+    // Try the title attribute first, then the inner span
+    return match[1] || match[2];
+  }
+  
+  // Alternative pattern: look for the hash in title attribute
+  const titleMatch = html.match(/title="([a-f0-9]{40})"[^>]*>Version/);
+  if (titleMatch) {
+    return titleMatch[1];
+  }
+  
+  // Try to find any 40-character hex string that looks like a commit hash
+  const hashMatch = html.match(/>([a-f0-9]{40})</);
+  if (hashMatch) {
+    return hashMatch[1];
+  }
+  
+  throw new Error('Could not find commit hash in package page');
+}
+
+/**
+ * Fetch directory structure from data.jsdelivr.com API
+ */
+interface JSDelivrFile {
+  type: 'file' | 'directory';
+  name: string;
+  hash?: string;
+  size?: number;
+  files?: JSDelivrFile[];
+}
+
+interface JSDelivrResponse {
+  type: string;
+  name: string;
+  version: string;
+  default: string | null;
+  files: JSDelivrFile[];
+  links: Record<string, string>;
+}
+
+async function fetchDirectoryStructure(
+  repo: string,
+  commit: string,
+  path?: string
+): Promise<JSDelivrFile[]> {
+  const url = path
+    ? `https://data.jsdelivr.com/v1/packages/gh/${repo}@${commit}/!${path}`
+    : `https://data.jsdelivr.com/v1/packages/gh/${repo}@${commit}`;
+  
+  const response = await fetch(url);
+  
+  if (!response.ok) {
     if (response.status === 404) {
       return [];
     }
+    throw new Error(`Failed to fetch directory structure: ${response.statusText}`);
+  }
+  
+  const data: JSDelivrResponse = await response.json();
+  return data.files || [];
+}
+
+/**
+ * Recursively find all markdown files in a directory
+ */
+function findMarkdownFiles(files: JSDelivrFile[], basePath: string = ''): GitHubContent[] {
+  const result: GitHubContent[] = [];
+  
+  for (const file of files) {
+    const filePath = basePath ? `${basePath}/${file.name}` : file.name;
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch directory: ${response.statusText}`);
+    if (file.type === 'file' && file.name.endsWith('.md')) {
+      result.push({
+        name: file.name,
+        path: filePath,
+        sha: file.hash || '',
+        size: file.size || 0,
+        type: 'file',
+        download_url: '', // Will be set later
+      });
+    } else if (file.type === 'directory' && file.files) {
+      result.push(...findMarkdownFiles(file.files, filePath));
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Fetch directory listing from jsdelivr
+ * Uses package page to get commit hash, then data API to get file list
+ */
+export async function fetchGitHubDirectory(
+  repo: string,
+  path: string
+): Promise<{ files: GitHubContent[]; commit: string }> {
+  try {
+    // Step 1: Get latest commit hash from package page
+    const commit = await getLatestCommitHash(repo);
+    
+    // Step 2: Fetch directory structure from data API
+    const files = await fetchDirectoryStructure(repo, commit, path);
+    
+    if (files.length === 0) {
+      return { files: [], commit };
     }
     
-    const html = await response.text();
+    // Step 3: Find all markdown files recursively
+    const mdFiles = findMarkdownFiles(files);
     
-    // Check if it's a 404 page (jsdelivr returns 404 page for non-existent paths)
-    if (html.includes('Page not found') || html.includes('404')) {
-      return [];
-    }
+    // Step 4: Set download URLs
+    const filesWithUrls = mdFiles.map(file => ({
+      ...file,
+      download_url: `https://cdn.jsdelivr.net/gh/${repo}@${commit}/${file.path}`,
+    }));
     
-    const files: GitHubContent[] = [];
-    
-    // Parse file links from the HTML
-    // Pattern: <a rel="nofollow" href="/gh/{owner}/{repo}@{branch}/{filePath}">{fileName}</a>
-    // or: <a href="../">...</a> for parent directory
-    const linkPattern = /<a[^>]+href=["']([^"']+)["'][^>]*>([^<]+)<\/a>/gi;
-    let match;
-    
-    while ((match = linkPattern.exec(html)) !== null) {
-      const href = match[1];
-      const text = match[2].trim();
-      
-      // Skip parent directory links (..) and non-md files
-      if (href.includes('..') || !text.endsWith('.md')) {
-        continue;
-      }
-      
-      // Extract file path from href (remove the /gh/{owner}/{repo}@{branch}/ prefix)
-      // href format: /gh/owner/repo@branch/path/to/file.md
-      const ghMatch = href.match(/^\/gh\/[^/]+\/[^@]+@[^/]+\/(.+)$/);
-      if (!ghMatch) {
-        continue;
-      }
-      
-      const filePath = ghMatch[1];
-      const fileName = text;
-      
-      // Avoid duplicates
-      if (!files.some(f => f.path === filePath)) {
-        files.push({
-          name: fileName,
-          path: filePath,
-          sha: '',
-          size: 0,
-          type: 'file',
-          download_url: `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${filePath}`,
-        });
-      }
-    }
-    
-    return files;
+    return { files: filesWithUrls, commit };
   } catch (error) {
     console.error('Error fetching GitHub directory:', error);
-    return [];
+    return { files: [], commit: '' };
   }
 }
 
 /**
  * Check if a repository exists and is accessible
  */
-export async function checkRepoExists(repo: string, branch: string = 'main'): Promise<{ exists: boolean; error?: string }> {
+export async function checkRepoExists(repo: string): Promise<{ exists: boolean; error?: string }> {
   try {
-    // Try to fetch the root of the repo
-    const url = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/`;
-    const response = await fetch(url);
-    
-    if (response.ok) {
-      return { exists: true };
-    }
-    
-    if (response.status === 404) {
-      return { exists: false, error: 'Repository or branch not found' };
-    }
-    
-    return { exists: false, error: `HTTP ${response.status}` };
+    await getLatestCommitHash(repo);
+    return { exists: true };
   } catch (error) {
     return { exists: false, error: (error as Error).message };
   }
@@ -172,20 +223,24 @@ export async function checkRepoExists(repo: string, branch: string = 'main'): Pr
 /**
  * Check if a path exists in a repository
  */
-export async function checkPathExists(repo: string, path: string, branch: string = 'main'): Promise<{ exists: boolean; error?: string }> {
+export async function checkPathExists(repo: string, path: string): Promise<{ exists: boolean; error?: string }> {
   try {
-    const url = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${path}/`;
-    const response = await fetch(url);
+    const commit = await getLatestCommitHash(repo);
+    const files = await fetchDirectoryStructure(repo, commit, path);
     
-    if (response.ok) {
-      return { exists: true };
-    }
-    
-    if (response.status === 404) {
+    if (files.length === 0) {
+      // Check if it's a file instead of a directory
+      const allFiles = await fetchDirectoryStructure(repo, commit);
+      const flatFiles = findMarkdownFiles(allFiles);
+      const fileExists = flatFiles.some(f => f.path === path);
+      
+      if (fileExists) {
+        return { exists: true };
+      }
       return { exists: false, error: 'Path not found' };
     }
     
-    return { exists: false, error: `HTTP ${response.status}` };
+    return { exists: true };
   } catch (error) {
     return { exists: false, error: (error as Error).message };
   }
