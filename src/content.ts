@@ -306,27 +306,27 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
   // Check that the trigger is complete (no partial matches like /pa for /p)
   const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
   
-  // The cursor must be IMMEDIATELY after the trigger (no non-whitespace characters between)
+  // The cursor must be at or after the trigger end
+  // Whitespace after the trigger is OK (e.g., "/prompts " with cursor at 9 is valid)
   // Examples:
   // - "/prompts" with cursor at 8 → MATCH (cursor right after trigger)
+  // - "/prompts " with cursor at 9 → MATCH (whitespace after trigger is OK)
   // - "/prompts world" with cursor at 15 → MATCH (whitespace between trigger and cursor is OK)
   // - "/promptsX" with cursor at 9 → NO MATCH ('X' directly after trigger)
   
   const triggerEndPosition = lastIndex + trigger.length;
   
-  // If cursor is past the trigger, check what's between them
-  if (textBeforeCaret.length > triggerEndPosition) {
-    // Check if there's non-whitespace content between trigger end and cursor
-    // Whitespace is allowed (e.g., "/prompts " is valid)
-    const textBetween = textBeforeCaret.substring(triggerEndPosition);
-    if (textBetween.trim().length > 0) {
+  // If there's content between trigger end and cursor, check if it's all whitespace
+  if (textAfterTrigger.length > 0) {
+    // Only whitespace between trigger and cursor (or cursor is right at end) is valid
+    if (textAfterTrigger.trim().length > 0) {
       // Non-whitespace content directly after trigger - partial match
       return -1;
     }
-    // Only whitespace between trigger and cursor - this is valid
+    // Only whitespace after trigger - this is valid
   }
   
-  // Cursor is at or before trigger end, or has only whitespace after it - this is a match
+  // Valid match
   return lastIndex;
 }
 

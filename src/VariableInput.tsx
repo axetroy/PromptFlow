@@ -743,11 +743,12 @@ export function showVariableInput(options: VariableInputOptions): void {
   // Add event listeners to variable inputs
   const variableInputs = content.querySelectorAll('.vf-variable-input');
   variableInputs.forEach((input) => {
-    activeInputRefs.push(input as HTMLElement);
-    input.addEventListener('input', handleInputChange);
-    input.addEventListener('keydown', handleKeyDown);
-    input.addEventListener('focus', () => {
-      (input as HTMLTextAreaElement).select();
+    const textarea = input as HTMLTextAreaElement;
+    activeInputRefs.push(textarea);
+    textarea.addEventListener('input', handleInputChange);
+    textarea.addEventListener('keydown', handleKeyDown);
+    textarea.addEventListener('focus', () => {
+      textarea.select();
     });
   });
   
