@@ -1,6 +1,17 @@
 import { StorageData, Prompt, PromptSettings, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
+import { SyncedRepo, SyncedPrompt, fetchGitHubDirectory, fetchGitHubFileContent, parseFrontmatter } from './types/sync';
 
 const STORAGE_KEY = 'promptflow-data';
+
+// Auto-sync interval options (in minutes)
+export const SYNC_INTERVALS = {
+  '5min': 5,
+  '15min': 15,
+  '30min': 30,
+  '1hour': 60,
+} as const;
+
+export type SyncIntervalKey = keyof typeof SYNC_INTERVALS;
 
 interface BackgroundMessage {
   type: string;
@@ -18,6 +29,131 @@ async function initializeStorage(): Promise<void> {
     await chrome.storage.local.set({ [STORAGE_KEY]: defaultData });
     console.log('[PromptFlow] Initialized with default prompts');
   }
+  
+  // Initialize auto-sync alarm
+  await initializeAutoSync();
+}
+
+// Auto-sync functionality using Chrome alarms API
+async function initializeAutoSync(): Promise<void> {
+  const data = await getStorageData();
+  const syncInterval = data.settings.syncInterval || '15min';
+  
+  // Clear existing alarm
+  await chrome.alarms.clear('auto-sync');
+  
+  // Create new alarm with the configured interval
+  const intervalMinutes = SYNC_INTERVALS[syncInterval as SyncIntervalKey] || 15;
+  await chrome.alarms.create('auto-sync', {
+    delayInMinutes: intervalMinutes,
+    periodInMinutes: intervalMinutes,
+  });
+  
+  console.log(`[PromptFlow] Auto-sync initialized with interval: ${syncInterval}`);
+}
+
+// Handle auto-sync alarm
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'auto-sync') {
+    console.log('[PromptFlow] Auto-sync triggered');
+    try {
+      await syncAllRepos();
+    } catch (error) {
+      console.error('[PromptFlow] Auto-sync failed:', error);
+    }
+  }
+});
+
+// Sync all enabled repos
+async function syncAllRepos(): Promise<{ synced: number; errors: string[] }> {
+  const data = await getStorageData();
+  const repos = (data as any).syncedRepos || [];
+  const enabledRepos = repos.filter((r: SyncedRepo) => r.enabled);
+  
+  if (enabledRepos.length === 0) {
+    return { synced: 0, errors: [] };
+  }
+  
+  let synced = 0;
+  const errors: string[] = [];
+  
+  for (const repo of enabledRepos) {
+    try {
+      await syncRepo(repo);
+      synced++;
+    } catch (error) {
+      errors.push(`${repo.repo}: ${(error as Error).message}`);
+    }
+  }
+  
+  // Notify all tabs about sync completion
+  if (synced > 0) {
+    notifyAllTabs('SYNC_COMPLETE', { synced, errors });
+  }
+  
+  return { synced, errors };
+}
+
+// Sync a single repo
+async function syncRepo(repo: SyncedRepo): Promise<SyncedPrompt[]> {
+  console.log(`[PromptFlow] Syncing repo: ${repo.repo}`);
+  
+  // Fetch directory listing
+  const files = await fetchGitHubDirectory(repo.repo, repo.promptsPath, repo.branch);
+  
+  if (files.length === 0) {
+    console.log(`[PromptFlow] No files found in ${repo.repo}/${repo.promptsPath}`);
+    return [];
+  }
+  
+  const syncedPrompts: SyncedPrompt[] = [];
+  
+  // Fetch and parse each file
+  for (const file of files) {
+    try {
+      const content = await fetchGitHubFileContent(repo.repo, file.path, repo.branch);
+      const { metadata, body } = parseFrontmatter(content);
+      
+      const prompt: SyncedPrompt = {
+        id: `sync-${repo.id}-${Buffer.from(file.path).toString('base64').slice(0, 8)}`,
+        repoId: repo.id,
+        title: metadata.title || file.name.replace('.md', ''),
+        content: body,
+        description: metadata.description || '',
+        tags: Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag] : []),
+        filePath: file.path,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        enabled: true,
+        isSynced: true,
+      };
+      
+      syncedPrompts.push(prompt);
+    } catch (error) {
+      console.error(`[PromptFlow] Failed to sync ${file.path}:`, error);
+    }
+  }
+  
+  // Update storage with synced prompts
+  const data = await getStorageData();
+  
+  // Remove old prompts from this repo
+  const existingPrompts = (data as any).syncedPrompts || [];
+  const otherPrompts = existingPrompts.filter((p: SyncedPrompt) => p.repoId !== repo.id);
+  
+  // Add new prompts
+  (data as any).syncedPrompts = [...otherPrompts, ...syncedPrompts];
+  
+  // Update last synced time
+  const repoIndex = (data as any).syncedRepos.findIndex((r: SyncedRepo) => r.id === repo.id);
+  if (repoIndex !== -1) {
+    (data as any).syncedRepos[repoIndex].lastSyncedAt = Date.now();
+  }
+  
+  await chrome.storage.local.set({ [STORAGE_KEY]: data });
+  
+  console.log(`[PromptFlow] Synced ${syncedPrompts.length} prompts from ${repo.repo}`);
+  return syncedPrompts;
 }
 
 chrome.action.onClicked.addListener(async () => {
@@ -63,7 +199,12 @@ async function handleMessage(message: BackgroundMessage, sender: chrome.runtime.
       return await deletePrompt(payload.id);
 
     case 'SAVE_SETTINGS':
-      return await saveSettings(payload as PromptSettings);
+      await saveSettings(payload as PromptSettings);
+      // Re-initialize auto-sync with new interval
+      if (payload.syncInterval) {
+        await initializeAutoSync();
+      }
+      return null;
 
     case 'GET_STORAGE_DATA':
       return await getStorageData();
@@ -71,10 +212,41 @@ async function handleMessage(message: BackgroundMessage, sender: chrome.runtime.
     case 'OPEN_SETTINGS':
       return await openSettings();
 
+    case 'SYNC_NOW':
+      return await syncAllRepos();
+
+    case 'GET_SYNC_STATUS':
+      return await getSyncStatus();
+
     default:
       console.warn('[PromptFlow] Unknown message type:', type);
       return null;
   }
+}
+
+// Get current sync status
+async function getSyncStatus(): Promise<{ lastSynced: number | null; nextSync: number | null; enabled: boolean }> {
+  const data = await getStorageData();
+  const repos = (data as any).syncedRepos || [];
+  const enabledRepos = repos.filter((r: SyncedRepo) => r.enabled);
+  
+  // Get the most recent sync time
+  let lastSynced: number | null = null;
+  for (const repo of enabledRepos) {
+    if (repo.lastSyncedAt && (!lastSynced || repo.lastSyncedAt > lastSynced)) {
+      lastSynced = repo.lastSyncedAt;
+    }
+  }
+  
+  // Get next sync time from alarm
+  const alarm = await chrome.alarms.get('auto-sync');
+  const nextSync = alarm?.scheduledTime ? alarm.scheduledTime : null;
+  
+  return {
+    lastSynced,
+    nextSync,
+    enabled: enabledRepos.length > 0,
+  };
 }
 
 async function openSettings(): Promise<void> {
