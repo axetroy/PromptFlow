@@ -73,6 +73,7 @@ import writeTests from './4-write-tests.md';
 import refactorCode from './5-refactor-code.md';
 import analyzeError from './6-analyze-error.md';
 import promptOptimizer from './7-prompt-optimizer.md';
+import customPrompt from './8-custom-prompt.md';
 
 const markdownFiles = [
   { id: '1', content: codeReview },
@@ -82,6 +83,7 @@ const markdownFiles = [
   { id: '5', content: refactorCode },
   { id: '6', content: analyzeError },
   { id: '7', content: promptOptimizer },
+  { id: '8', content: customPrompt },
 ];
 
 /**
