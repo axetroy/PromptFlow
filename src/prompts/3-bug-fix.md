@@ -12,13 +12,13 @@ Act as a Staff Software Engineer specializing in debugging complex production is
 Analyze the code in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-<VAR name="code"></VAR>
+<VAR name="code" description="有问题的源代码"></VAR>
 </PROMPT_INPUT>
 
 Reported error in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-<VAR name="error" defaultValue="None"></VAR>
+<VAR name="error" description="错误信息" defaultValue="None"></VAR>
 </PROMPT_INPUT>
 
 Your goal is to identify the root cause instead of only fixing the symptom.

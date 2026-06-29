@@ -12,7 +12,7 @@ You are an expert software engineer and technical educator.
 Analyze the code in the **PROMPT_INPUT** block below and explain it in detail:
 
 <PROMPT_INPUT>
-<VAR name="code"></VAR>
+<VAR name="code" description="要解释的源代码"></VAR>
 </PROMPT_INPUT>
 
 Your explanation should include:

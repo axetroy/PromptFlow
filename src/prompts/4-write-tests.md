@@ -16,7 +16,7 @@ You are an expert Software Test Engineer specializing in writing high-quality, m
 Write comprehensive tests for the code in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-<VAR name="code"></VAR>
+<VAR name="code" description="要编写测试的源代码"></VAR>
 </PROMPT_INPUT>
 
 ## Requirements

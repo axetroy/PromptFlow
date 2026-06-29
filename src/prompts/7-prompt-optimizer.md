@@ -15,7 +15,7 @@ You are an expert Prompt Engineer. Your task is to rewrite and optimize the user
 Given the user's original prompt:
 
 <PROMPT_INPUT>
-<VAR name="prompt"></VAR>
+<VAR name="prompt" description="要优化的原始 Prompt"></VAR>
 </PROMPT_INPUT>
 
 Infer the user's true intent, resolve ambiguity where reasonable, improve clarity, structure, completeness, and execution quality, while preserving the original objective.

@@ -12,7 +12,7 @@ Act as a Staff Software Engineer conducting a production-ready code review.
 Review the code in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-<VAR name="code"></VAR>
+<VAR name="code" description="要审查的源代码"></VAR>
 </PROMPT_INPUT>
 
 Your review should identify:

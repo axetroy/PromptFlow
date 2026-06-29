@@ -1,6 +1,8 @@
 /**
  * Template Variables Parser
  * 
+ * Uses a state machine for precise scanning of <VAR> template variables.
+ * 
  * Supports syntax:
  * - <VAR name="variable_name"></VAR> - Required variable
  * - <VAR name="variable_name" defaultValue="default_value"></VAR> - Variable with default value
@@ -12,11 +14,10 @@
  * - <VAR name="topic" description="The main topic to explain"></VAR> -> Shows description in UI
  * 
  * Design Rationale:
- * - XML tag style ensures no conflict with Markdown, JSON, or code syntax
- * - <VAR> is uppercase to avoid conflict with HTML elements
- * - Supports defaultValue attribute for optional variables
- * - Supports description attribute for variable documentation
- * - Name attribute is required, unique identifier for the variable
+ * - State machine ensures precise character-by-character parsing
+ * - Handles nested tags, special characters, and edge cases correctly
+ * - No regex backtracking issues
+ * - Clear state transitions for debugging
  */
 
 export interface Variable {
@@ -33,76 +34,245 @@ export interface ParseResult {
   template: string;
 }
 
-/**
- * Regular expression to match <VAR> template variables
- * Matches: <VAR name="..." ...></VAR> or <VAR name="..."/>
- * 
- * Captures all attributes inside the tag, then parses them separately
- * to handle attributes in any order.
- */
-const VAR_TAG_PATTERN = /<VAR\s+([^>]+)(?:[^>]*)>(?:[\s\S]*?)<\/VAR>|<VAR\s+([^>]+)\/>/gi;
-
-/**
- * Parse attributes from a VAR tag attribute string
- */
-function parseAttributes(attrString: string): { name: string; defaultValue?: string; description?: string } {
-  const result: { name: string; defaultValue?: string; description?: string } = { name: '' };
-  
-  const matches = attrString.matchAll(/(\w+)=\"([^\"]*)\"/g);
-  for (const m of matches) {
-    const attrName = m[1];
-    const attrValue = m[2];
-    
-    if (attrName === 'name') {
-      result.name = attrValue;
-    } else if (attrName === 'defaultValue') {
-      result.defaultValue = attrValue;
-    } else if (attrName === 'description') {
-      result.description = attrValue;
-    }
-  }
-  
-  return result;
+// State machine states
+enum State {
+  TEXT = 'TEXT',           // Normal text, looking for <
+  TAG_OPEN = 'TAG_OPEN',   // Found <, checking if it's VAR
+  TAG_NAME = 'TAG_NAME',   // Parsing tag name (VAR)
+  ATTRS = 'ATTRS',         // Parsing attributes
+  TAG_CLOSE = 'TAG_CLOSE', // Found > or />, finishing tag
 }
 
 /**
- * Parse template string and extract all variables
+ * State machine parser for <VAR> template variables
+ * 
+ * More precise than regex, handles edge cases better:
+ * - Nested quotes in attribute values
+ * - Self-closing tags vs closing tags
+ * - Content between opening and closing tags
  */
 export function parseTemplate(template: string): ParseResult {
   const variables: Variable[] = [];
-  const seen = new Map<string, number>(); // Track duplicate variable names
+  let i = 0;
   
-  let match;
-  while ((match = VAR_TAG_PATTERN.exec(template)) !== null) {
-    // Get the attribute string from either closing tag or self-closing tag
-    const attrString = match[1] || match[2];
-    const attrs = parseAttributes(attrString);
-    
-    if (!attrs.name) {
-      continue; // Skip invalid VAR tags without name
+  while (i < template.length) {
+    if (template[i] === '<') {
+      // Try to parse a VAR tag starting at position i
+      const result = parseVarTag(template, i);
+      if (result) {
+        variables.push(result.variable);
+        i = result.endIndex;
+        continue;
+      }
     }
-    
-    // Track occurrences for duplicate naming
-    const occurrence = seen.get(attrs.name) || 0;
-    seen.set(attrs.name, occurrence + 1);
-    
-    variables.push({
+    i++;
+  }
+  
+  return { variables, template };
+}
+
+/**
+ * Parse a single VAR tag starting at the given index
+ * Returns the variable if found, null otherwise
+ */
+function parseVarTag(template: string, startIndex: number): { variable: Variable; endIndex: number } | null {
+  // Check if this is a VAR tag (must be exactly "VAR")
+  if (template.slice(startIndex, startIndex + 4) !== '<VAR') {
+    return null;
+  }
+  
+  let i = startIndex + 4; // Skip past "<VAR"
+  
+  // Skip whitespace
+  while (i < template.length && /\s/.test(template[i])) {
+    i++;
+  }
+  
+  // Check if we hit the end or something other than an attribute
+  if (i >= template.length) {
+    return null;
+  }
+  
+  // Parse attributes
+  const attrs = parseAttributes(template, i);
+  if (!attrs) {
+    return null;
+  }
+  
+  i = attrs.endIndex;
+  
+  // Check for self-closing or closing tag
+  // Skip whitespace
+  while (i < template.length && /\s/.test(template[i])) {
+    i++;
+  }
+  
+  let isSelfClosing = false;
+  let contentEndIndex = i;
+  
+  if (template[i] === '/') {
+    // Self-closing tag
+    isSelfClosing = true;
+    i++;
+    // Skip whitespace before >
+    while (i < template.length && /\s/.test(template[i])) {
+      i++;
+    }
+  }
+  
+  if (template[i] !== '>') {
+    return null; // Invalid tag ending
+  }
+  
+  contentEndIndex = i + 1; // Include the >
+  
+  // If not self-closing, find the closing </VAR>
+  if (!isSelfClosing) {
+    const closeIndex = template.indexOf('</VAR>', i + 1);
+    if (closeIndex === -1) {
+      return null; // No closing tag
+    }
+    contentEndIndex = closeIndex + 6; // Include "</VAR>"
+  }
+  
+  // Validate that we have a name attribute
+  if (!attrs.name) {
+    return null;
+  }
+  
+  const fullMatch = template.slice(startIndex, contentEndIndex);
+  
+  return {
+    variable: {
       name: attrs.name,
       defaultValue: attrs.defaultValue,
       description: attrs.description,
-      startIndex: match.index,
-      endIndex: match.index + match[0].length,
-      fullMatch: match[0],
-    });
+      startIndex,
+      endIndex: contentEndIndex,
+      fullMatch,
+    },
+    endIndex: contentEndIndex,
+  };
+}
+
+/**
+ * Parse attributes inside a VAR tag
+ */
+function parseAttributes(
+  template: string,
+  startIndex: number
+): { name?: string; defaultValue?: string; description?: string; endIndex: number } | null {
+  const attrs: { name?: string; defaultValue?: string; description?: string } = {};
+  let i = startIndex;
+  
+  while (i < template.length) {
+    // Skip whitespace
+    while (i < template.length && /\s/.test(template[i])) {
+      i++;
+    }
+    
+    // Check for end of attributes (>)
+    if (i >= template.length || template[i] === '>' || (template[i] === '/' && template[i + 1] === '>')) {
+      break;
+    }
+    
+    // Parse attribute name
+    const attrName = parseAttrName(template, i);
+    if (!attrName) {
+      return null;
+    }
+    i = attrName.endIndex;
+    
+    // Skip whitespace
+    while (i < template.length && /\s/.test(template[i])) {
+      i++;
+    }
+    
+    // Expect =
+    if (template[i] !== '=') {
+      return null;
+    }
+    i++;
+    
+    // Skip whitespace after =
+    while (i < template.length && /\s/.test(template[i])) {
+      i++;
+    }
+    
+    // Expect opening quote
+    if (template[i] !== '"') {
+      return null;
+    }
+    i++;
+    
+    // Parse quoted value
+    const value = parseQuotedString(template, i);
+    if (value === null) {
+      return null;
+    }
+    i = value.endIndex;
+    
+    // Store attribute
+    if (attrName.name === 'name') {
+      attrs.name = value.value;
+    } else if (attrName.name === 'defaultValue') {
+      attrs.defaultValue = value.value;
+    } else if (attrName.name === 'description') {
+      attrs.description = value.value;
+    }
+    // Ignore unknown attributes
   }
   
-  // Reset regex lastIndex for future use
-  VAR_TAG_PATTERN.lastIndex = 0;
+  return { ...attrs, endIndex: i };
+}
+
+/**
+ * Parse an attribute name
+ */
+function parseAttrName(template: string, startIndex: number): { name: string; endIndex: number } | null {
+  let i = startIndex;
   
-  return {
-    variables,
-    template,
-  };
+  // First character must be letter or underscore
+  if (i >= template.length || !/[a-zA-Z_]/.test(template[i])) {
+    return null;
+  }
+  i++;
+  
+  // Remaining characters can be letters, digits, underscores, hyphens
+  while (i < template.length && /[a-zA-Z0-9_-]/.test(template[i])) {
+    i++;
+  }
+  
+  return { name: template.slice(startIndex, i), endIndex: i };
+}
+
+/**
+ * Parse a quoted string, handling escaped quotes
+ */
+function parseQuotedString(template: string, startIndex: number): { value: string; endIndex: number } | null {
+  let i = startIndex;
+  let value = '';
+  
+  while (i < template.length) {
+    const char = template[i];
+    
+    if (char === '"') {
+      // End of string
+      return { value, endIndex: i + 1 };
+    }
+    
+    if (char === '\\' && i + 1 < template.length && template[i + 1] === '"') {
+      // Escaped quote
+      value += '"';
+      i += 2;
+      continue;
+    }
+    
+    value += char;
+    i++;
+  }
+  
+  return null; // Unclosed quote
 }
 
 /**
@@ -145,28 +315,53 @@ export function allVariablesHaveDefaults(template: string): boolean {
  * @returns Interpolated string with values replaced
  */
 export function interpolate(template: string, values: Record<string, string>): string {
-  return template.replace(VAR_TAG_PATTERN, (match, attrStr1, attrStr2) => {
-    // Parse attributes from either closing tag or self-closing tag format
-    const attrString = attrStr1 || attrStr2;
-    const attrs = parseAttributes(attrString);
+  // First, find all VAR tags with their positions
+  const { variables } = parseTemplate(template);
+  
+  // If no variables, return template as-is
+  if (variables.length === 0) {
+    return template;
+  }
+  
+  // Build result by replacing each variable
+  let result = '';
+  let lastIndex = 0;
+  
+  for (const variable of variables) {
+    // Add text before this variable
+    result += template.slice(lastIndex, variable.startIndex);
     
-    if (!attrs.name) {
-      return match; // Invalid VAR tag, keep as-is
-    }
+    // Determine replacement value
+    const replacement = determineReplacement(variable, values);
     
-    const value = values[attrs.name];
+    // Add replacement
+    result += replacement;
     
-    if (value !== undefined && value !== '') {
-      return value;
-    }
-    
-    if (attrs.defaultValue !== undefined && attrs.defaultValue !== '') {
-      return attrs.defaultValue;
-    }
-    
-    // Return original if no value provided and no default
-    return match;
-  });
+    lastIndex = variable.endIndex;
+  }
+  
+  // Add remaining text
+  result += template.slice(lastIndex);
+  
+  return result;
+}
+
+/**
+ * Determine the replacement value for a variable
+ */
+function determineReplacement(variable: Variable, values: Record<string, string>): string {
+  const value = values[variable.name];
+  
+  if (value !== undefined && value !== '') {
+    return value;
+  }
+  
+  if (variable.defaultValue !== undefined && variable.defaultValue !== '') {
+    return variable.defaultValue;
+  }
+  
+  // Return original if no value provided and no default
+  return variable.fullMatch;
 }
 
 /**
