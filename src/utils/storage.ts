@@ -83,14 +83,11 @@ export async function recordPromptUsage(promptId: string): Promise<void> {
     data.usageHistory = [];
   }
   
-  // Add new usage record at the beginning
+  // Add new usage record at the beginning (no deduplication - we want to track total usage count)
   const newUsage: PromptUsage = {
     promptId,
     usedAt: Date.now(),
   };
-  
-  // Remove any existing usage of the same prompt (to avoid duplicates)
-  data.usageHistory = data.usageHistory.filter(u => u.promptId !== promptId);
   
   // Add the new usage at the beginning
   data.usageHistory.unshift(newUsage);
