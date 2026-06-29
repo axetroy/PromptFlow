@@ -244,6 +244,18 @@ const SettingsApp: React.FC = () => {
       setUsageHistory(data.usageHistory || []);
       setLoading(false);
     });
+
+    // Listen for storage changes from other sources (e.g., content script)
+    const handleStorageChange = () => {
+      loadData().then((data) => {
+        setUsageHistory(data.usageHistory || []);
+      });
+    };
+    
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
   }, []);
 
   // Update all prompts and usage stats when relevant data changes
