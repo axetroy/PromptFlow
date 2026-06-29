@@ -3,6 +3,8 @@
   "name": "PromptFlow",
   "version": "0.1.0",
   "description": "Browser-level Prompt Command System - Quick Prompt invocation in any input field",
+  "homepage_url": "https://github.com/axetroy/PromptFlow",
+  "license": "MIT",
   "permissions": [
     "storage",
     "activeTab",
