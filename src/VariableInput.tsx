@@ -561,8 +561,8 @@ export function showVariableInput(options: VariableInputOptions): void {
   document.body.appendChild(host);
   activeHost = host;
   
-  // Create Shadow DOM
-  const shadowRoot = host.attachShadow({ mode: 'closed' });
+  // Create Shadow DOM (open mode for better compatibility)
+  const shadowRoot = host.attachShadow({ mode: 'open' });
   activeShadowRoot = shadowRoot;
   
   // Inject styles into Shadow DOM
