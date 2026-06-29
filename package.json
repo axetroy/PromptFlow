@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "generate-icons": "node generate-icons.js",
     "test": "playwright test",
-    "test:headed": "playwright test --headed"
+    "test:headed": "playwright test --headed",
+    "test:unit": "node --import tsx --test tests/template-parser.test.ts"
   },
   "keywords": [
     "chrome-extension",
@@ -31,10 +32,11 @@
     "esbuild": "^0.20.2",
     "rimraf": "^5.0.7",
     "sharp": "^0.35.2",
+    "tsx": "^4.22.4",
     "typescript": "^5.4.0"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
