@@ -1,4 +1,5 @@
 import { StorageData, Prompt, PromptSettings, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
+import { SYNC_INTERVALS, SyncIntervalKey, syncAllEnabledRepos, getSyncStatus as getSyncStatusFromUtils } from './utils/sync';
 
 const STORAGE_KEY = 'promptflow-data';
 
@@ -18,7 +19,43 @@ async function initializeStorage(): Promise<void> {
     await chrome.storage.local.set({ [STORAGE_KEY]: defaultData });
     console.log('[PromptFlow] Initialized with default prompts');
   }
+  
+  // Initialize auto-sync alarm
+  await initializeAutoSync();
 }
+
+// Auto-sync functionality using Chrome alarms API
+async function initializeAutoSync(): Promise<void> {
+  const data = await getStorageData();
+  const syncInterval = data.settings.syncInterval || '15min';
+  
+  // Clear existing alarm
+  await chrome.alarms.clear('auto-sync');
+  
+  // Create new alarm with the configured interval
+  const intervalMinutes = SYNC_INTERVALS[syncInterval as SyncIntervalKey] || 15;
+  await chrome.alarms.create('auto-sync', {
+    delayInMinutes: intervalMinutes,
+    periodInMinutes: intervalMinutes,
+  });
+  
+  console.log(`[PromptFlow] Auto-sync initialized with interval: ${syncInterval}`);
+}
+
+// Handle auto-sync alarm
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'auto-sync') {
+    console.log('[PromptFlow] Auto-sync triggered');
+    try {
+      const result = await syncAllEnabledRepos();
+      if (result.syncedCount > 0 || result.errors.length > 0) {
+        notifyAllTabs('SYNC_COMPLETE', result);
+      }
+    } catch (error) {
+      console.error('[PromptFlow] Auto-sync failed:', error);
+    }
+  }
+});
 
 chrome.action.onClicked.addListener(async () => {
   // Open the settings page when the extension icon is clicked
@@ -63,7 +100,12 @@ async function handleMessage(message: BackgroundMessage, sender: chrome.runtime.
       return await deletePrompt(payload.id);
 
     case 'SAVE_SETTINGS':
-      return await saveSettings(payload as PromptSettings);
+      await saveSettings(payload as PromptSettings);
+      // Re-initialize auto-sync with new interval
+      if (payload.syncInterval) {
+        await initializeAutoSync();
+      }
+      return null;
 
     case 'GET_STORAGE_DATA':
       return await getStorageData();
@@ -71,10 +113,26 @@ async function handleMessage(message: BackgroundMessage, sender: chrome.runtime.
     case 'OPEN_SETTINGS':
       return await openSettings();
 
+    case 'SYNC_NOW':
+      return await syncAllEnabledRepos();
+
+    case 'GET_SYNC_STATUS':
+      return await getSyncStatusWithNextSync();
+
     default:
       console.warn('[PromptFlow] Unknown message type:', type);
       return null;
   }
+}
+
+// Get sync status with next sync time from alarm
+async function getSyncStatusWithNextSync() {
+  const status = await getSyncStatusFromUtils();
+  const alarm = await chrome.alarms.get('auto-sync');
+  return {
+    ...status,
+    nextSync: alarm?.scheduledTime ? alarm.scheduledTime : null,
+  };
 }
 
 async function openSettings(): Promise<void> {
