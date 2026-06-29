@@ -10,7 +10,7 @@ tags:
 Refactor the code in the **PROMPT_INPUT** block below for readability and maintainability:
 
 <PROMPT_INPUT>
-<VAR name="code" description="要重构的源代码"></VAR>
+<VAR name="code" description="The source code to be refactored"></VAR>
 </PROMPT_INPUT>
 
 Keep behavior unchanged.
