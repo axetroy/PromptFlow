@@ -781,8 +781,8 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
     targetInput.setSelectionRange(cursorPosition, cursorPosition);
     targetInput.dispatchEvent(new Event('input', { bubbles: true }));
   } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
-    // For contenteditable, insert at position
-    insertContentWithNewlines(targetInput, promptContent, filledContent.length, filledContent.length);
+    // For contenteditable, insert at position (pass cursorPosition directly)
+    insertContentWithNewlines(targetInput, promptContent, cursorPosition);
   }
 }
 
@@ -844,19 +844,40 @@ function selectPrompt(prompt: Prompt): void {
 
 /**
  * Insert content into contenteditable element, properly handling newlines
- * Returns the actual text content length for selection calculation
+ * This function:
+ * 1. Gets current text content from element
+ * 2. Replaces trigger with content (preserving context before and after)
+ * 3. Clears element and re-inserts with proper <br> handling
+ * 4. Sets cursor position at the end of inserted content
  */
 function insertContentWithNewlines(
   element: Element,
-  content: string,
-  selectionStart: number,
-  selectionEnd: number
+  newContent: string,
+  cursorPosition: number
 ): void {
+  // Get current text content from the element
+  const currentContent = element.textContent || '';
+  
+  // Build new content using the same logic as textarea/inputs
+  // Get the stored trigger positions from the state
+  const triggerStartPosition = state.triggerStartPosition;
+  const triggerEndPosition = triggerStartPosition + state.currentTrigger.length;
+  
+  // Build new value: before + newContent + after
+  const before = currentContent.substring(0, triggerStartPosition);
+  const after = currentContent.substring(triggerEndPosition);
+  const finalContent = before + newContent + after;
+  
+  // Calculate cursor position in final content
+  const finalCursorPosition = triggerStartPosition + newContent.length;
+  
   // Clear the element
-  element.textContent = '';
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
   
   // Insert the new content with proper newline handling
-  const lines = content.split('\n');
+  const lines = finalContent.split('\n');
   
   for (let i = 0; i < lines.length; i++) {
     if (i > 0) {
@@ -869,19 +890,18 @@ function insertContentWithNewlines(
     }
   }
   
-  // Adjust selection positions to account for br tags
-  // In content string, \n is 1 char, but in DOM, <br> is a separate node
-  // We need to find the corresponding DOM position
-  const adjustedStart = findDOMPosition(element, selectionStart);
-  const adjustedEnd = findDOMPosition(element, selectionEnd);
+  // Focus the element first
+  (element as HTMLElement).focus();
   
-  // Set selection using adjusted positions
-  setSelectionAtPosition(element, adjustedStart, adjustedEnd);
+  // Find and set cursor position
+  const domPos = findDOMPosition(element, finalCursorPosition);
+  if (domPos) {
+    setCursorAtPosition(element, domPos);
+  }
 }
 
 /**
- * Find the DOM position (node + offset) corresponding to a character position in content
- * This accounts for <br> tags being separate nodes in the DOM
+ * Find the DOM position (node + offset) corresponding to a character position
  */
 function findDOMPosition(element: Element, targetCharPos: number): { node: Node; offset: number } | null {
   let charCount = 0;
@@ -899,17 +919,15 @@ function findDOMPosition(element: Element, targetCharPos: number): { node: Node;
       }
       charCount += nodeLength;
     } else if (node.nodeName === 'BR') {
-      // br tag represents a newline character in the content
-      // If target is at this newline position, find next text node
+      // br tag represents a newline character
       if (charCount === targetCharPos) {
         // Target is exactly at this br position
-        // Move to next text node or return null
         const nextTextNode = findNextTextNode(element, node);
         if (nextTextNode) {
           return { node: nextTextNode, offset: 0 };
         }
       }
-      charCount += 1; // br counts as 1 character in content
+      charCount += 1;
     }
   }
   
@@ -945,35 +963,15 @@ function findLastTextNode(element: Element): Node | null {
 }
 
 /**
- * Set selection at a specific DOM position
+ * Set cursor at a specific DOM position
  */
-function setSelectionAtPosition(element: Element, start: { node: Node; offset: number } | null, end: { node: Node; offset: number } | null): void {
+function setCursorAtPosition(element: Element, pos: { node: Node; offset: number }): void {
   const selection = window.getSelection();
   if (!selection) return;
   
   const range = document.createRange();
-  
-  if (start) {
-    range.setStart(start.node, start.offset);
-  } else {
-    // Default to beginning
-    const firstText = findFirstTextNode(element);
-    if (firstText) {
-      range.setStart(firstText, 0);
-    } else {
-      range.selectNodeContents(element);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      return;
-    }
-  }
-  
-  if (end) {
-    range.setEnd(end.node, end.offset);
-  } else {
-    range.collapse(false);
-  }
+  range.setStart(pos.node, pos.offset);
+  range.collapse(true);
   
   selection.removeAllRanges();
   selection.addRange(range);
