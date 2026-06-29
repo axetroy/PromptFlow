@@ -640,26 +640,35 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
     });
     
     listContainer.appendChild(recentSection);
-    
-    // Add separator
-    const separator = document.createElement('div');
-    separator.className = 'section-separator';
-    listContainer.appendChild(separator);
+  }
+  
+  // All Prompts section (always shown, or filtered results)
+  const allSection = document.createElement('div');
+  
+  if (showRecentSection) {
+    // Section header for "All Prompts"
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.textContent = 'All Prompts';
+    allSection.appendChild(header);
   }
   
   if (prompts.length === 0) {
-    listContainer.innerHTML += `
+    allSection.innerHTML = `
       <div class="empty-state">
         No prompts found
       </div>
     `;
+    listContainer.appendChild(allSection);
     return;
   }
   
   prompts.forEach((prompt, index) => {
     const adjustedIndex = index + recentCount;
-    listContainer.appendChild(renderPromptItem(prompt, adjustedIndex, shadow, searchQuery));
+    allSection.appendChild(renderPromptItem(prompt, adjustedIndex, shadow, searchQuery));
   });
+  
+  listContainer.appendChild(allSection);
 }
 
 function updateSelection(shadow: ShadowRoot, index: number): void {

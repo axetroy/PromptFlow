@@ -241,24 +241,6 @@
   color: #666;
 }
 
-.section-separator {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 12px 6px;
-}
-
-.section-separator::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.08);
-}
-
-#promptflow-panel.dark .section-separator::after {
-  background: rgba(255, 255, 255, 0.08);
-}
-
 /* ============================================
    Dark Theme - Uses .dark class
    ============================================ */
