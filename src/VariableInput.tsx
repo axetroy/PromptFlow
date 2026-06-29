@@ -164,39 +164,45 @@ export function showVariableInput(options: VariableInputOptions): void {
   
   // Build variable inputs HTML - using textarea for multiline support
   const variableInputsHtml = activeVariables.map((variable, index) => {
-    // Build badges for description and default
-    const badges = [];
+    // Build meta info (description + badges)
+    const metaParts = [];
     
-    // Add description badge if available
-    if (variable.description) {
-      badges.push(`<span style="display: inline-block; background: #e6f7ff; color: #1890ff; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-right: 6px;" title="Variable description">📝 ${escapeHtml(variable.description)}</span>`);
-    }
+    // Add description in its own line if available
+    const descriptionHtml = variable.description 
+      ? `<div style="font-size: 13px; color: #999; margin-bottom: 8px; line-height: 1.4;">${escapeHtml(variable.description)}</div>`
+      : '';
+    
+    // Add badges row
+    const badges = [];
     
     // Add default value badge if available
     if (variable.defaultValue !== undefined) {
-      badges.push(`<span style="display: inline-block; background: #f6ffed; color: #52c41a; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-right: 6px;" title="Default value">默认值: ${escapeHtml(variable.defaultValue)}</span>`);
+      badges.push(`<span style="display: inline-block; background: #f6ffed; color: #52c41a; padding: 2px 8px; border-radius: 4px; font-size: 12px;">默认值: ${escapeHtml(variable.defaultValue)}</span>`);
     }
     
     // Add required badge if no default
     if (variable.defaultValue === undefined) {
-      badges.push(`<span style="display: inline-block; background: #fff2e8; color: #fa8c16; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-right: 6px;">必填</span>`);
+      badges.push(`<span style="display: inline-block; background: #fff2e8; color: #fa8c16; padding: 2px 8px; border-radius: 4px; font-size: 12px;">必填</span>`);
     }
+    
+    const badgesHtml = badges.length > 0 
+      ? `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">${badges.join('')}</div>`
+      : `<div style="margin-bottom: 10px;"></div>`;
     
     return `
     <div class="vf-variable-item" style="margin-bottom: 20px; padding: 16px; background: #fafafa; border-radius: 8px; border: 1px solid #f0f0f0;">
-      <div class="vf-variable-header" style="display: flex; align-items: center; margin-bottom: 10px;">
+      <div class="vf-variable-header" style="margin-bottom: 8px;">
         <span style="font-family: 'SF Mono', Monaco, monospace; background: #262626; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: 500;">
           \${${escapeHtml(variable.name)}}
         </span>
-        <div style="margin-left: 10px; display: flex; flex-wrap: wrap; align-items: center;">
-          ${badges.join('')}
-        </div>
       </div>
+      ${descriptionHtml}
+      ${badgesHtml}
       <textarea 
         class="vf-variable-input" 
         data-variable="${escapeHtml(variable.name)}"
         data-index="${index}"
-        placeholder="${variable.defaultValue ? escapeHtml(variable.defaultValue) : `请输入 ${escapeHtml(variable.description || variable.name)}...`}"
+        placeholder="${variable.defaultValue ? escapeHtml(variable.defaultValue) : `请输入...`}"
         rows="3"
         style="width: 100%; padding: 12px 14px; font-size: 14px; border: 1px solid #d9d9d9; border-radius: 6px; outline: none; box-sizing: border-box; transition: border-color 0.2s, box-shadow 0.2s; resize: vertical; min-height: 72px; font-family: inherit; line-height: 1.5; background: #fff;"
       >${escapeHtml(activeValues[variable.name])}</textarea>
