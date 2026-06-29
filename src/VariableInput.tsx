@@ -387,20 +387,67 @@ function updateSubmitButton(): void {
 }
 
 /**
+ * Find the first incomplete required field
+ */
+function findFirstIncompleteRequired(): number {
+  for (let i = 0; i < activeVariables.length; i++) {
+    const v = activeVariables[i];
+    if (v.defaultValue === undefined) {
+      const value = activeValues[v.name] || '';
+      if (value.trim() === '') {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+/**
+ * Scroll element into view smoothly
+ */
+function scrollIntoViewIfNeeded(element: HTMLElement): void {
+  const rect = element.getBoundingClientRect();
+  const isVisible = (
+    rect.top >= 0 &&
+    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight)
+  );
+  
+  if (!isVisible) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+/**
  * Focus next input or submit button
  */
 function focusNext(currentIndex: number): void {
   if (currentIndex < activeInputRefs.length - 1) {
     const nextInput = activeInputRefs[currentIndex + 1];
     nextInput.focus();
+    scrollIntoViewIfNeeded(nextInput);
     
     if (nextInput instanceof HTMLTextAreaElement) {
       nextInput.select();
     }
   } else {
-    const submitBtn = activeModal?.querySelector('.vf-submit-btn') as HTMLButtonElement;
-    if (submitBtn && !submitBtn.disabled) {
-      submitBtn.focus();
+    // Last input - check if there are incomplete required fields
+    const firstIncomplete = findFirstIncompleteRequired();
+    
+    if (firstIncomplete >= 0) {
+      // Focus the first incomplete required field
+      const targetInput = activeInputRefs[firstIncomplete];
+      targetInput.focus();
+      scrollIntoViewIfNeeded(targetInput);
+      
+      if (targetInput instanceof HTMLTextAreaElement) {
+        targetInput.select();
+      }
+    } else {
+      // All required fields filled - focus submit button
+      const submitBtn = activeModal?.querySelector('.vf-submit-btn') as HTMLButtonElement;
+      if (submitBtn && !submitBtn.disabled) {
+        submitBtn.focus();
+      }
     }
   }
 }
