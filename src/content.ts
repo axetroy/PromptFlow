@@ -515,14 +515,17 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
 
   // Keyboard navigation in search input
   searchInput.addEventListener('keydown', (e) => {
-    const filteredPrompts = state.prompts;
+    // Use the same keyboard navigation logic as handleKeyDown
+    const showRecentSection = !state.searchQuery && state.recentPromptIds.length > 0;
+    const recentCount = showRecentSection ? Math.min(state.recentPromptIds.length, 5) : 0;
+    const totalItems = recentCount + state.prompts.length;
     
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
         e.stopPropagation();
-        if (filteredPrompts.length > 0) {
-          state.selectedIndex = Math.min(state.selectedIndex + 1, filteredPrompts.length - 1);
+        if (totalItems > 0) {
+          state.selectedIndex = Math.min(state.selectedIndex + 1, totalItems - 1);
           updateSelection(shadow, state.selectedIndex);
           scrollToSelected(shadow);
         }
@@ -531,7 +534,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
       case 'ArrowUp':
         e.preventDefault();
         e.stopPropagation();
-        if (filteredPrompts.length > 0) {
+        if (totalItems > 0) {
           state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
           updateSelection(shadow, state.selectedIndex);
           scrollToSelected(shadow);
@@ -541,8 +544,18 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
-        if (filteredPrompts[state.selectedIndex]) {
-          selectPrompt(filteredPrompts[state.selectedIndex]);
+        // Get the prompt at the current selected index
+        const promptMap = new Map(state.prompts.map(p => [p.id, p]));
+        let prompt;
+        if (showRecentSection && state.selectedIndex < recentCount) {
+          const promptId = state.recentPromptIds[state.selectedIndex];
+          prompt = promptMap.get(promptId);
+        } else {
+          const allIndex = showRecentSection ? state.selectedIndex - recentCount : state.selectedIndex;
+          prompt = state.prompts[allIndex];
+        }
+        if (prompt) {
+          selectPrompt(prompt);
         }
         break;
         
@@ -672,7 +685,10 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
 }
 
 function updateSelection(shadow: ShadowRoot, index: number): void {
-  const items = shadow.querySelectorAll('#promptflow-list > .prompt-item');
+  const list = shadow.getElementById('promptflow-list');
+  if (!list) return;
+  
+  const items = list.querySelectorAll('.prompt-item');
   items.forEach((item, i) => {
     const el = item as HTMLElement;
     if (i === index) {
@@ -1230,7 +1246,7 @@ function handleKeyDown(e: KeyboardEvent): void {
   if (!list) return;
   
   // Get all prompt items (including those in recent section)
-  const items = list.querySelectorAll(':scope > .prompt-item');
+  const items = list.querySelectorAll('.prompt-item');
   
   // Calculate max index
   const maxIndex = items.length - 1;
@@ -1293,7 +1309,7 @@ function scrollToSelected(shadow: ShadowRoot): void {
   const list = shadow.getElementById('promptflow-list');
   if (!list) return;
   
-  const items = list.querySelectorAll(':scope > .prompt-item');
+  const items = list.querySelectorAll('.prompt-item');
   if (items[state.selectedIndex]) {
     items[state.selectedIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
