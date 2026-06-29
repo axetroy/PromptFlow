@@ -214,12 +214,14 @@ const MODAL_CSS = `
     color: var(--vf-text-primary, #333);
     max-height: 250px;
     overflow: auto;
-    white-space: break-spaces;
-    word-break: break-word;
     font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
   }
 
   .vf-preview-content {
+    word-break: unset;
+    overflow: auto;
+    height: 100%;
+    white-space: break-spaces;
     margin: 0;
     padding: 0;
   }
