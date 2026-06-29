@@ -686,10 +686,7 @@ export function showVariableInput(options: VariableInputOptions): void {
   const handleKeyDown = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement;
     
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      handleCancel();
-    } else if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
       if (target.classList.contains('vf-variable-input')) {
         e.preventDefault();
         const currentIndex = parseInt(target.dataset.index || '0', 10);
@@ -745,20 +742,26 @@ export function showVariableInput(options: VariableInputOptions): void {
     if (tooltip) tooltip.style.opacity = '0';
   });
   
+  // Add event listeners to variable inputs
   const variableInputs = content.querySelectorAll('.vf-variable-input');
   variableInputs.forEach((input) => {
     activeInputRefs.push(input as HTMLElement);
     input.addEventListener('input', handleInputChange);
     input.addEventListener('keydown', handleKeyDown);
     input.addEventListener('focus', () => {
-      // Select all text when input is focused
       (input as HTMLTextAreaElement).select();
     });
   });
   
-  // Store reference for cleanup and add listener
-  cleanupKeyDown = handleKeyDown;
-  document.addEventListener('keydown', handleKeyDown);
+  // Escape key listener - check if modal is still active before handling
+  const handleGlobalKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && activeShadowRoot) {
+      e.preventDefault();
+      handleCancel();
+    }
+  };
+  document.addEventListener('keydown', handleGlobalKeyDown);
+  cleanupKeyDown = handleGlobalKeyDown;
   
   updatePreview();
   
