@@ -15,6 +15,7 @@ export interface Prompt {
   updatedAt: number;
   enabled?: boolean;
   isDefault?: boolean;
+  isReadOnly?: boolean;
 }
 
 interface PromptPreviewProps {
@@ -97,7 +98,7 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({ prompt, visible, o
       onCancel={onClose}
       footer={null}
       width={700}
-      style={{ top: 20 }}
+      styles={{ body: { maxHeight: '60vh', overflow: 'auto' } }}
     >
       {prompt.description && (
         <div style={{ marginBottom: 16 }}>

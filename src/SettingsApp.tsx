@@ -73,6 +73,7 @@ interface Prompt {
   updatedAt: number;
   enabled?: boolean;
   isDefault?: boolean; // Mark default prompts
+  isReadOnly?: boolean; // Mark prompts that cannot be edited (default or synced)
 }
 
 interface PromptSettings {
@@ -143,7 +144,7 @@ const getAllPromptsWithSync = (
     )
     .map(p => ({
       ...p,
-      isDefault: true, // Synced prompts are also read-only
+      isReadOnly: true, // Synced prompts are read-only
     }));
   
   return [...basePrompts, ...enabledSyncedPrompts];
