@@ -790,10 +790,10 @@ const SettingsApp: React.FC = () => {
                   onChange={(value) => handleSettingsChange('syncInterval', value)}
                   style={{ maxWidth: 200 }}
                 >
-                  <Option value="5min">Every 5 minutes</Option>
-                  <Option value="15min">Every 15 minutes</Option>
-                  <Option value="30min">Every 30 minutes</Option>
-                  <Option value="1hour">Every hour</Option>
+                  <Select.Option value="5min">Every 5 minutes</Select.Option>
+                  <Select.Option value="15min">Every 15 minutes</Select.Option>
+                  <Select.Option value="30min">Every 30 minutes</Select.Option>
+                  <Select.Option value="1hour">Every hour</Select.Option>
                 </Select>
               </Form.Item>
             </Form>
