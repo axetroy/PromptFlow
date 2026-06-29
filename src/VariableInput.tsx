@@ -39,13 +39,128 @@ let cleanupKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
 // CSS styles for the modal with light/dark mode support
 const MODAL_CSS = `
+  /* Light mode (default) */
+  :host {
+    --vf-overlay-bg: rgba(0, 0, 0, 0.5);
+    --vf-content-bg: #fff;
+    --vf-content-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    --vf-border-color: #e8e8e8;
+    --vf-body-bg: #fff;
+    --vf-text-primary: #333;
+    --vf-text-muted: #999;
+    --vf-empty-bg: #fafafa;
+    --vf-item-bg: #fafafa;
+    --vf-item-border: #f0f0f0;
+    --vf-name-bg: #262626;
+    --vf-name-color: #fff;
+    --vf-badge-default-bg: #f6ffed;
+    --vf-badge-default-color: #52c41a;
+    --vf-badge-required-bg: #fff2e8;
+    --vf-badge-required-color: #fa8c16;
+    --vf-input-border: #d9d9d9;
+    --vf-input-bg: #fff;
+    --vf-preview-bg: #f8f8f8;
+    --vf-preview-border: #e8e8e8;
+    --vf-copy-btn-border: #d9d9d9;
+    --vf-copy-btn-hover-bg: #f0f0f0;
+    --vf-var-highlight-bg: #ede9fe;
+    --vf-var-highlight-color: #7c3aed;
+    --vf-var-highlight-border: #a78bfa;
+    --vf-var-placeholder-bg: #fff2e8;
+    --vf-var-placeholder-color: #fa8c16;
+    --vf-var-placeholder-border: #ffc53d;
+    --vf-footer-bg: #fafafa;
+    --vf-kbd-bg: #fff;
+    --vf-kbd-border: #d9d9d9;
+    --vf-btn-cancel-border: #d9d9d9;
+    --vf-btn-cancel-bg: #fff;
+    --vf-btn-cancel-hover: #f5f5f5;
+    --vf-btn-disabled-bg: #d9d9d9;
+    --vf-btn-primary-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --vf-btn-primary-hover: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+    --vf-header-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --vf-scrollbar-thumb: #ccc;
+    --vf-scrollbar-track: #f1f1f1;
+    --vf-divider-color: #e8e8e8;
+  }
+
+  /* Dark mode */
+  @media (prefers-color-scheme: dark) {
+    :host {
+      --vf-overlay-bg: rgba(0, 0, 0, 0.7);
+      --vf-content-bg: #1a1a1a;
+      --vf-content-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      --vf-border-color: #404040;
+      --vf-body-bg: #1a1a1a;
+      --vf-text-primary: #e8e8e8;
+      --vf-text-muted: #888;
+      --vf-empty-bg: #252525;
+      --vf-item-bg: #252525;
+      --vf-item-border: #3a3a3a;
+      --vf-name-bg: #3a3a3a;
+      --vf-name-color: #e8e8e8;
+      --vf-badge-default-bg: #1a2e1a;
+      --vf-badge-default-color: #73d13d;
+      --vf-badge-required-bg: #2e261a;
+      --vf-badge-required-color: #fa8c16;
+      --vf-input-border: #555;
+      --vf-input-bg: #252525;
+      --vf-preview-bg: #252525;
+      --vf-preview-border: #3a3a3a;
+      --vf-copy-btn-border: #555;
+      --vf-copy-btn-hover-bg: #3a3a3a;
+      --vf-var-highlight-bg: #2e1f4a;
+      --vf-var-highlight-color: #a78bfa;
+      --vf-var-highlight-border: #7c3aed;
+      --vf-var-placeholder-bg: #2e261a;
+      --vf-var-placeholder-color: #ffc53d;
+      --vf-var-placeholder-border: #fa8c16;
+      --vf-footer-bg: #252525;
+      --vf-kbd-bg: #333;
+      --vf-kbd-border: #555;
+      --vf-btn-cancel-border: #555;
+      --vf-btn-cancel-bg: #333;
+      --vf-btn-cancel-hover: #444;
+      --vf-btn-disabled-bg: #444;
+      --vf-btn-primary-bg: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+      --vf-btn-primary-hover: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --vf-scrollbar-thumb: #555;
+      --vf-scrollbar-track: #2a2a2a;
+      --vf-divider-color: #404040;
+    }
+  }
+
+  /* Custom scrollbar for dark mode */
+  @media (prefers-color-scheme: dark) {
+    .vf-body::-webkit-scrollbar {
+      width: 8px;
+    }
+    .vf-body::-webkit-scrollbar-track {
+      background: var(--vf-scrollbar-track);
+    }
+    .vf-body::-webkit-scrollbar-thumb {
+      background: var(--vf-scrollbar-thumb);
+      border-radius: 4px;
+    }
+    .vf-preview::-webkit-scrollbar {
+      width: 8px;
+    }
+    .vf-preview::-webkit-scrollbar-track {
+      background: var(--vf-scrollbar-track);
+    }
+    .vf-preview::-webkit-scrollbar-thumb {
+      background: var(--vf-scrollbar-thumb);
+      border-radius: 4px;
+    }
+  }
+
   .vf-modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--vf-overlay-bg, rgba(0, 0, 0, 0.5));
+    background-color: var(--vf-overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -60,7 +175,7 @@ const MODAL_CSS = `
   }
 
   .vf-modal-content {
-    background-color: var(--vf-content-bg, #fff);
+    background-color: var(--vf-content-bg);
     border-radius: 12px;
     box-shadow: var(--vf-content-shadow, 0 20px 60px rgba(0, 0, 0, 0.3));
     width: 90%;
@@ -79,8 +194,8 @@ const MODAL_CSS = `
 
   .vf-header {
     padding: 20px 24px;
-    border-bottom: 1px solid var(--vf-border-color, #e8e8e8);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-bottom: 1px solid var(--vf-border-color);
+    background: var(--vf-header-gradient);
     color: #fff;
   }
 
@@ -98,7 +213,7 @@ const MODAL_CSS = `
   .vf-body {
     flex: 1;
     overflow: auto;
-    background-color: var(--vf-body-bg, #fff);
+    background-color: var(--vf-body-bg);
   }
 
   .vf-body-inner {
@@ -110,14 +225,14 @@ const MODAL_CSS = `
     font-size: 14px;
     font-weight: 500;
     margin-bottom: 12px;
-    color: var(--vf-text-primary, #333);
+    color: var(--vf-text-primary);
   }
 
   .vf-empty-state {
     text-align: center;
     padding: 20px;
-    color: var(--vf-text-muted, #999);
-    background: var(--vf-empty-bg, #fafafa);
+    color: var(--vf-text-muted);
+    background: var(--vf-empty-bg);
     border-radius: 8px;
     margin-bottom: 24px;
   }
@@ -125,15 +240,15 @@ const MODAL_CSS = `
   .vf-variable-item {
     margin-bottom: 20px;
     padding: 16px;
-    background: var(--vf-item-bg, #fafafa);
+    background: var(--vf-item-bg);
     border-radius: 8px;
-    border: 1px solid var(--vf-item-border, #f0f0f0);
+    border: 1px solid var(--vf-item-border);
   }
 
   .vf-variable-name {
     font-family: 'SF Mono', Monaco, monospace;
-    background: var(--vf-name-bg, #262626);
-    color: var(--vf-name-color, #fff);
+    background: var(--vf-name-bg);
+    color: var(--vf-name-color);
     padding: 4px 10px;
     border-radius: 4px;
     font-size: 13px;
@@ -143,7 +258,7 @@ const MODAL_CSS = `
 
   .vf-variable-description {
     font-size: 13px;
-    color: var(--vf-text-muted, #999);
+    color: var(--vf-text-muted);
     margin-top: 8px;
     margin-bottom: 8px;
     line-height: 1.4;
@@ -165,13 +280,13 @@ const MODAL_CSS = `
   }
 
   .vf-badge-default {
-    background: var(--vf-badge-default-bg, #f6ffed);
-    color: var(--vf-badge-default-color, #52c41a);
+    background: var(--vf-badge-default-bg);
+    color: var(--vf-badge-default-color);
   }
 
   .vf-badge-required {
-    background: var(--vf-badge-required-bg, #fff2e8);
-    color: var(--vf-badge-required-color, #fa8c16);
+    background: var(--vf-badge-required-bg);
+    color: var(--vf-badge-required-color);
   }
 
   .vf-variable-input {
@@ -179,7 +294,7 @@ const MODAL_CSS = `
     width: 100%;
     padding: 12px 14px;
     font-size: 14px;
-    border: 1px solid var(--vf-input-border, #d9d9d9);
+    border: 1px solid var(--vf-input-border);
     border-radius: 6px;
     outline: none;
     box-sizing: border-box;
@@ -188,8 +303,8 @@ const MODAL_CSS = `
     min-height: 72px;
     font-family: inherit;
     line-height: 1.5;
-    background: var(--vf-input-bg, #fff);
-    color: var(--vf-text-primary, #333);
+    background: var(--vf-input-bg);
+    color: var(--vf-text-primary);
   }
 
   .vf-variable-input:focus {
@@ -205,13 +320,13 @@ const MODAL_CSS = `
   }
 
   .vf-preview {
-    background-color: var(--vf-preview-bg, #f8f8f8);
-    border: 1px solid var(--vf-preview-border, #e8e8e8);
+    background-color: var(--vf-preview-bg);
+    border: 1px solid var(--vf-preview-border);
     border-radius: 8px;
     padding: 16px;
     font-size: 14px;
     line-height: 1.6;
-    color: var(--vf-text-primary, #333);
+    color: var(--vf-text-primary);
     max-height: 250px;
     overflow: auto;
     font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
@@ -233,16 +348,16 @@ const MODAL_CSS = `
     padding: 4px 10px;
     font-size: 12px;
     background: transparent;
-    border: 1px solid var(--vf-copy-btn-border, #d9d9d9);
+    border: 1px solid var(--vf-copy-btn-border);
     border-radius: 4px;
     cursor: pointer;
-    color: var(--vf-text-muted, #999);
+    color: var(--vf-text-muted);
     transition: all 0.2s;
   }
 
   .vf-copy-btn:hover {
-    background: var(--vf-copy-btn-hover-bg, #f0f0f0);
-    color: var(--vf-text-primary, #333);
+    background: var(--vf-copy-btn-hover-bg);
+    color: var(--vf-text-primary);
   }
 
   .vf-copy-btn.copied {
@@ -251,41 +366,41 @@ const MODAL_CSS = `
   }
 
   .vf-var-highlight {
-    background-color: var(--vf-var-highlight-bg, #ede9fe);
-    color: var(--vf-var-highlight-color, #7c3aed);
+    background-color: var(--vf-var-highlight-bg);
+    color: var(--vf-var-highlight-color);
     padding: 1px 6px;
     border-radius: 4px;
     font-weight: 500;
-    border-bottom: 2px solid var(--vf-var-highlight-border, #a78bfa);
+    border-bottom: 2px solid var(--vf-var-highlight-border);
   }
 
   .vf-var-placeholder {
-    background-color: var(--vf-var-placeholder-bg, #fff2e8);
-    color: var(--vf-var-placeholder-color, #fa8c16);
+    background-color: var(--vf-var-placeholder-bg);
+    color: var(--vf-var-placeholder-color);
     padding: 1px 6px;
     border-radius: 4px;
     font-weight: 500;
     font-style: italic;
-    border-bottom: 2px dashed var(--vf-var-placeholder-border, #ffc53d);
+    border-bottom: 2px dashed var(--vf-var-placeholder-border);
   }
 
   .vf-footer {
     padding: 16px 24px;
-    border-top: 1px solid var(--vf-border-color, #e8e8e8);
+    border-top: 1px solid var(--vf-border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--vf-footer-bg, #fafafa);
+    background: var(--vf-footer-bg);
   }
 
   .vf-footer-hint {
     font-size: 12px;
-    color: var(--vf-text-muted, #999);
+    color: var(--vf-text-muted);
   }
 
   .vf-footer-hint kbd {
-    background: var(--vf-kbd-bg, #fff);
-    border: 1px solid var(--vf-kbd-border, #d9d9d9);
+    background: var(--vf-kbd-bg);
+    border: 1px solid var(--vf-kbd-border);
     border-radius: 4px;
     padding: 2px 6px;
     font-family: monospace;
@@ -325,16 +440,16 @@ const MODAL_CSS = `
   .vf-cancel-btn {
     padding: 8px 20px;
     font-size: 14px;
-    border: 1px solid var(--vf-btn-cancel-border, #d9d9d9);
+    border: 1px solid var(--vf-btn-cancel-border);
     border-radius: 6px;
-    background: var(--vf-btn-cancel-bg, #fff);
+    background: var(--vf-btn-cancel-bg);
     cursor: pointer;
-    color: var(--vf-text-primary, #333);
+    color: var(--vf-text-primary);
     transition: background-color 0.2s;
   }
 
   .vf-cancel-btn:hover {
-    background: var(--vf-btn-cancel-hover, #f5f5f5);
+    background: var(--vf-btn-cancel-hover);
   }
 
   .vf-submit-btn {
@@ -342,7 +457,7 @@ const MODAL_CSS = `
     font-size: 14px;
     border: none;
     border-radius: 6px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--vf-btn-primary-bg);
     color: #fff;
     cursor: pointer;
     transition: opacity 0.2s, transform 0.1s;
@@ -350,52 +465,13 @@ const MODAL_CSS = `
 
   .vf-submit-btn:hover:not(:disabled) {
     transform: translateY(-1px);
+    background: var(--vf-btn-primary-hover);
   }
 
   .vf-submit-btn:disabled {
-    background: var(--vf-btn-disabled-bg, #d9d9d9);
+    background: var(--vf-btn-disabled-bg);
     cursor: not-allowed;
     opacity: 0.6;
-  }
-
-  /* Dark mode styles */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --vf-overlay-bg: rgba(0, 0, 0, 0.7);
-      --vf-content-bg: #1f1f1f;
-      --vf-content-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-      --vf-border-color: #404040;
-      --vf-body-bg: #1f1f1f;
-      --vf-text-primary: #e5e5e5;
-      --vf-text-muted: #8c8c8c;
-      --vf-item-bg: #262626;
-      --vf-item-border: #404040;
-      --vf-name-bg: #404040;
-      --vf-empty-bg: #262626;
-      --vf-badge-default-bg: rgba(82, 196, 26, 0.2);
-      --vf-badge-default-color: #73d13d;
-      --vf-badge-required-bg: rgba(250, 140, 22, 0.2);
-      --vf-badge-required-color: #fa8c16;
-      --vf-input-border: #404040;
-      --vf-input-bg: #262626;
-      --vf-preview-bg: #262626;
-      --vf-preview-border: #404040;
-      --vf-footer-bg: #262626;
-      --vf-kbd-bg: #404040;
-      --vf-kbd-border: #595959;
-      --vf-btn-cancel-border: #404040;
-      --vf-btn-cancel-bg: #262626;
-      --vf-btn-cancel-hover: #333;
-      --vf-btn-disabled-bg: #404040;
-      --vf-copy-btn-border: #404040;
-      --vf-copy-btn-hover-bg: #333;
-      --vf-var-highlight-bg: rgba(124, 58, 237, 0.3);
-      --vf-var-highlight-color: #c4b5fd;
-      --vf-var-highlight-border: #7c3aed;
-      --vf-var-placeholder-bg: rgba(250, 140, 22, 0.3);
-      --vf-var-placeholder-color: #ffc53d;
-      --vf-var-placeholder-border: #fa8c16;
-    }
   }
 `;
 
