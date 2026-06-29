@@ -395,8 +395,7 @@ function focusNext(currentIndex: number): void {
     nextInput.focus();
     
     if (nextInput instanceof HTMLTextAreaElement) {
-      const len = nextInput.value.length;
-      nextInput.setSelectionRange(len, len);
+      nextInput.select();
     }
   } else {
     const submitBtn = activeModal?.querySelector('.vf-submit-btn') as HTMLButtonElement;
