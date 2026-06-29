@@ -25,10 +25,11 @@ export interface SyncStatus {
 
 // Sync interval options (in minutes)
 export const SYNC_INTERVALS = {
-  '5min': 5,
   '15min': 15,
   '30min': 30,
   '1hour': 60,
+  '2hours': 120,
+  '1day': 1440,
 } as const;
 
 export type SyncIntervalKey = keyof typeof SYNC_INTERVALS;
@@ -174,10 +175,11 @@ export async function getSyncStatus(): Promise<SyncStatus> {
  */
 export function formatSyncInterval(interval: string): string {
   const labels: Record<string, string> = {
-    '5min': 'Every 5 minutes',
     '15min': 'Every 15 minutes',
     '30min': 'Every 30 minutes',
     '1hour': 'Every hour',
+    '2hours': 'Every 2 hours',
+    '1day': 'Every day',
   };
   return labels[interval] || interval;
 }

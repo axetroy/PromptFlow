@@ -75,7 +75,7 @@ interface Prompt {
 interface PromptSettings {
   trigger: string;
   insertMode: 'replace' | 'append';
-  syncInterval?: '5min' | '15min' | '30min' | '1hour';
+  syncInterval?: '15min' | '30min' | '1hour' | '2hours' | '1day';
 }
 
 interface PromptUsage {
@@ -232,7 +232,7 @@ const SettingsApp: React.FC = () => {
   const [syncedPrompts, setSyncedPrompts] = useState<SyncedPrompt[]>([]);
   const [syncingMap, setSyncingMap] = useState<Record<string, boolean>>({});
   const [allPrompts, setAllPrompts] = useState<Prompt[]>([]);
-  const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', insertMode: 'replace', syncInterval: '15min' });
+  const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', insertMode: 'replace', syncInterval: '1hour' });
   const [usageHistory, setUsageHistory] = useState<PromptUsage[]>([]);
   const [usageStats, setUsageStats] = useState<{ promptId: string; count: number; lastUsed: number; title: string; score: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -786,14 +786,15 @@ const SettingsApp: React.FC = () => {
               </Form.Item>
               <Form.Item label="Auto Sync Interval" tooltip="How often to automatically sync prompts from GitHub repositories" style={{ marginBottom: 0 }}>
                 <Select
-                  value={settings.syncInterval || '15min'}
+                  value={settings.syncInterval || '1hour'}
                   onChange={(value) => handleSettingsChange('syncInterval', value)}
                   style={{ maxWidth: 200 }}
                 >
-                  <Select.Option value="5min">Every 5 minutes</Select.Option>
                   <Select.Option value="15min">Every 15 minutes</Select.Option>
                   <Select.Option value="30min">Every 30 minutes</Select.Option>
                   <Select.Option value="1hour">Every hour</Select.Option>
+                  <Select.Option value="2hours">Every 2 hours</Select.Option>
+                  <Select.Option value="1day">Every day</Select.Option>
                 </Select>
               </Form.Item>
             </Form>

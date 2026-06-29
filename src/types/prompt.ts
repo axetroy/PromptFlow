@@ -17,7 +17,7 @@ export interface PromptUsage {
 export interface PromptSettings {
   trigger: string;
   insertMode: 'replace' | 'append';
-  syncInterval?: '5min' | '15min' | '30min' | '1hour';
+  syncInterval?: '15min' | '30min' | '1hour' | '2hours' | '1day';
 }
 
 export interface StorageData {
@@ -31,7 +31,7 @@ export interface StorageData {
 export const DEFAULT_SETTINGS: PromptSettings = {
   trigger: '/prompts',
   insertMode: 'replace',
-  syncInterval: '15min',
+  syncInterval: '1hour',
 };
 
 export const MAX_USAGE_HISTORY = 100;
