@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Tag, Space, Typography } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
+import { parseTemplate, Variable } from '../utils/template-parser';
 
 const { Text } = Typography;
 
@@ -20,6 +21,62 @@ interface PromptPreviewProps {
   prompt: Prompt | null;
   visible: boolean;
   onClose: () => void;
+}
+
+// Highlight variables in content matching the panel's rendering style
+function renderContentWithHighlights(content: string): React.ReactNode {
+  const { variables } = parseTemplate(content);
+  
+  if (variables.length === 0) {
+    return content;
+  }
+  
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  
+  variables.forEach((variable, index) => {
+    // Add text before this variable
+    if (variable.startIndex > lastIndex) {
+      parts.push(
+        <span key={`text-${index}`}>{content.slice(lastIndex, variable.startIndex)}</span>
+      );
+    }
+    
+    // Add highlighted variable
+    const title = variable.description 
+      ? `${variable.name} - ${variable.description}` 
+      : variable.name;
+    
+    parts.push(
+      <span
+        key={`var-${index}`}
+        className="var-highlight"
+        title={title}
+        style={{
+          backgroundColor: '#ede9fe',
+          color: '#7c3aed',
+          borderRadius: 3,
+          padding: '1px 4px',
+          borderBottom: '2px solid #a78bfa',
+        }}
+      >
+        {variable.defaultValue !== undefined 
+          ? `[${variable.name}="${variable.defaultValue}"]` 
+          : `[${variable.name}]`}
+      </span>
+    );
+    
+    lastIndex = variable.endIndex;
+  });
+  
+  // Add remaining text
+  if (lastIndex < content.length) {
+    parts.push(
+      <span key="text-end">{content.slice(lastIndex)}</span>
+    );
+  }
+  
+  return parts;
 }
 
 export const PromptPreview: React.FC<PromptPreviewProps> = ({ prompt, visible, onClose }) => {
@@ -73,7 +130,7 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({ prompt, visible, o
           lineHeight: 1.6,
         }}
       >
-        {prompt.content}
+        {renderContentWithHighlights(prompt.content)}
       </div>
 
       <div style={{ marginTop: 16, color: '#999', fontSize: 12 }}>
