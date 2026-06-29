@@ -929,11 +929,11 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
 /**
  * Select a prompt - checks for variables and shows input modal if needed
  */
-function selectPrompt(prompt: Prompt): void {
-  if (!state.currentInput) return;
+async function selectPrompt(prompt: Prompt): Promise<void> {
+  // Record prompt usage immediately (before any early returns)
+  await recordPromptUsage(prompt.id);
   
-  // Record prompt usage
-  recordPromptUsage(prompt.id);
+  if (!state.currentInput) return;
   
   // Check if the prompt has template variables
   if (hasVariables(prompt.content)) {
