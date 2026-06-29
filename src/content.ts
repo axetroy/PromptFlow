@@ -590,9 +590,9 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
     header.textContent = 'Recently Used';
     recentSection.appendChild(header);
     
-    // Get recent prompts that still exist in the full list
+    // Get recent prompts from all prompts (not filtered)
     const recentPrompts = state.recentPromptIds
-      .map(id => prompts.find(p => p.id === id))
+      .map(id => state.prompts.find(p => p.id === id))
       .filter((p): p is Prompt => p !== undefined)
       .slice(0, 5);
     
@@ -1254,10 +1254,29 @@ function handleKeyDown(e: KeyboardEvent): void {
   
   // Get all prompt items (including those in recent section)
   const items = list.querySelectorAll(':scope > .prompt-item');
-  const recentCount = state.recentPromptIds.length > 0 ? Math.min(state.recentPromptIds.length, 5) : 0;
   
-  // Calculate max index (recent + all prompts)
+  // Calculate max index
   const maxIndex = items.length - 1;
+  
+  // Build combined prompt list for navigation: recent prompts + all prompts
+  const showRecentSection = !state.searchQuery && state.recentPromptIds.length > 0;
+  const recentCount = showRecentSection ? Math.min(state.recentPromptIds.length, 5) : 0;
+  
+  // Create a map of promptId to prompt for quick lookup
+  const promptMap = new Map(state.prompts.map(p => [p.id, p]));
+  
+  // Get the prompt at the current selected index
+  const getPromptAtIndex = (index: number): Prompt | undefined => {
+    if (showRecentSection && index < recentCount) {
+      // This is in the recent section
+      const promptId = state.recentPromptIds[index];
+      return promptMap.get(promptId);
+    } else {
+      // This is in the all prompts section
+      const allPromptsIndex = showRecentSection ? index - recentCount : index;
+      return state.prompts[allPromptsIndex];
+    }
+  };
   
   switch (e.key) {
     case 'ArrowDown':
@@ -1279,15 +1298,9 @@ function handleKeyDown(e: KeyboardEvent): void {
     case 'Enter':
       e.preventDefault();
       e.stopPropagation();
-      // Get the prompt at the current selected index
-      const selectedItem = items[state.selectedIndex] as HTMLElement | null;
-      if (selectedItem?.dataset?.promptId) {
-        const promptId = selectedItem.dataset.promptId;
-        // Find the prompt in state.prompts
-        const prompt = state.prompts.find(p => p.id === promptId);
-        if (prompt) {
-          selectPrompt(prompt);
-        }
+      const prompt = getPromptAtIndex(state.selectedIndex);
+      if (prompt) {
+        selectPrompt(prompt);
       }
       break;
       
