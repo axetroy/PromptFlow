@@ -219,6 +219,11 @@ const MODAL_CSS = `
     font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
   }
 
+  .vf-preview-content {
+    margin: 0;
+    padding: 0;
+  }
+
   .vf-copy-btn {
     display: inline-flex;
     align-items: center;
@@ -420,31 +425,24 @@ function updatePreview(): void {
   if (previewContent) {
     const segments = generatePreviewSegments(activePromptContent, activeValues);
     
-    // Clear existing content
-    previewContent.innerHTML = '';
-    
-    // Build DOM nodes for each segment
+    // Build HTML string for preview content
+    let html = '';
     for (const segment of segments) {
       if (segment.type === 'text') {
-        // Use text node for plain text to preserve whitespace
-        previewContent.appendChild(document.createTextNode(segment.content));
+        // Escape HTML and preserve whitespace
+        html += escapeHtml(segment.content);
       } else {
-        // Create span with appropriate class for variables
-        const span = document.createElement('span');
-        span.className = 'vf-var-highlight';
-        
-        if (segment.variable) {
-          span.title = `${segment.variable.name}${segment.variable.description ? ` - ${segment.variable.description}` : ''}`;
-          span.textContent = segment.content;
-        } else {
-          // Unresolved variable - show as placeholder
-          span.className = 'vf-var-placeholder';
-          span.textContent = segment.content;
-        }
-        
-        previewContent.appendChild(span);
+        // Create span for variables
+        const spanClass = segment.variable ? 'vf-var-highlight' : 'vf-var-placeholder';
+        const title = segment.variable 
+          ? `${segment.variable.name}${segment.variable.description ? ` - ${segment.variable.description}` : ''}`
+          : '';
+        const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+        html += `<span class="${spanClass}"${titleAttr}>${escapeHtml(segment.content)}</span>`;
       }
     }
+    
+    previewContent.innerHTML = html;
   }
 }
 
