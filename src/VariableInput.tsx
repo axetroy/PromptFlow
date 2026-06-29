@@ -604,21 +604,19 @@ export function showVariableInput(options: VariableInputOptions): void {
     <div class="vf-body">
       <div class="vf-body-inner">
         ${activeVariables.length > 0 ? `
-          <label class="vf-section-title">📋 Variable Values</label>
+          <div class="vf-section-title">📋 Variable Values</div>
           ${variableInputsHtml}
         ` : `
           <div class="vf-empty-state">This template does not contain any variables</div>
         `}
-        <label class="vf-section-title">👁️ Preview</label>
+        <div class="vf-section-title">👁️ Preview</div>
         <div class="vf-preview">
           <div class="vf-preview-header">
             <button type="button" class="vf-copy-btn" title="Copy to clipboard">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-              Copy
-            </button>
+              </svg>Copy</button>
           </div>
           <div class="vf-preview-content"></div>
         </div>
@@ -714,18 +712,14 @@ export function showVariableInput(options: VariableInputOptions): void {
       copyBtn.innerHTML = `
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        Copied!
-      `;
+        </svg>Copied!`;
       setTimeout(() => {
         copyBtn.classList.remove('copied');
         copyBtn.innerHTML = `
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
-          Copy
-        `;
+          </svg>Copy`;
       }, 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
