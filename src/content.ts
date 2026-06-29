@@ -1,4 +1,5 @@
 import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
+import { showVariableInput, hideVariableInput, getUniqueVariables, interpolate, hasVariables } from './VariableInput';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -9,6 +10,7 @@ interface ContentState {
   selectedIndex: number;
   prompts: Prompt[];
   searchQuery: string;
+  pendingPrompt: Prompt | null; // Prompt waiting for variable input
 }
 
 const state: ContentState = {
@@ -20,6 +22,7 @@ const state: ContentState = {
   selectedIndex: 0,
   prompts: [],
   searchQuery: '',
+  pendingPrompt: null,
 };
 
 let panelContainer: HTMLElement | null = null;
@@ -698,7 +701,10 @@ function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, s
   }
 }
 
-function selectPrompt(prompt: Prompt): void {
+/**
+ * Insert prompt into input with filled content (after variable interpolation)
+ */
+function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   if (!state.currentInput) return;
   
   // Get browser's display language
@@ -730,7 +736,7 @@ function selectPrompt(prompt: Prompt): void {
   
   // Append language instruction to prompt
   const languageInstruction = `\n\n---\n\nPlease prioritize responding in ${langName} if no language has been specified earlier in the conversation.`;
-  const promptContent = prompt.content + languageInstruction;
+  const promptContent = filledContent + languageInstruction;
   
   const inputValue = getInputValue(state.currentInput);
   
@@ -739,22 +745,9 @@ function selectPrompt(prompt: Prompt): void {
   const after = inputValue.substring(state.caretPosition);
   const newValue = before + promptContent + after;
   
-  // Find first placeholder position (relative to original prompt.content)
-  const placeholder = findFirstPlaceholder(prompt.content);
-  
-  // Calculate selection range after insertion
-  let selectionStart: number;
-  let selectionEnd: number;
-  
-  if (placeholder) {
-    // Select the entire first placeholder (including braces)
-    selectionStart = state.triggerStartPosition + placeholder.start;
-    selectionEnd = state.triggerStartPosition + placeholder.end;
-  } else {
-    // No placeholder found, position cursor at end of inserted text (before language instruction)
-    selectionStart = state.triggerStartPosition + prompt.content.length;
-    selectionEnd = selectionStart;
-  }
+  // Position cursor at end of inserted text (before language instruction)
+  const selectionStart = state.triggerStartPosition + filledContent.length;
+  const selectionEnd = selectionStart;
   
   // For textarea, directly set value and selection synchronously
   if (state.currentInput instanceof HTMLTextAreaElement) {
@@ -777,13 +770,56 @@ function selectPrompt(prompt: Prompt): void {
     state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
     setSelection(state.currentInput, selectionStart, selectionEnd);
   } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
-    // For contenteditable, we need relative positions within prompt.content
-    const relativeStart = placeholder ? placeholder.start : prompt.content.length;
-    const relativeEnd = placeholder ? placeholder.end : prompt.content.length;
-    insertContentWithNewlines(state.currentInput, promptContent, relativeStart, relativeEnd);
+    // For contenteditable, insert at position
+    insertContentWithNewlines(state.currentInput, promptContent, filledContent.length, filledContent.length);
   }
   
   closePanel(false, false);
+}
+
+/**
+ * Select a prompt - checks for variables and shows input modal if needed
+ */
+function selectPrompt(prompt: Prompt): void {
+  if (!state.currentInput) return;
+  
+  // Check if the prompt has template variables
+  if (hasVariables(prompt.content)) {
+    // Store the prompt and show variable input modal
+    state.pendingPrompt = prompt;
+    closePanel(true, true); // Keep focus, keep caret position
+    
+    // Show variable input modal
+    showVariableInput({
+      prompt: {
+        id: prompt.id,
+        title: prompt.title,
+        content: prompt.content,
+      },
+      onConfirm: (filledContent: string) => {
+        if (state.pendingPrompt) {
+          insertPromptWithContent(state.pendingPrompt, filledContent);
+          state.pendingPrompt = null;
+        }
+      },
+      onCancel: () => {
+        // Restore focus to input
+        if (state.currentInput) {
+          if (state.currentInput instanceof HTMLInputElement || state.currentInput instanceof HTMLTextAreaElement) {
+            state.currentInput.focus();
+            setCaretPosition(state.currentInput, state.caretPosition);
+          } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
+            (state.currentInput as HTMLElement).focus();
+            setCaretPosition(state.currentInput, state.caretPosition);
+          }
+        }
+        state.pendingPrompt = null;
+      },
+    });
+  } else {
+    // No variables, insert directly
+    insertPromptWithContent(prompt, prompt.content);
+  }
 }
 
 /**
