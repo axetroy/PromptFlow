@@ -743,10 +743,11 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   const inputValue = getInputValue(state.currentInput);
   
   // Replace trigger with prompt content
-  // - before: text before trigger (e.g., "hello ")
-  // - after: text after current caret position
+  // - before: text before trigger
+  // - after: text after trigger (not after caret)
+  const triggerEndPosition = state.triggerStartPosition + state.currentTrigger.length;
   const before = inputValue.substring(0, state.triggerStartPosition);
-  const after = inputValue.substring(state.caretPosition);
+  const after = inputValue.substring(triggerEndPosition);
   const newValue = before + promptContent + after;
   
   // Position cursor at end of inserted prompt content (before language instruction)
