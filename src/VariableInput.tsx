@@ -193,13 +193,19 @@ const MODAL_CSS = `
     box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
   }
 
+  .vf-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
   .vf-preview {
     position: relative;
     background-color: var(--vf-preview-bg, #f8f8f8);
     border: 1px solid var(--vf-preview-border, #e8e8e8);
     border-radius: 8px;
     padding: 16px;
-    padding-top: 40px;
     font-size: 14px;
     line-height: 1.6;
     color: var(--vf-text-primary, #333);
@@ -208,13 +214,6 @@ const MODAL_CSS = `
     white-space: break-spaces;
     word-break: break-word;
     font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
-  }
-
-  .vf-preview-header {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 1;
   }
 
   .vf-copy-btn {
@@ -617,15 +616,17 @@ export function showVariableInput(options: VariableInputOptions): void {
         ` : `
           <div class="vf-empty-state">This template does not contain any variables</div>
         `}
-        <div class="vf-section-title">👁️ Preview</div>
+        <div class="vf-section-header">
+          <div class="vf-section-title">👁️ Preview</div>
+          <button type="button" class="vf-copy-btn" title="Copy to clipboard">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            Copy
+          </button>
+        </div>
         <div class="vf-preview">
-          <div class="vf-preview-header">
-            <button type="button" class="vf-copy-btn" title="Copy to clipboard">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>Copy</button>
-          </div>
           <div class="vf-preview-content"></div>
         </div>
       </div>
