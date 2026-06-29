@@ -34,6 +34,9 @@ let activeOnConfirm: ((content: string) => void) | null = null;
 let activeOnCancel: (() => void) | null = null;
 let activeInputRefs: HTMLElement[] = [];
 
+// Cleanup reference for keydown listener
+let cleanupKeyDown: ((e: KeyboardEvent) => void) | null = null;
+
 // CSS styles for the modal with light/dark mode support
 const MODAL_CSS = `
   .vf-modal-overlay {
@@ -202,7 +205,6 @@ const MODAL_CSS = `
   }
 
   .vf-preview {
-    position: relative;
     background-color: var(--vf-preview-bg, #f8f8f8);
     border: 1px solid var(--vf-preview-border, #e8e8e8);
     border-radius: 8px;
@@ -754,6 +756,7 @@ export function showVariableInput(options: VariableInputOptions): void {
     });
   });
   
+  // Store reference for cleanup and add listener
   cleanupKeyDown = handleKeyDown;
   document.addEventListener('keydown', handleKeyDown);
   
@@ -775,6 +778,12 @@ export function showVariableInput(options: VariableInputOptions): void {
  * Hide and remove the variable input modal
  */
 export function hideVariableInput(): void {
+  // Remove keydown listener
+  if (cleanupKeyDown) {
+    document.removeEventListener('keydown', cleanupKeyDown);
+    cleanupKeyDown = null;
+  }
+  
   if (activeHost) {
     activeHost.remove();
     activeHost = null;
@@ -788,16 +797,5 @@ export function hideVariableInput(): void {
   activeInputRefs = [];
 }
 
-// Store reference to cleanup handler
-let cleanupKeyDown: ((e: KeyboardEvent) => void) | null = null;
-
-export function showVariableInput(options: VariableInputOptions): void {
-  const { prompt, onConfirm, onCancel } = options;
-  
-  hideVariableInput();
-  
-  // Remove previous keydown listener if exists
-  if (cleanupKeyDown) {
-    document.removeEventListener('keydown', cleanupKeyDown);
-    cleanupKeyDown = null;
-  }
+// Re-export template parser utilities for external use
+export { getUniqueVariables, interpolate, hasVariables } from './utils/template-parser';
