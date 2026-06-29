@@ -73,6 +73,7 @@ test.describe('Prompt Insertion Behavior', () => {
    * 1. Replace trigger (from triggerStartPosition to triggerStartPosition + trigger.length)
    * 2. Insert promptContent at triggerStartPosition
    * 3. Preserve all text before trigger and all text after triggerEndPosition
+   * 4. Cursor position is at the end of inserted content (including language instruction)
    */
   function simulateInsert(
     inputValue: string,
@@ -86,13 +87,13 @@ test.describe('Prompt Insertion Behavior', () => {
     
     // Build the new value by:
     // 1. Taking text before trigger
-    // 2. Inserting prompt content
+    // 2. Inserting prompt content (includes filledContent + languageInstruction)
     // 3. Taking text after trigger (not after caret)
     const before = inputValue.substring(0, triggerStartPosition);
     const after = inputValue.substring(triggerEndPosition);
     const newValue = before + promptContent + after;
     
-    // Cursor should be at the end of inserted prompt content
+    // Cursor should be at the end of inserted prompt content (including language instruction)
     const cursorPosition = triggerStartPosition + promptContent.length;
     
     return {

@@ -750,9 +750,9 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   const after = inputValue.substring(triggerEndPosition);
   const newValue = before + promptContent + after;
   
-  // Position cursor at end of inserted prompt content (before language instruction)
-  // Cursor should be at: triggerStart + filledContent.length
-  const cursorPosition = state.triggerStartPosition + filledContent.length;
+  // Position cursor at end of inserted prompt content (including language instruction)
+  // Cursor should be at: triggerStart + promptContent.length
+  const cursorPosition = state.triggerStartPosition + promptContent.length;
   
   // Store reference to currentInput before closing panel
   const targetInput = state.currentInput;
