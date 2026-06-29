@@ -1,4 +1,4 @@
-import { StorageData, Prompt, PromptSettings, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from '../types';
+import { StorageData, Prompt, PromptSettings, PromptUsage, DEFAULT_SETTINGS, DEFAULT_PROMPTS, MAX_USAGE_HISTORY } from '../types';
 
 const STORAGE_KEY = 'promptflow-data';
 
@@ -12,6 +12,7 @@ export async function getStorageData(): Promise<StorageData> {
         const defaultData: StorageData = {
           prompts: DEFAULT_PROMPTS,
           settings: DEFAULT_SETTINGS,
+          usageHistory: [],
         };
         resolve(defaultData);
       }
@@ -66,4 +67,72 @@ export async function deletePrompt(id: string): Promise<void> {
   const prompts = await getPrompts();
   const filtered = prompts.filter((p) => p.id !== id);
   await savePrompts(filtered);
+}
+
+// Usage tracking functions
+export async function getUsageHistory(): Promise<PromptUsage[]> {
+  const data = await getStorageData();
+  return data.usageHistory || [];
+}
+
+export async function recordPromptUsage(promptId: string): Promise<void> {
+  const data = await getStorageData();
+  
+  // Initialize usageHistory if not exists
+  if (!data.usageHistory) {
+    data.usageHistory = [];
+  }
+  
+  // Add new usage record at the beginning
+  const newUsage: PromptUsage = {
+    promptId,
+    usedAt: Date.now(),
+  };
+  
+  // Remove any existing usage of the same prompt (to avoid duplicates)
+  data.usageHistory = data.usageHistory.filter(u => u.promptId !== promptId);
+  
+  // Add the new usage at the beginning
+  data.usageHistory.unshift(newUsage);
+  
+  // Trim to max history size
+  if (data.usageHistory.length > MAX_USAGE_HISTORY) {
+    data.usageHistory = data.usageHistory.slice(0, MAX_USAGE_HISTORY);
+  }
+  
+  await saveStorageData(data);
+}
+
+export async function getUsageStats(): Promise<Map<string, number>> {
+  const history = await getUsageHistory();
+  const stats = new Map<string, number>();
+  
+  for (const usage of history) {
+    stats.set(usage.promptId, (stats.get(usage.promptId) || 0) + 1);
+  }
+  
+  return stats;
+}
+
+export async function getRecentPrompts(limit: number = 5): Promise<PromptUsage[]> {
+  const history = await getUsageHistory();
+  // Return unique prompts by most recent usage
+  const seen = new Set<string>();
+  const recent: PromptUsage[] = [];
+  
+  for (const usage of history) {
+    if (!seen.has(usage.promptId)) {
+      seen.add(usage.promptId);
+      recent.push(usage);
+      if (recent.length >= limit) break;
+    }
+  }
+  
+  return recent;
+}
+
+export async function clearUsageHistory(): Promise<void> {
+  const data = await getStorageData();
+  data.usageHistory = [];
+  await saveStorageData(data);
 }

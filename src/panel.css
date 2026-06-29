@@ -224,6 +224,77 @@
   background: rgba(255, 193, 7, 0.3);
 }
 
+/* Recent Prompts Section */
+.recent-section {
+  margin-bottom: 8px;
+}
+
+.recent-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+}
+
+#promptflow-panel.dark .recent-section-header {
+  color: #666;
+}
+
+.recent-prompt {
+  padding-left: 32px;
+}
+
+.recent-prompt::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z'/%3E%3C/svg%3E") no-repeat center center;
+  background-size: contain;
+  opacity: 0.6;
+}
+
+#promptflow-panel.dark .recent-prompt::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888'%3E%3Cpath d='M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z'/%3E%3C/svg%3E") no-repeat center center;
+  background-size: contain;
+}
+
+/* Section Separator */
+.section-separator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+}
+
+.section-separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+#promptflow-panel.dark .section-separator {
+  color: #666;
+}
+
+#promptflow-panel.dark .section-separator::after {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* ============================================
    Dark Theme - Uses .dark class
    ============================================ */

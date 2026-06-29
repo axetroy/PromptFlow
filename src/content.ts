@@ -11,6 +11,12 @@ interface ContentState {
   prompts: Prompt[];
   searchQuery: string;
   pendingPrompt: Prompt | null; // Prompt waiting for variable input
+  recentPromptIds: string[]; // Recently used prompt IDs
+}
+
+interface PromptUsage {
+  promptId: string;
+  usedAt: number;
 }
 
 const state: ContentState = {
@@ -23,7 +29,10 @@ const state: ContentState = {
   prompts: [],
   searchQuery: '',
   pendingPrompt: null,
+  recentPromptIds: [],
 };
+
+const MAX_RECENT_PROMPTS = 5;
 
 let panelContainer: HTMLElement | null = null;
 
@@ -58,6 +67,66 @@ async function loadSettings(): Promise<void> {
         }
       }
       resolve();
+    });
+  });
+}
+
+async function loadUsageHistory(): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['promptflow-data'], (result) => {
+      const data = result['promptflow-data'] as { usageHistory?: PromptUsage[] } | undefined;
+      if (data?.usageHistory) {
+        // Extract unique prompt IDs from usage history (most recent first)
+        const seen = new Set<string>();
+        const recentIds: string[] = [];
+        for (const usage of data.usageHistory) {
+          if (!seen.has(usage.promptId)) {
+            seen.add(usage.promptId);
+            recentIds.push(usage.promptId);
+            if (recentIds.length >= MAX_RECENT_PROMPTS) break;
+          }
+        }
+        state.recentPromptIds = recentIds;
+      }
+      resolve();
+    });
+  });
+}
+
+async function recordPromptUsage(promptId: string): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['promptflow-data'], (result) => {
+      const data = (result['promptflow-data'] as { usageHistory?: PromptUsage[] } | undefined) || {};
+      const history: PromptUsage[] = data.usageHistory || [];
+      
+      // Remove any existing usage of the same prompt
+      const filtered = history.filter(u => u.promptId !== promptId);
+      
+      // Add new usage at the beginning
+      filtered.unshift({ promptId, usedAt: Date.now() });
+      
+      // Trim to max size (100 entries)
+      const trimmed = filtered.slice(0, 100);
+      
+      chrome.storage.local.set({
+        'promptflow-data': {
+          ...data,
+          usageHistory: trimmed,
+        },
+      }, () => {
+        // Update local state
+        const seen = new Set<string>();
+        const recentIds: string[] = [];
+        for (const usage of trimmed) {
+          if (!seen.has(usage.promptId)) {
+            seen.add(usage.promptId);
+            recentIds.push(usage.promptId);
+            if (recentIds.length >= MAX_RECENT_PROMPTS) break;
+          }
+        }
+        state.recentPromptIds = recentIds;
+        resolve();
+      });
     });
   });
 }
@@ -511,8 +580,76 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
   
   listContainer.innerHTML = '';
   
+  // Show recently used prompts section when no search query
+  if (!searchQuery && state.recentPromptIds.length > 0) {
+    const recentSection = document.createElement('div');
+    recentSection.className = 'recent-section';
+    recentSection.innerHTML = `
+      <div class="recent-section-header">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/>
+        </svg>
+        Recently Used
+      </div>
+    `;
+    
+    // Get recent prompts that still exist in the full list
+    const recentPrompts = state.recentPromptIds
+      .map(id => prompts.find(p => p.id === id))
+      .filter((p): p is Prompt => p !== undefined)
+      .slice(0, 5);
+    
+    recentPrompts.forEach((prompt, index) => {
+      const item = document.createElement('div');
+      item.className = 'prompt-item recent-prompt' + (index === state.selectedIndex ? ' selected' : '');
+      item.dataset.section = 'recent';
+      item.dataset.promptId = prompt.id;
+      
+      item.innerHTML = `
+        <div class="prompt-item-title">
+          ${escapeHtml(prompt.title)}
+        </div>
+        <div class="prompt-item-description">
+          ${escapeHtml(prompt.description || '')}
+        </div>
+        <div class="prompt-item-tags">
+          ${prompt.tags.map(tag => `
+            <span class="prompt-tag">${escapeHtml(tag)}</span>
+          `).join('')}
+        </div>
+      `;
+      
+      item.addEventListener('click', () => {
+        state.selectedIndex = index;
+        updateSelection(shadow, index);
+        selectPrompt(prompt);
+      });
+      
+      item.addEventListener('mouseenter', () => {
+        item.classList.add('hovered');
+      });
+      item.addEventListener('mouseleave', () => {
+        item.classList.remove('hovered');
+      });
+      
+      recentSection.appendChild(item);
+    });
+    
+    listContainer.appendChild(recentSection);
+    
+    // Add separator
+    const separator = document.createElement('div');
+    separator.className = 'section-separator';
+    separator.textContent = 'All Prompts';
+    listContainer.appendChild(separator);
+  }
+  
+  // Update state to account for recent section offset
+  const recentCount = (!searchQuery && state.recentPromptIds.length > 0) ? 
+    Math.min(state.recentPromptIds.length, 5) : 0;
+  
   if (prompts.length === 0) {
-    listContainer.innerHTML = `
+    listContainer.innerHTML += `
       <div class="empty-state">
         No prompts found
       </div>
@@ -522,7 +659,11 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
   
   prompts.forEach((prompt, index) => {
     const item = document.createElement('div');
-    item.className = 'prompt-item' + (index === state.selectedIndex ? ' selected' : '');
+    // Adjust selected index if it's in the all prompts section
+    const adjustedIndex = index + recentCount;
+    item.className = 'prompt-item' + (adjustedIndex === state.selectedIndex ? ' selected' : '');
+    item.dataset.section = 'all';
+    item.dataset.promptId = prompt.id;
     
     item.innerHTML = `
       <div class="prompt-item-title">
@@ -540,8 +681,8 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
     
     // Click to select
     item.addEventListener('click', () => {
-      state.selectedIndex = index;
-      updateSelection(shadow, index);
+      state.selectedIndex = adjustedIndex;
+      updateSelection(shadow, adjustedIndex);
       selectPrompt(prompt);
     });
     
@@ -800,6 +941,9 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
  */
 function selectPrompt(prompt: Prompt): void {
   if (!state.currentInput) return;
+  
+  // Record prompt usage
+  recordPromptUsage(prompt.id);
   
   // Check if the prompt has template variables
   if (hasVariables(prompt.content)) {
@@ -1109,11 +1253,21 @@ function handleKeyDown(e: KeyboardEvent): void {
   const shadow = panelContainer?.shadowRoot;
   if (!shadow) return;
   
+  const list = shadow.getElementById('promptflow-list');
+  if (!list) return;
+  
+  // Get all prompt items (including those in recent section)
+  const items = list.querySelectorAll(':scope > .prompt-item');
+  const recentCount = state.recentPromptIds.length > 0 ? Math.min(state.recentPromptIds.length, 5) : 0;
+  
+  // Calculate max index (recent + all prompts)
+  const maxIndex = items.length - 1;
+  
   switch (e.key) {
     case 'ArrowDown':
       e.preventDefault();
       e.stopPropagation();
-      state.selectedIndex = Math.min(state.selectedIndex + 1, state.prompts.length - 1);
+      state.selectedIndex = Math.min(state.selectedIndex + 1, maxIndex);
       updateSelection(shadow, state.selectedIndex);
       scrollToSelected(shadow);
       break;
@@ -1129,8 +1283,17 @@ function handleKeyDown(e: KeyboardEvent): void {
     case 'Enter':
       e.preventDefault();
       e.stopPropagation();
-      if (state.prompts[state.selectedIndex]) {
-        selectPrompt(state.prompts[state.selectedIndex]);
+      // Get the prompt at the current selected index
+      const selectedItem = items[state.selectedIndex];
+      if (selectedItem) {
+        const promptId = selectedItem.dataset.promptId;
+        if (promptId) {
+          // Find the prompt in state.prompts
+          const prompt = state.prompts.find(p => p.id === promptId);
+          if (prompt) {
+            selectPrompt(prompt);
+          }
+        }
       }
       break;
       
@@ -1146,7 +1309,7 @@ function scrollToSelected(shadow: ShadowRoot): void {
   const list = shadow.getElementById('promptflow-list');
   if (!list) return;
   
-  const items = list.querySelectorAll(':scope > div');
+  const items = list.querySelectorAll(':scope > .prompt-item');
   if (items[state.selectedIndex]) {
     items[state.selectedIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
@@ -1194,6 +1357,9 @@ function handleClick(e: MouseEvent): void {
 async function init(): Promise<void> {
   // Load settings from storage first
   await loadSettings();
+
+  // Load usage history
+  await loadUsageHistory();
 
   // Listen for input events on editable elements
   document.addEventListener('input', handleInput, true);
