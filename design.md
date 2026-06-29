@@ -193,20 +193,179 @@ Prompt 插入输入框光标位置
 
 ### 模板能力（扩展）
 
-支持变量插值：
+支持变量插值，使用 `<VAR>` XML 标签语法：
 
 ```text id="pf-template-1"
-Write a {tone} explanation about {topic}
+Write a <VAR name="tone"></VAR> explanation about <VAR name="topic"></VAR>
 ```
 
 变量类型：
 
-* `{tone}`
-* `{topic}`
+* `<VAR name="tone"></VAR>` - 必填变量
+* `<VAR name="tone" defaultValue="professional"></VAR>` - 带默认值的变量
 
 ---
 
-## 4.3 UI Layer（浮动面板）
+## 4.3 模板变量语法（VAR Tag）
+
+### 设计背景
+
+传统的变量语法如 `{variable_name}` 容易与以下场景冲突：
+- Markdown 中的强调/粗体：`**text**`, `{text}`
+- JSON/代码中的对象属性
+- 其他模板引擎（如 Handlebars、Nunjucks）
+- 正则表达式
+
+为了避免冲突，采用 XML 标签风格的 `<VAR>` 语法。
+
+---
+
+### 语法规范
+
+#### 基本语法
+
+```xml
+<VAR name="variable_name"></VAR>
+```
+
+#### 带默认值的变量
+
+```xml
+<VAR name="variable_name" defaultValue="default_value"></VAR>
+```
+
+#### 自闭合语法
+
+```xml
+<VAR name="variable_name" defaultValue="value"/>
+```
+
+---
+
+### 参数说明
+
+| 参数 | 必需 | 类型 | 说明 |
+|------|------|------|------|
+| `name` | 是 | string | 变量唯一标识符，支持字母、数字、下划线、连字符，必须以字母或下划线开头 |
+| `defaultValue` | 否 | string | 当用户未提供值时使用的默认值 |
+
+---
+
+### 变量名称规则
+
+* 必须以字母 (`a-z`, `A-Z`) 或下划线 (`_`) 开头
+* 可包含字母、数字 (`0-9`)、下划线 (`_`)、连字符 (`-`)
+* 大小写敏感
+* 不能包含空格
+
+**合法名称**：
+- `name`
+- `variable_name`
+- `variableName`
+- `topic_1`
+- `my-var`
+- `_private`
+
+**非法名称**：
+- `123name` (不能以数字开头)
+- `my name` (不能包含空格)
+- `var!` (不能包含特殊字符)
+
+---
+
+### 使用示例
+
+#### 示例 1：基础变量
+
+```xml
+Translate the following text to <VAR name="target_language" defaultValue="English"></VAR>:
+
+<VAR name="text"></VAR>
+```
+
+#### 示例 2：代码审查
+
+```xml
+Review the following <VAR name="language"></VAR> code:
+
+<VAR name="code"></VAR>
+
+Focus on: <VAR name="focus_areas" defaultValue="general improvements"></VAR>
+```
+
+#### 示例 3：复杂 Prompt
+
+```xml
+---
+title: <VAR name="title" defaultValue="Untitled"></VAR>
+description: <VAR name="description" defaultValue="No description"></VAR>
+tags:
+  - <VAR name="tag1"></VAR>
+  - <VAR name="tag2" defaultValue="general"></VAR>
+---
+
+# <VAR name="title" defaultValue="Untitled"></VAR>
+
+<VAR name="content"></VAR>
+
+### Requirements
+
+- <VAR name="req1"></VAR>
+- <VAR name="req2" defaultValue="Follow best practices"></VAR>
+```
+
+---
+
+### 与其他语法的兼容性
+
+`<VAR>` 语法不会与以下常见语法冲突：
+
+| 语法 | 示例 | 是否冲突 |
+|------|------|----------|
+| Markdown 粗体 | `**bold**` | ❌ 不冲突 |
+| Markdown 大括号 | `{text}` | ❌ 不冲突 |
+| Handlebars | `{{name}}` | ❌ 不冲突 |
+| JavaScript 模板字面量 | `` `${var}` `` | ❌ 不冲突 |
+| printf 格式 | `%s %d` | ❌ 不冲突 |
+| Shell 变量 | `$VAR` | ❌ 不冲突 |
+| CSS 变量 | `--var` | ❌ 不冲突 |
+
+---
+
+### 技术实现
+
+#### 正则表达式
+
+```javascript
+// 匹配 <VAR> 标签
+/<VAR\s+name="([^"]+)"(?:\s+defaultValue="([^"]*)")?(?:[^>]*)>(?:[\s\S]*?)<\/VAR>|<VAR\s+name="([^"]+)"(?:\s+defaultValue="([^"]*)")?\s*\/>/gi
+```
+
+#### 解析流程
+
+1. 扫描模板中的所有 `<VAR>` 标签
+2. 提取 `name` 和 `defaultValue` 属性
+3. 返回变量列表供 UI 层渲染输入表单
+4. 用户填写后，执行替换操作
+
+#### 替换规则
+
+1. 如果用户提供了值，使用用户值替换
+2. 如果用户未提供值但有默认值，使用默认值替换
+3. 如果既无用户值也无默认值，保留原始 `<VAR>` 标签
+
+---
+
+### 设计原则
+
+1. **无歧义**：XML 标签风格确保不会与现有语法冲突
+2. **可扩展**：未来可添加更多属性（如 `type`、`required`、`description`）
+3. **易读写**：语法简洁明了，易于理解和编写
+4. **标准化**：采用常见的 XML 属性语法
+
+---
+
+## 4.4 UI Layer（浮动面板）
 
 ### 设计原则
 
@@ -239,7 +398,7 @@ PromptFlow Panel
 
 ---
 
-## 4.4 Background Service Worker
+## 4.5 Background Service Worker
 
 ### 职责
 
@@ -259,7 +418,7 @@ PromptFlow Panel
 
 ---
 
-## 4.5 Storage Layer
+## 4.6 Storage Layer
 
 ### 本地存储方案
 

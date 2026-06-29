@@ -2,13 +2,19 @@
  * Template Variables Parser
  * 
  * Supports syntax:
- * - {variable_name} - Required variable
- * - {variable_name:default_value} - Variable with default value
+ * - <VAR name="variable_name"></VAR> - Required variable
+ * - <VAR name="variable_name" defaultValue="default_value"></VAR> - Variable with default value
  * 
  * Examples:
- * - {tone} -> User must provide value
- * - {tone:professional} -> Uses "professional" if no value provided
- * - {topic} -> User must provide value
+ * - <VAR name="tone"></VAR> -> User must provide value
+ * - <VAR name="tone" defaultValue="professional"></VAR> -> Uses "professional" if no value provided
+ * - <VAR name="topic"></VAR> -> User must provide value
+ * 
+ * Design Rationale:
+ * - XML tag style ensures no conflict with Markdown, JSON, or code syntax
+ * - <VAR> is uppercase to avoid conflict with HTML elements
+ * - Supports defaultValue attribute for optional variables
+ * - Name attribute is required, unique identifier for the variable
  */
 
 export interface Variable {
@@ -25,13 +31,16 @@ export interface ParseResult {
 }
 
 /**
- * Regular expression to match template variables
- * Matches: {variable_name} or {variable_name:default_value}
+ * Regular expression to match <VAR> template variables
+ * Matches: <VAR name="..." ...></VAR> or <VAR name="..."/>
  * 
- * - Supports alphanumeric, underscore, hyphen in variable names
- * - Default values can contain any character except }
+ * Supports:
+ * - name attribute (required): The variable identifier
+ * - defaultValue attribute (optional): Default value if no value provided
+ * 
+ * The regex matches the entire VAR tag including opening and closing tags
  */
-const VARIABLE_PATTERN = /\{([a-zA-Z_][a-zA-Z0-9_-]*)(?::([^}]*))?\}/g;
+const VAR_TAG_PATTERN = /<VAR\s+name="([^"]+)"(?:\s+defaultValue="([^"]*)")?(?:[^>]*)>(?:[\s\S]*?)<\/VAR>|<VAR\s+name="([^"]+)"(?:\s+defaultValue="([^"]*)")?\s*\/>/gi;
 
 /**
  * Parse template string and extract all variables
@@ -41,9 +50,12 @@ export function parseTemplate(template: string): ParseResult {
   const seen = new Map<string, number>(); // Track duplicate variable names
   
   let match;
-  while ((match = VARIABLE_PATTERN.exec(template)) !== null) {
-    const name = match[1];
-    const defaultValue = match[2] || undefined;
+  while ((match = VAR_TAG_PATTERN.exec(template)) !== null) {
+    // Handle both closing tag and self-closing tag formats
+    // Group 1,2: name and defaultValue for closing tag format
+    // Group 3,4: name and defaultValue for self-closing tag format
+    const name = match[1] || match[3];
+    const defaultValue = match[2] || match[4] || undefined;
     
     // Track occurrences for duplicate naming
     const occurrence = seen.get(name) || 0;
@@ -59,7 +71,7 @@ export function parseTemplate(template: string): ParseResult {
   }
   
   // Reset regex lastIndex for future use
-  VARIABLE_PATTERN.lastIndex = 0;
+  VAR_TAG_PATTERN.lastIndex = 0;
   
   return {
     variables,
@@ -102,19 +114,23 @@ export function allVariablesHaveDefaults(template: string): boolean {
 /**
  * Interpolate template with provided values
  * 
- * @param template - The template string with {variable} placeholders
+ * @param template - The template string with <VAR> placeholders
  * @param values - Object mapping variable names to values
  * @returns Interpolated string with values replaced
  */
 export function interpolate(template: string, values: Record<string, string>): string {
-  return template.replace(VARIABLE_PATTERN, (match, name, defaultValue) => {
+  return template.replace(VAR_TAG_PATTERN, (match, g1, g2, g3, g4) => {
+    // Handle both closing tag and self-closing tag formats
+    const name = g1 || g3;
+    const defaultValue = g2 || g4;
+    
     const value = values[name];
     
     if (value !== undefined && value !== '') {
       return value;
     }
     
-    if (defaultValue !== undefined) {
+    if (defaultValue !== undefined && defaultValue !== '') {
       return defaultValue;
     }
     

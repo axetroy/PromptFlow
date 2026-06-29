@@ -5,8 +5,12 @@
  * before inserting prompts into input fields.
  * 
  * Supports syntax:
- * - {variable_name} - Required variable
- * - {variable_name:default_value} - Variable with default value
+ * - <VAR name="variable_name"></VAR> - Required variable
+ * - <VAR name="variable_name" defaultValue="default_value"></VAR> - Variable with default value
+ * 
+ * Examples:
+ * - <VAR name="tone"></VAR> - User must provide value
+ * - <VAR name="tone" defaultValue="professional"></VAR> - Uses "professional" if no value provided
  */
 
 import { getUniqueVariables, interpolate, Variable } from './utils/template-parser';

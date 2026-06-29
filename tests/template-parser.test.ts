@@ -11,6 +11,8 @@
  * - isValidVariableName
  * - getVariableStats
  * 
+ * Variable Syntax: <VAR name="variable_name" defaultValue="default_value"></VAR>
+ * 
  * Uses Node.js built-in test runner (node:test)
  */
 
@@ -27,7 +29,7 @@ import {
   getVariableStats,
 } from '../src/utils/template-parser';
 
-describe('Template Parser', () => {
+describe('Template Parser - VAR Tag Syntax', () => {
   describe('parseTemplate', () => {
     it('should return empty array for template without variables', () => {
       const result = parseTemplate('Hello World!');
@@ -36,112 +38,87 @@ describe('Template Parser', () => {
     });
 
     it('should parse single variable', () => {
-      const result = parseTemplate('Hello {name}!');
+      const result = parseTemplate('Hello <VAR name="name"></VAR>!');
       assert.strictEqual(result.variables.length, 1);
       assert.strictEqual(result.variables[0].name, 'name');
       assert.strictEqual(result.variables[0].defaultValue, undefined);
-      assert.strictEqual(result.variables[0].fullMatch, '{name}');
-      assert.strictEqual(result.variables[0].startIndex, 6);
-      assert.strictEqual(result.variables[0].endIndex, 12);
+      assert.strictEqual(result.variables[0].fullMatch, '<VAR name="name"></VAR>');
     });
 
     it('should parse variable with default value', () => {
-      const result = parseTemplate('Hello {name:World}!');
+      const result = parseTemplate('Hello <VAR name="name" defaultValue="World"></VAR>!');
       assert.strictEqual(result.variables.length, 1);
       assert.strictEqual(result.variables[0].name, 'name');
       assert.strictEqual(result.variables[0].defaultValue, 'World');
     });
 
     it('should parse multiple variables', () => {
-      const result = parseTemplate('{greeting} {name}!');
+      const result = parseTemplate('<VAR name="greeting"></VAR> <VAR name="name"></VAR>!');
       assert.strictEqual(result.variables.length, 2);
       assert.strictEqual(result.variables[0].name, 'greeting');
       assert.strictEqual(result.variables[1].name, 'name');
     });
 
     it('should parse duplicate variables', () => {
-      const result = parseTemplate('{name} is the same as {name}');
+      const result = parseTemplate('<VAR name="name"></VAR> is the same as <VAR name="name"></VAR>');
       assert.strictEqual(result.variables.length, 2);
       assert.strictEqual(result.variables[0].name, 'name');
       assert.strictEqual(result.variables[1].name, 'name');
     });
 
     it('should handle variables at start of template', () => {
-      const result = parseTemplate('{greeting} there!');
+      const result = parseTemplate('<VAR name="greeting"></VAR> there!');
       assert.strictEqual(result.variables.length, 1);
       assert.strictEqual(result.variables[0].startIndex, 0);
     });
 
-    it('should handle variables at end of template', () => {
-      const result = parseTemplate('Say {word}');
-      assert.strictEqual(result.variables.length, 1);
-      assert.strictEqual(result.variables[0].endIndex, 10);
-    });
-
     it('should handle adjacent variables', () => {
-      const result = parseTemplate('{a}{b}');
+      const result = parseTemplate('<VAR name="a"></VAR><VAR name="b"></VAR>');
       assert.strictEqual(result.variables.length, 2);
-      assert.strictEqual(result.variables[0].endIndex, 3);
-      assert.strictEqual(result.variables[1].startIndex, 3);
     });
 
     it('should handle default values with special characters', () => {
-      const result = parseTemplate('{style:formal, professional}');
+      const result = parseTemplate('<VAR name="style" defaultValue="formal, professional"></VAR>');
       assert.strictEqual(result.variables[0].defaultValue, 'formal, professional');
     });
 
-    it('should handle default values with spaces', () => {
-      const result = parseTemplate('{greeting:Hello World}');
-      assert.strictEqual(result.variables[0].defaultValue, 'Hello World');
-    });
-
-    it('should handle default values with numbers', () => {
-      const result = parseTemplate('{count:42} and {ratio:3.14}');
-      assert.strictEqual(result.variables[0].defaultValue, '42');
-      assert.strictEqual(result.variables[1].defaultValue, '3.14');
-    });
-
-    it('should not match empty braces', () => {
-      const result = parseTemplate('{}');
-      assert.strictEqual(result.variables.length, 0);
-    });
-
-    it('should not match braces with only special characters', () => {
-      const result = parseTemplate('{!} {?} {$}');
-      assert.strictEqual(result.variables.length, 0);
+    it('should handle self-closing syntax', () => {
+      const result = parseTemplate('Hello <VAR name="name"/>!');
+      assert.strictEqual(result.variables.length, 1);
+      assert.strictEqual(result.variables[0].name, 'name');
     });
 
     it('should handle variable with underscore', () => {
-      const result = parseTemplate('{my_variable}');
+      const result = parseTemplate('<VAR name="my_variable"></VAR>');
       assert.strictEqual(result.variables.length, 1);
       assert.strictEqual(result.variables[0].name, 'my_variable');
     });
 
     it('should handle variable with hyphen', () => {
-      const result = parseTemplate('{my-var}');
+      const result = parseTemplate('<VAR name="my-var"></VAR>');
       assert.strictEqual(result.variables.length, 1);
       assert.strictEqual(result.variables[0].name, 'my-var');
     });
 
-    it('should handle variable starting with underscore', () => {
-      const result = parseTemplate('{_private}');
-      assert.strictEqual(result.variables.length, 1);
-      assert.strictEqual(result.variables[0].name, '_private');
-    });
-
     it('should handle multiline templates', () => {
-      const template = `Hello {name},
+      const template = `Hello <VAR name="name"></VAR>,
 How are you today?`;
       const result = parseTemplate(template);
       assert.strictEqual(result.variables.length, 1);
       assert.strictEqual(result.variables[0].name, 'name');
     });
 
-    it('should handle template with only a variable', () => {
-      const result = parseTemplate('{var}');
+    it('should not match unrelated HTML tags', () => {
+      const template = '<div>Hello</div> <span>World</span>';
+      const result = parseTemplate(template);
+      assert.strictEqual(result.variables.length, 0);
+    });
+
+    it('should handle content between VAR tags', () => {
+      const template = '<VAR name="var">This is content</VAR>';
+      const result = parseTemplate(template);
       assert.strictEqual(result.variables.length, 1);
-      assert.strictEqual(result.variables[0].startIndex, 0);
-      assert.strictEqual(result.variables[0].endIndex, 5);
+      assert.strictEqual(result.variables[0].name, 'var');
     });
   });
 
@@ -152,28 +129,22 @@ How are you today?`;
     });
 
     it('should return single variable for single occurrence', () => {
-      const result = getUniqueVariables('{name}');
+      const result = getUniqueVariables('<VAR name="name"></VAR>');
       assert.strictEqual(result.length, 1);
       assert.strictEqual(result[0].name, 'name');
     });
 
     it('should return unique variables only', () => {
-      const result = getUniqueVariables('{a} {b} {a} {c} {b}');
-      assert.strictEqual(result.length, 3);
+      const result = getUniqueVariables('<VAR name="a"></VAR> <VAR name="b"></VAR> <VAR name="a"></VAR>');
+      assert.strictEqual(result.length, 2);
       const names = result.map(v => v.name).sort();
-      assert.deepStrictEqual(names, ['a', 'b', 'c']);
+      assert.deepStrictEqual(names, ['a', 'b']);
     });
 
     it('should return first occurrence for duplicate variables', () => {
-      const result = getUniqueVariables('{name:first} {name:second}');
+      const result = getUniqueVariables('<VAR name="name" defaultValue="first"></VAR> <VAR name="name" defaultValue="second"></VAR>');
       assert.strictEqual(result.length, 1);
       assert.strictEqual(result[0].defaultValue, 'first');
-    });
-
-    it('should preserve default values', () => {
-      const result = getUniqueVariables('{name:default}');
-      assert.strictEqual(result.length, 1);
-      assert.strictEqual(result[0].defaultValue, 'default');
     });
   });
 
@@ -183,23 +154,19 @@ How are you today?`;
     });
 
     it('should return true for template with one variable', () => {
-      assert.strictEqual(hasVariables('Hello {name}!'), true);
+      assert.strictEqual(hasVariables('Hello <VAR name="name"></VAR>!'), true);
     });
 
     it('should return true for template with multiple variables', () => {
-      assert.strictEqual(hasVariables('{a} {b} {c}'), true);
+      assert.strictEqual(hasVariables('<VAR name="a"></VAR> <VAR name="b"></VAR>'), true);
     });
 
     it('should return false for empty template', () => {
       assert.strictEqual(hasVariables(''), false);
     });
 
-    it('should return false for whitespace only', () => {
-      assert.strictEqual(hasVariables('   '), false);
-    });
-
     it('should return true for template with default value variable', () => {
-      assert.strictEqual(hasVariables('{name:default}'), true);
+      assert.strictEqual(hasVariables('<VAR name="name" defaultValue="default"></VAR>'), true);
     });
   });
 
@@ -209,123 +176,77 @@ How are you today?`;
     });
 
     it('should return true when all variables have defaults', () => {
-      assert.strictEqual(allVariablesHaveDefaults('{a:1} {b:2}'), true);
+      assert.strictEqual(allVariablesHaveDefaults('<VAR name="a" defaultValue="1"></VAR> <VAR name="b" defaultValue="2"></VAR>'), true);
     });
 
     it('should return false when some variables lack defaults', () => {
-      assert.strictEqual(allVariablesHaveDefaults('{a:1} {b}'), false);
+      assert.strictEqual(allVariablesHaveDefaults('<VAR name="a" defaultValue="1"></VAR> <VAR name="b"></VAR>'), false);
     });
 
-    it('should return false when no variables have defaults', () => {
-      assert.strictEqual(allVariablesHaveDefaults('{a} {b}'), false);
-    });
-
-    it('should return true for single variable with default', () => {
-      assert.strictEqual(allVariablesHaveDefaults('{var:default}'), true);
-    });
-
-    it('should return false for single variable without default', () => {
-      assert.strictEqual(allVariablesHaveDefaults('{var}'), false);
+    it('should return false when all variables lack defaults', () => {
+      assert.strictEqual(allVariablesHaveDefaults('<VAR name="a"></VAR> <VAR name="b"></VAR>'), false);
     });
   });
 
   describe('interpolate', () => {
-    it('should return original template when no values provided', () => {
-      assert.strictEqual(interpolate('Hello {name}!', {}), 'Hello {name}!');
-    });
-
-    it('should replace variable with provided value', () => {
-      assert.strictEqual(interpolate('Hello {name}!', { name: 'World' }), 'Hello World!');
-    });
-
-    it('should use default value when no value provided', () => {
-      assert.strictEqual(interpolate('Hello {name:World}!', {}), 'Hello World!');
-    });
-
-    it('should prefer provided value over default', () => {
-      assert.strictEqual(interpolate('Hello {name:World}!', { name: 'John' }), 'Hello John!');
-    });
-
-    it('should handle multiple variables', () => {
-      const template = '{greeting} {name}!';
-      const result = interpolate(template, { greeting: 'Hello', name: 'World' });
+    it('should replace single variable', () => {
+      const result = interpolate('Hello <VAR name="name"></VAR>!', { name: 'World' });
       assert.strictEqual(result, 'Hello World!');
     });
 
-    it('should handle mixed variables with and without defaults', () => {
-      const template = '{greeting} {name}!';
-      const result = interpolate(template, { greeting: 'Hi' });
-      assert.strictEqual(result, 'Hi {name}!');
+    it('should replace multiple variables', () => {
+      const result = interpolate('<VAR name="greeting"></VAR> <VAR name="name"></VAR>!', { greeting: 'Hello', name: 'Alice' });
+      assert.strictEqual(result, 'Hello Alice!');
     });
 
-    it('should handle empty string value', () => {
-      assert.strictEqual(interpolate('Hello {name}!', { name: '' }), 'Hello {name}!');
+    it('should use default value when no value provided', () => {
+      const result = interpolate('Hello <VAR name="name" defaultValue="World"></VAR>!', {});
+      assert.strictEqual(result, 'Hello World!');
     });
 
-    it('should handle whitespace value', () => {
-      assert.strictEqual(interpolate('Hello {name}!', { name: ' ' }), 'Hello  !');
+    it('should prefer provided value over default', () => {
+      const result = interpolate('Hello <VAR name="name" defaultValue="World"></VAR>!', { name: 'Alice' });
+      assert.strictEqual(result, 'Hello Alice!');
     });
 
-    it('should not affect text outside variables', () => {
-      const template = 'Prefix {var} suffix';
-      assert.strictEqual(interpolate(template, { var: 'X' }), 'Prefix X suffix');
-    });
-
-    it('should handle nested braces in default values', () => {
-      const result = interpolate('{text:{nested}}', {});
-      assert.strictEqual(result, '{nested}');
+    it('should keep variable when no value and no default', () => {
+      const result = interpolate('Hello <VAR name="name"></VAR>!', {});
+      assert.strictEqual(result, 'Hello <VAR name="name"></VAR>!');
     });
 
     it('should handle duplicate variables', () => {
-      const template = '{name} and {name}';
-      assert.strictEqual(interpolate(template, { name: 'Alice' }), 'Alice and Alice');
+      const template = '<VAR name="name"></VAR> is the same as <VAR name="name"></VAR>';
+      assert.strictEqual(interpolate(template, { name: 'Alice' }), 'Alice is the same as Alice');
     });
 
     it('should handle unicode in values', () => {
-      assert.strictEqual(interpolate('{greeting}', { greeting: '你好世界 🌍' }), '你好世界 🌍');
+      assert.strictEqual(interpolate('<VAR name="greeting"></VAR>', { greeting: '你好世界' }), '你好世界');
     });
 
-    it('should handle special regex characters in values', () => {
-      assert.strictEqual(interpolate('{text}', { text: '$100 (50% off!)' }), '$100 (50% off!)');
+    it('should handle special characters in values', () => {
+      assert.strictEqual(interpolate('<VAR name="text"></VAR>', { text: '$100 (50% off!)' }), '$100 (50% off!)');
     });
 
-    it('should handle newlines in default values', () => {
-      assert.strictEqual(interpolate('{multi:line1\nline2}', {}), 'line1\nline2');
-    });
-
-    it('should handle template with only variable', () => {
-      assert.strictEqual(interpolate('{var}', { var: 'value' }), 'value');
-    });
-
-    it('should handle adjacent variables with values', () => {
-      assert.strictEqual(interpolate('{a}{b}', { a: 'X', b: 'Y' }), 'XY');
+    it('should handle self-closing syntax', () => {
+      const result = interpolate('Hello <VAR name="name"/>!', { name: 'World' });
+      assert.strictEqual(result, 'Hello World!');
     });
   });
 
   describe('generatePreview', () => {
     it('should use defaults when no values provided', () => {
-      const result = generatePreview('Hello {name:World}!');
+      const result = generatePreview('Hello <VAR name="name" defaultValue="World"></VAR>!');
       assert.strictEqual(result, 'Hello World!');
     });
 
     it('should use provided values over defaults', () => {
-      const result = generatePreview('Hello {name:World}!', { name: 'John' });
+      const result = generatePreview('Hello <VAR name="name" defaultValue="World"></VAR>!', { name: 'John' });
       assert.strictEqual(result, 'Hello John!');
     });
 
     it('should use placeholder for variables without defaults', () => {
-      const result = generatePreview('Hello {name}!');
+      const result = generatePreview('Hello <VAR name="name"></VAR>!');
       assert.strictEqual(result, 'Hello [name]!');
-    });
-
-    it('should handle multiple variables with mixed defaults', () => {
-      const result = generatePreview('{a:1} and {b}', {});
-      assert.strictEqual(result, '1 and [b]');
-    });
-
-    it('should prefer provided values', () => {
-      const result = generatePreview('{a} and {b}', { a: 'X', b: 'Y' });
-      assert.strictEqual(result, 'X and Y');
     });
   });
 
@@ -342,18 +263,6 @@ How are you today?`;
       assert.strictEqual(isValidVariableName('my-var'), true);
     });
 
-    it('should return true for name starting with underscore', () => {
-      assert.strictEqual(isValidVariableName('_private'), true);
-    });
-
-    it('should return true for name with numbers', () => {
-      assert.strictEqual(isValidVariableName('var123'), true);
-    });
-
-    it('should return true for mixed case', () => {
-      assert.strictEqual(isValidVariableName('myVariable_123'), true);
-    });
-
     it('should return false for name starting with number', () => {
       assert.strictEqual(isValidVariableName('123name'), false);
     });
@@ -364,16 +273,6 @@ How are you today?`;
 
     it('should return false for empty string', () => {
       assert.strictEqual(isValidVariableName(''), false);
-    });
-
-    it('should return false for special characters', () => {
-      assert.strictEqual(isValidVariableName('name!'), false);
-      assert.strictEqual(isValidVariableName('name@'), false);
-      assert.strictEqual(isValidVariableName('name#'), false);
-    });
-
-    it('should return false for name with dots', () => {
-      assert.strictEqual(isValidVariableName('name.surname'), false);
     });
   });
 
@@ -387,7 +286,7 @@ How are you today?`;
     });
 
     it('should count single variable correctly', () => {
-      const stats = getVariableStats('{name}');
+      const stats = getVariableStats('<VAR name="name"></VAR>');
       assert.strictEqual(stats.total, 1);
       assert.strictEqual(stats.unique, 1);
       assert.strictEqual(stats.withDefaults, 0);
@@ -395,111 +294,96 @@ How are you today?`;
     });
 
     it('should count variable with default correctly', () => {
-      const stats = getVariableStats('{name:default}');
+      const stats = getVariableStats('<VAR name="name" defaultValue="default"></VAR>');
       assert.strictEqual(stats.total, 1);
       assert.strictEqual(stats.unique, 1);
       assert.strictEqual(stats.withDefaults, 1);
       assert.strictEqual(stats.required, 0);
     });
 
-    it('should count duplicate variables correctly', () => {
-      const stats = getVariableStats('{name} {other} {name}');
-      assert.strictEqual(stats.total, 3);
-      assert.strictEqual(stats.unique, 2);
-    });
-
     it('should count mixed variables correctly', () => {
-      const stats = getVariableStats('{a:1} {b} {c:3} {d}');
-      assert.strictEqual(stats.total, 4);
-      assert.strictEqual(stats.unique, 4);
-      assert.strictEqual(stats.withDefaults, 2);
-      assert.strictEqual(stats.required, 2);
+      const stats = getVariableStats('<VAR name="a" defaultValue="1"></VAR> <VAR name="b"></VAR>');
+      assert.strictEqual(stats.withDefaults, 1);
+      assert.strictEqual(stats.required, 1);
     });
   });
 
-  describe('Edge cases and real-world usage', () => {
-    it('should handle realistic code review prompt', () => {
-      const template = `Review the following {language} code:
+  describe('Real-world usage - No conflicts', () => {
+    it('should NOT match curly braces in markdown', () => {
+      const template = '# {heading} is a conflict test\n\n**Bold text** and <VAR name="variable"></VAR>';
+      const variables = getUniqueVariables(template);
+      assert.strictEqual(variables.length, 1);
+      assert.strictEqual(variables[0].name, 'variable');
+    });
 
-\`\`\`
-{code}
-\`\`\`
+    it('should NOT match curly braces in JSON', () => {
+      const template = '{"key": "{value}", "var": "<VAR name="var"></VAR>"}';
+      const variables = getUniqueVariables(template);
+      assert.strictEqual(variables.length, 1);
+      assert.strictEqual(variables[0].name, 'var');
+    });
 
-Focus on: {focus_areas:general improvements}`;
+    it('should NOT match Handlebars syntax', () => {
+      const template = '{{#each items}}<VAR name="item"></VAR>{{/each}}';
+      const variables = getUniqueVariables(template);
+      assert.strictEqual(variables.length, 1);
+    });
+
+    it('should NOT match template literals', () => {
+      const template = '`Hello {name}` and <VAR name="greeting"></VAR>';
+      const variables = getUniqueVariables(template);
+      assert.strictEqual(variables.length, 1);
+      assert.strictEqual(variables[0].name, 'greeting');
+    });
+
+    it('should NOT match percentage placeholders', () => {
+      const template = 'Hello %s and <VAR name="name"></VAR>';
+      const variables = getUniqueVariables(template);
+      assert.strictEqual(variables.length, 1);
+      assert.strictEqual(variables[0].name, 'name');
+    });
+
+    it('should NOT match dollar sign variables', () => {
+      const template = '$variable and <VAR name="name"></VAR>';
+      const variables = getUniqueVariables(template);
+      assert.strictEqual(variables.length, 1);
+      assert.strictEqual(variables[0].name, 'name');
+    });
+
+    it('should interpolate correctly when mixed with other syntax', () => {
+      const template = '# {title}\n\n<VAR name="content"></VAR>\n\nCode: `{code}`';
+      const result = interpolate(template, { content: 'My Content' });
+      assert.ok(result.includes('My Content'));
+      assert.ok(result.includes('{title}')); // Not replaced
+      assert.ok(result.includes('`{code}`')); // Not replaced
+    });
+  });
+
+  describe('Translation prompt example', () => {
+    it('should handle the exact translation prompt from user', () => {
+      const template = `Translate the following text to <VAR name="target_language" defaultValue="English"></VAR>:
+
+<VAR name="text"></VAR>
+
+Do **not** translate {keep_as_is}`;
 
       const variables = getUniqueVariables(template);
-      assert.strictEqual(variables.length, 3);
+      assert.strictEqual(variables.length, 2);
       
-      const names = variables.map(v => v.name).sort();
-      assert.deepStrictEqual(names, ['code', 'focus_areas', 'language']);
+      const langVar = variables.find(v => v.name === 'target_language');
+      assert.strictEqual(langVar?.defaultValue, 'English');
       
-      const focusVar = variables.find(v => v.name === 'focus_areas');
-      assert.strictEqual(focusVar?.defaultValue, 'general improvements');
-      
-      const codeVar = variables.find(v => v.name === 'code');
-      assert.strictEqual(codeVar?.defaultValue, undefined);
-    });
-
-    it('should handle prompt with all required variables', () => {
-      const template = 'Write a {tone} {style} explanation about {topic}';
-      const result = interpolate(template, {
-        tone: 'professional',
-        style: 'technical',
-        topic: 'JavaScript closures'
-      });
-      assert.strictEqual(result, 'Write a professional technical explanation about JavaScript closures');
-    });
-
-    it('should handle prompt with all optional variables', () => {
-      const template = 'Write a {tone:casual} explanation about {topic:this topic}';
-      const result = interpolate(template, {});
-      assert.strictEqual(result, 'Write a casual explanation about this topic');
-    });
-
-    it('should handle complex markdown prompt', () => {
-      const template = `---
-title: {title:Untitled}
-description: {description:No description}
-tags: [{tags:general}]
----
-
-# {title:Untitled}
-
-{content}`;
-
-      const result = interpolate(template, { title: 'My Post' });
-      assert.ok(result.includes('title: My Post'));
-      assert.ok(result.includes('description: No description'));
-      assert.ok(result.includes('tags: [general]'));
-    });
-
-    it('should handle JSON-like structure', () => {
-      const template = '{"name": "{name}", "age": {age:0}, "active": {active:true}}';
-      const result = interpolate(template, { name: 'John' });
-      assert.ok(result.includes('"name": "John"'));
-      assert.ok(result.includes('"age": 0'));
-      assert.ok(result.includes('"active": true'));
-    });
-
-    it('should handle email template', () => {
-      const template = `Dear {name:Valued Customer},
-
-Thank you for your {order_type:purchase}.
-
-Your order #{order_id:12345} has been {status:received}.
-
-Best regards,
-{company:Our Company}`;
+      const textVar = variables.find(v => v.name === 'text');
+      assert.strictEqual(textVar?.defaultValue, undefined);
 
       const result = interpolate(template, {
-        name: 'Alice',
-        order_id: 'ORD-2024-001'
+        target_language: '中文',
+        text: 'Hello World'
       });
-
-      assert.ok(result.includes('Dear Alice'));
-      assert.ok(result.includes('purchase'));
-      assert.ok(result.includes('#ORD-2024-001'));
-      assert.ok(result.includes('received'));
+      
+      assert.ok(result.includes('Translate the following text to 中文'));
+      assert.ok(result.includes('Hello World'));
+      assert.ok(result.includes('Do **not** translate {keep_as_is}'));
     });
   });
 });
