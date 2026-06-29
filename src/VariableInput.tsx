@@ -213,37 +213,37 @@ export function showVariableInput(options: VariableInputOptions): void {
   // Build HTML
   content.innerHTML = `
     <div class="vf-header" style="padding: 20px 24px; border-bottom: 1px solid #e8e8e8; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
-      <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">💬 填充变量</div>
+      <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">💬 Fill Variables</div>
       <div style="font-size: 13px; opacity: 0.9;">${escapeHtml(prompt.title)}</div>
     </div>
     <div class="vf-body" style="flex: 1; overflow: auto;">
       <div style="padding: 24px;">
         ${activeVariables.length > 0 ? `
           <div style="margin-bottom: 24px;">
-            <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 12px; color: #333;">📋 变量填写</label>
+            <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 12px; color: #333;">📋 Fill Variables</label>
             ${variableInputsHtml}
           </div>
         ` : `
           <div style="text-align: center; padding: 20px; color: #999; background: #fafafa; border-radius: 8px; margin-bottom: 24px;">
-            此模板不包含变量
+            This template does not contain any variables
           </div>
         `}
         <div>
-          <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 12px; color: #333;">👁️ 预览效果</label>
+          <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 12px; color: #333;">👁️ Preview</label>
           <div class="vf-preview" style="background-color: #f8f8f8; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.6; color: #333; max-height: 250px; overflow: auto; white-space: pre; word-break: break-word; font-family: "SF Mono", Monaco, "Cascadia Code", monospace;"></div>
         </div>
       </div>
     </div>
     <div class="vf-footer" style="padding: 16px 24px; border-top: 1px solid #e8e8e8; display: flex; justify-content: space-between; align-items: center; background: #fafafa;">
       <div style="font-size: 12px; color: #999;">
-        按 <kbd style="background: #fff; border: 1px solid #d9d9d9; border-radius: 4px; padding: 2px 6px; font-family: monospace;">Esc</kbd> 取消
+        Press <kbd style="background: #fff; border: 1px solid #d9d9d9; border-radius: 4px; padding: 2px 6px; font-family: monospace;">Esc</kbd> to cancel
       </div>
       <div style="display: flex; align-items: center; gap: 12px; position: relative;">
         <div class="vf-tooltip" style="position: absolute; right: 100%; mr-8px; top: 50%; transform: translateY(-50%); background: #333; color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; margin-right: 8px;">
-          按 <kbd style="background: #555; border-radius: 3px; padding: 1px 5px; margin: 0 2px;">Enter</kbd> 插入
+          Press <kbd style="background: #555; border-radius: 3px; padding: 1px 5px; margin: 0 2px;">Enter</kbd> to insert
         </div>
-        <button type="button" class="vf-cancel-btn" style="padding: 8px 20px; font-size: 14px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; cursor: pointer; color: #333;">取消</button>
-        <button type="button" class="vf-submit-btn" style="padding: 8px 20px; font-size: 14px; border: none; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; cursor: pointer;">✨ 插入 Prompt</button>
+        <button type="button" class="vf-cancel-btn" style="padding: 8px 20px; font-size: 14px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; cursor: pointer; color: #333;">Cancel</button>
+        <button type="button" class="vf-submit-btn" style="padding: 8px 20px; font-size: 14px; border: none; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; cursor: pointer;">✨ Insert Prompt</button>
       </div>
     </div>
   `;
