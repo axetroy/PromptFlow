@@ -31,7 +31,8 @@ import {
   DownloadOutlined,
   GithubOutlined,
   SyncOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -76,12 +77,18 @@ interface PromptSettings {
   insertMode: 'replace' | 'append';
 }
 
+interface PromptUsage {
+  promptId: string;
+  usedAt: number;
+}
+
 interface StorageData {
   customPrompts: Prompt[]; // Only custom prompts stored
   disabledDefaultIds?: string[]; // IDs of disabled default prompts
   syncedRepos: SyncedRepo[];
   syncedPrompts: SyncedPrompt[];
   settings: PromptSettings;
+  usageHistory?: PromptUsage[];
 }
 
 // Default prompts - always loaded from markdown files
@@ -150,6 +157,7 @@ const loadData = (): Promise<StorageData> => {
           syncedRepos: data.syncedRepos || [],
           syncedPrompts: data.syncedPrompts || [],
           settings: data.settings || { trigger: '/prompts', insertMode: 'replace' },
+          usageHistory: data.usageHistory || [],
         });
       } else {
         resolve({
@@ -158,6 +166,7 @@ const loadData = (): Promise<StorageData> => {
           syncedRepos: [],
           syncedPrompts: [],
           settings: { trigger: '/prompts', insertMode: 'replace' },
+          usageHistory: [],
         });
       }
     });
@@ -170,6 +179,50 @@ const saveData = (data: StorageData): Promise<void> => {
   });
 };
 
+// Decay settings - half-life of 14 days means usage value halves every 14 days
+const HALF_LIFE_DAYS = 14;
+
+// Calculate popularity score based on usage count and recency
+// Formula: score = N * (0.5)^(T / halfLifeDays)
+// Where N = usage count, T = days since last use, halfLifeDays = 14
+const calculatePopularityScore = (count: number, lastUsedAt: number): number => {
+  const now = Date.now();
+  const daysSinceLastUse = (now - lastUsedAt) / (1000 * 60 * 60 * 24);
+  const decayFactor = Math.pow(0.5, daysSinceLastUse / HALF_LIFE_DAYS);
+  return count * decayFactor;
+};
+
+// Calculate usage statistics from history
+const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]): { promptId: string; count: number; lastUsed: number; title: string; score: number }[] => {
+  const statsMap = new Map<string, { count: number; lastUsed: number }>();
+  
+  for (const usage of usageHistory) {
+    const existing = statsMap.get(usage.promptId);
+    if (existing) {
+      existing.count += 1;
+      existing.lastUsed = Math.max(existing.lastUsed, usage.usedAt);
+    } else {
+      statsMap.set(usage.promptId, { count: 1, lastUsed: usage.usedAt });
+    }
+  }
+  
+  const stats: { promptId: string; count: number; lastUsed: number; title: string; score: number }[] = [];
+  for (const [promptId, data] of statsMap) {
+    const prompt = allPrompts.find(p => p.id === promptId);
+    const score = calculatePopularityScore(data.count, data.lastUsed);
+    stats.push({
+      promptId,
+      count: data.count,
+      lastUsed: data.lastUsed,
+      title: prompt?.title || 'Unknown Prompt',
+      score,
+    });
+  }
+  
+  // Sort by popularity score (descending)
+  return stats.sort((a, b) => b.score - a.score);
+};
+
 // Settings App Component
 const SettingsApp: React.FC = () => {
   const [customPrompts, setCustomPrompts] = useState<Prompt[]>([]);
@@ -179,6 +232,8 @@ const SettingsApp: React.FC = () => {
   const [syncingMap, setSyncingMap] = useState<Record<string, boolean>>({});
   const [allPrompts, setAllPrompts] = useState<Prompt[]>([]);
   const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', insertMode: 'replace' });
+  const [usageHistory, setUsageHistory] = useState<PromptUsage[]>([]);
+  const [usageStats, setUsageStats] = useState<{ promptId: string; count: number; lastUsed: number; title: string; score: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
@@ -201,14 +256,29 @@ const SettingsApp: React.FC = () => {
         data.syncedPrompts
       ));
       setSettings(data.settings);
+      setUsageHistory(data.usageHistory || []);
       setLoading(false);
     });
+
+    // Listen for storage changes from other sources (e.g., content script)
+    const handleStorageChange = () => {
+      loadData().then((data) => {
+        setUsageHistory(data.usageHistory || []);
+      });
+    };
+    
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
   }, []);
 
-  // Update all prompts when custom prompts, disabled defaults, or synced data change
+  // Update all prompts and usage stats when relevant data changes
   useEffect(() => {
     setAllPrompts(getAllPromptsWithSync(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts));
-  }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts]);
+    // Update usage stats when prompts or history changes
+    setUsageStats(calculateUsageStats(usageHistory, getAllPromptsWithSync(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts)));
+  }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, usageHistory]);
 
   // Save data whenever custom prompts, disabled defaults, synced data or settings change
   const persistData = useCallback(async (
@@ -216,16 +286,18 @@ const SettingsApp: React.FC = () => {
     newDisabledDefaultIds: string[],
     newSyncedRepos: SyncedRepo[],
     newSyncedPrompts: SyncedPrompt[],
-    newSettings: PromptSettings
+    newSettings: PromptSettings,
+    newUsageHistory?: PromptUsage[]
   ) => {
     await saveData({ 
       customPrompts: newCustomPrompts, 
       disabledDefaultIds: newDisabledDefaultIds,
       syncedRepos: newSyncedRepos,
       syncedPrompts: newSyncedPrompts,
-      settings: newSettings 
+      settings: newSettings,
+      usageHistory: newUsageHistory || usageHistory,
     });
-  }, []);
+  }, [usageHistory]);
 
   // Handle settings change
   const handleSettingsChange = async (key: keyof PromptSettings, value: string) => {
@@ -233,6 +305,13 @@ const SettingsApp: React.FC = () => {
     setSettings(newSettings);
     await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, newSettings);
     messageApi.success('Settings saved');
+  };
+
+  // Handle clearing usage history
+  const handleClearUsageHistory = async () => {
+    await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings, []);
+    setUsageHistory([]);
+    messageApi.success('Usage history cleared');
   };
 
   // Sync handlers
@@ -745,6 +824,70 @@ const SettingsApp: React.FC = () => {
               </Space>
             </Card>
           )}
+
+          {/* Usage Statistics */}
+          <Card 
+            title={<Space><BarChartOutlined /> Usage Statistics</Space>}
+            extra={
+              usageStats.length > 0 && (
+                <Popconfirm
+                  title="Clear usage history?"
+                  description="This will reset all usage statistics. This action cannot be undone."
+                  onConfirm={handleClearUsageHistory}
+                  okText="Clear"
+                  cancelText="Cancel"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button danger size="small">Clear History</Button>
+                </Popconfirm>
+              )
+            }
+            style={{ marginBottom: 24 }}
+          >
+            {usageStats.length === 0 ? (
+              <Text type="secondary">No usage data yet. Start using prompts to see statistics here.</Text>
+            ) : (
+              <>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                  Total uses: {usageHistory.length} across {usageStats.length} prompts
+                </Text>
+                <Table
+                  dataSource={usageStats}
+                  rowKey="promptId"
+                  pagination={false}
+                  size="small"
+                  scroll={{ y: 400 }}
+                  sticky
+                  columns={[
+                      {
+                        title: 'Prompt',
+                        dataIndex: 'title',
+                        key: 'title',
+                        render: (text: string) => <Text ellipsis style={{ maxWidth: 300 }}>{text}</Text>,
+                      },
+                      {
+                        title: 'Uses',
+                        dataIndex: 'count',
+                        key: 'count',
+                        width: 80,
+                        render: (count: number) => <Tag color="blue">{count}</Tag>,
+                      },
+                      {
+                        title: 'Last Used',
+                        dataIndex: 'lastUsed',
+                        key: 'lastUsed',
+                        width: 150,
+                        render: (timestamp: number) => (
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {new Date(timestamp).toLocaleDateString()} {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </Text>
+                        ),
+                      },
+                    ]}
+                  />
+              </>
+            )}
+          </Card>
 
           <Card title={<Text type="danger"><SettingOutlined /> Danger Zone</Text>} style={{ borderColor: '#ff4d4f' }}>
             <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
