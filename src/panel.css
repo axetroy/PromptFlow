@@ -91,9 +91,16 @@
   color: #1a1a1a;
 }
 
+/* Hover state - subtle background change */
 .prompt-item:hover,
+.prompt-item.hovered {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Selected state - more prominent, with border indicator */
 .prompt-item.selected {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 /* Prompt Item Children */
@@ -260,9 +267,16 @@
   color: #fff;
 }
 
+/* Hover state - subtle background change */
 #promptflow-panel.dark .prompt-item:hover,
+#promptflow-panel.dark .prompt-item.hovered {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Selected state - more prominent, with border indicator */
 #promptflow-panel.dark .prompt-item.selected {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.5);
 }
 
 #promptflow-panel.dark .prompt-item-title {

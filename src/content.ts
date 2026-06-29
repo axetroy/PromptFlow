@@ -538,10 +538,19 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
       </div>
     `;
     
-    item.addEventListener('click', () => selectPrompt(prompt));
-    item.addEventListener('mouseenter', () => {
+    // Click to select
+    item.addEventListener('click', () => {
       state.selectedIndex = index;
       updateSelection(shadow, index);
+      selectPrompt(prompt);
+    });
+    
+    // Hover for visual feedback only (not selecting)
+    item.addEventListener('mouseenter', () => {
+      item.classList.add('hovered');
+    });
+    item.addEventListener('mouseleave', () => {
+      item.classList.remove('hovered');
     });
     
     listContainer.appendChild(item);
