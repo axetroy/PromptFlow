@@ -179,8 +179,21 @@ const saveData = (data: StorageData): Promise<void> => {
   });
 };
 
+// Decay settings - half-life of 14 days means usage value halves every 14 days
+const HALF_LIFE_DAYS = 14;
+
+// Calculate popularity score based on usage count and recency
+// Formula: score = N * (0.5)^(T / halfLifeDays)
+// Where N = usage count, T = days since last use, halfLifeDays = 14
+const calculatePopularityScore = (count: number, lastUsedAt: number): number => {
+  const now = Date.now();
+  const daysSinceLastUse = (now - lastUsedAt) / (1000 * 60 * 60 * 24);
+  const decayFactor = Math.pow(0.5, daysSinceLastUse / HALF_LIFE_DAYS);
+  return count * decayFactor;
+};
+
 // Calculate usage statistics from history
-const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]): { promptId: string; count: number; lastUsed: number; title: string }[] => {
+const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]): { promptId: string; count: number; lastUsed: number; title: string; score: number }[] => {
   const statsMap = new Map<string, { count: number; lastUsed: number }>();
   
   for (const usage of usageHistory) {
@@ -193,19 +206,21 @@ const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]):
     }
   }
   
-  const stats: { promptId: string; count: number; lastUsed: number; title: string }[] = [];
+  const stats: { promptId: string; count: number; lastUsed: number; title: string; score: number }[] = [];
   for (const [promptId, data] of statsMap) {
     const prompt = allPrompts.find(p => p.id === promptId);
+    const score = calculatePopularityScore(data.count, data.lastUsed);
     stats.push({
       promptId,
       count: data.count,
       lastUsed: data.lastUsed,
       title: prompt?.title || 'Unknown Prompt',
+      score,
     });
   }
   
-  // Sort by usage count (descending)
-  return stats.sort((a, b) => b.count - a.count);
+  // Sort by popularity score (descending)
+  return stats.sort((a, b) => b.score - a.score);
 };
 
 // Settings App Component
@@ -218,7 +233,7 @@ const SettingsApp: React.FC = () => {
   const [allPrompts, setAllPrompts] = useState<Prompt[]>([]);
   const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', insertMode: 'replace' });
   const [usageHistory, setUsageHistory] = useState<PromptUsage[]>([]);
-  const [usageStats, setUsageStats] = useState<{ promptId: string; count: number; lastUsed: number; title: string }[]>([]);
+  const [usageStats, setUsageStats] = useState<{ promptId: string; count: number; lastUsed: number; title: string; score: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
