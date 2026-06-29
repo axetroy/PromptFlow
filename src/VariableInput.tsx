@@ -574,6 +574,10 @@ export function showVariableInput(options: VariableInputOptions): void {
     activeInputRefs.push(input as HTMLElement);
     input.addEventListener('input', handleInputChange);
     input.addEventListener('keydown', handleKeyDown);
+    input.addEventListener('focus', () => {
+      // Select all text when input is focused
+      (input as HTMLTextAreaElement).select();
+    });
   });
   
   document.addEventListener('keydown', handleKeyDown);
@@ -582,9 +586,13 @@ export function showVariableInput(options: VariableInputOptions): void {
   
   updatePreview();
   
+  // Focus first input and select all text
   const firstInput = content.querySelector('.vf-variable-input') as HTMLTextAreaElement;
   if (firstInput) {
-    setTimeout(() => firstInput.focus(), 100);
+    setTimeout(() => {
+      firstInput.focus();
+      firstInput.select();
+    }, 100);
   }
   
   updateSubmitButton();
