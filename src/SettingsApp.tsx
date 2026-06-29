@@ -847,17 +847,18 @@ const SettingsApp: React.FC = () => {
             {usageStats.length === 0 ? (
               <Text type="secondary">No usage data yet. Start using prompts to see statistics here.</Text>
             ) : (
-              <div>
+              <>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
                   Total uses: {usageHistory.length} across {usageStats.length} prompts
                 </Text>
-                <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-                  <Table
-                    dataSource={usageStats.slice(0, 20)}
-                    rowKey="promptId"
-                    pagination={false}
-                    size="small"
-                    columns={[
+                <Table
+                  dataSource={usageStats}
+                  rowKey="promptId"
+                  pagination={false}
+                  size="small"
+                  scroll={{ y: 400 }}
+                  sticky
+                  columns={[
                       {
                         title: 'Prompt',
                         dataIndex: 'title',
@@ -884,8 +885,7 @@ const SettingsApp: React.FC = () => {
                       },
                     ]}
                   />
-                </div>
-              </div>
+              </>
             )}
           </Card>
 
