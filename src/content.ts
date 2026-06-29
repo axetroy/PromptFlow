@@ -574,14 +574,53 @@ function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function renderPromptItem(prompt: Prompt, index: number, shadow: ShadowRoot, searchQuery: string = ''): HTMLElement {
+  const item = document.createElement('div');
+  item.className = 'prompt-item' + (index === state.selectedIndex ? ' selected' : '');
+  item.dataset.promptId = prompt.id;
+  
+  item.innerHTML = `
+    <div class="prompt-item-title">
+      ${highlightText(prompt.title, searchQuery)}
+    </div>
+    <div class="prompt-item-description">
+      ${highlightText(prompt.description || '', searchQuery)}
+    </div>
+    <div class="prompt-item-tags">
+      ${prompt.tags.map(tag => `
+        <span class="prompt-tag">${escapeHtml(tag)}</span>
+      `).join('')}
+    </div>
+  `;
+  
+  item.addEventListener('click', () => {
+    state.selectedIndex = index;
+    updateSelection(shadow, index);
+    selectPrompt(prompt);
+  });
+  
+  item.addEventListener('mouseenter', () => {
+    item.classList.add('hovered');
+  });
+  item.addEventListener('mouseleave', () => {
+    item.classList.remove('hovered');
+  });
+  
+  return item;
+}
+
 function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: string = ''): void {
   const listContainer = shadow.getElementById('promptflow-list');
   if (!listContainer) return;
   
   listContainer.innerHTML = '';
   
+  // Calculate section offset
+  const showRecentSection = !searchQuery && state.recentPromptIds.length > 0;
+  const recentCount = showRecentSection ? Math.min(state.recentPromptIds.length, 5) : 0;
+  
   // Show recently used prompts section when no search query
-  if (!searchQuery && state.recentPromptIds.length > 0) {
+  if (showRecentSection) {
     const recentSection = document.createElement('div');
     
     // Section header for "Recently Used"
@@ -597,39 +636,7 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
       .slice(0, 5);
     
     recentPrompts.forEach((prompt, index) => {
-      const item = document.createElement('div');
-      item.className = 'prompt-item' + (index === state.selectedIndex ? ' selected' : '');
-      item.dataset.section = 'recent';
-      item.dataset.promptId = prompt.id;
-      
-      item.innerHTML = `
-        <div class="prompt-item-title">
-          ${escapeHtml(prompt.title)}
-        </div>
-        <div class="prompt-item-description">
-          ${escapeHtml(prompt.description || '')}
-        </div>
-        <div class="prompt-item-tags">
-          ${prompt.tags.map(tag => `
-            <span class="prompt-tag">${escapeHtml(tag)}</span>
-          `).join('')}
-        </div>
-      `;
-      
-      item.addEventListener('click', () => {
-        state.selectedIndex = index;
-        updateSelection(shadow, index);
-        selectPrompt(prompt);
-      });
-      
-      item.addEventListener('mouseenter', () => {
-        item.classList.add('hovered');
-      });
-      item.addEventListener('mouseleave', () => {
-        item.classList.remove('hovered');
-      });
-      
-      recentSection.appendChild(item);
+      recentSection.appendChild(renderPromptItem(prompt, index, shadow, searchQuery));
     });
     
     listContainer.appendChild(recentSection);
@@ -639,10 +646,6 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
     separator.className = 'section-separator';
     listContainer.appendChild(separator);
   }
-  
-  // Update state to account for recent section offset
-  const recentCount = (!searchQuery && state.recentPromptIds.length > 0) ? 
-    Math.min(state.recentPromptIds.length, 5) : 0;
   
   if (prompts.length === 0) {
     listContainer.innerHTML += `
@@ -654,43 +657,8 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
   }
   
   prompts.forEach((prompt, index) => {
-    const item = document.createElement('div');
-    // Adjust selected index if it's in the all prompts section
     const adjustedIndex = index + recentCount;
-    item.className = 'prompt-item' + (adjustedIndex === state.selectedIndex ? ' selected' : '');
-    item.dataset.section = 'all';
-    item.dataset.promptId = prompt.id;
-    
-    item.innerHTML = `
-      <div class="prompt-item-title">
-        ${highlightText(prompt.title, searchQuery)}
-      </div>
-      <div class="prompt-item-description">
-        ${highlightText(prompt.description || '', searchQuery)}
-      </div>
-      <div class="prompt-item-tags">
-        ${prompt.tags.map(tag => `
-          <span class="prompt-tag">${escapeHtml(tag)}</span>
-        `).join('')}
-      </div>
-    `;
-    
-    // Click to select
-    item.addEventListener('click', () => {
-      state.selectedIndex = adjustedIndex;
-      updateSelection(shadow, adjustedIndex);
-      selectPrompt(prompt);
-    });
-    
-    // Hover for visual feedback only (not selecting)
-    item.addEventListener('mouseenter', () => {
-      item.classList.add('hovered');
-    });
-    item.addEventListener('mouseleave', () => {
-      item.classList.remove('hovered');
-    });
-    
-    listContainer.appendChild(item);
+    listContainer.appendChild(renderPromptItem(prompt, adjustedIndex, shadow, searchQuery));
   });
 }
 
