@@ -198,9 +198,12 @@ export function showVariableInput(options: VariableInputOptions): void {
     </div>
     <div class="vf-footer" style="padding: 16px 24px; border-top: 1px solid #e8e8e8; display: flex; justify-content: space-between; align-items: center; background: #fafafa;">
       <div style="font-size: 12px; color: #999;">
-        Press <kbd style="background: #fff; border: 1px solid #d9d9d9; border-radius: 4px; padding: 2px 6px; font-family: monospace;">Enter</kbd> to next, <kbd style="background: #fff; border: 1px solid #d9d9d9; border-radius: 4px; padding: 2px 6px; font-family: monospace;">Esc</kbd> to cancel
+        Press <kbd style="background: #fff; border: 1px solid #d9d9d9; border-radius: 4px; padding: 2px 6px; font-family: monospace;">Esc</kbd> to cancel
       </div>
-      <div style="display: flex; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 12px; position: relative;">
+        <div class="vf-tooltip" style="position: absolute; right: 100%; mr-8px; top: 50%; transform: translateY(-50%); background: #333; color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; margin-right: 8px;">
+          Press <kbd style="background: #555; border-radius: 3px; padding: 1px 5px; margin: 0 2px;">Enter</kbd> to insert
+        </div>
         <button type="button" class="vf-cancel-btn" style="padding: 8px 20px; font-size: 14px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; cursor: pointer; color: #333;">Cancel</button>
         <button type="button" class="vf-submit-btn" style="padding: 8px 20px; font-size: 14px; border: none; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; cursor: pointer;">Insert Prompt</button>
       </div>
@@ -272,7 +275,23 @@ export function showVariableInput(options: VariableInputOptions): void {
   cancelBtn?.addEventListener('click', handleCancel);
   
   const submitBtn = content.querySelector('.vf-submit-btn') as HTMLButtonElement;
+  const tooltip = content.querySelector('.vf-tooltip') as HTMLElement;
+  
   submitBtn?.addEventListener('click', handleSubmit);
+  
+  // Show tooltip when submit button is focused
+  submitBtn?.addEventListener('focus', () => {
+    if (tooltip) {
+      tooltip.style.opacity = '1';
+    }
+  });
+  
+  // Hide tooltip when submit button loses focus
+  submitBtn?.addEventListener('blur', () => {
+    if (tooltip) {
+      tooltip.style.opacity = '0';
+    }
+  });
   
   // Variable inputs - store references for navigation
   const variableInputs = content.querySelectorAll('.vf-variable-input');
