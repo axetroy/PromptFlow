@@ -12,7 +12,7 @@ Act as a Staff Software Engineer conducting a production-ready code review.
 Review the code in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-{code}
+<VAR name="code"></VAR>
 </PROMPT_INPUT>
 
 Your review should identify:

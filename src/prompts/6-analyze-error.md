@@ -12,13 +12,13 @@ Please analyze the error and context in the **PROMPT_INPUT** blocks below:
 ### Error:
 
 <PROMPT_INPUT>
-{error}
+<VAR name="error"></VAR>
 </PROMPT_INPUT>
 
 ### Context:
 
 <PROMPT_INPUT>
-{context:None}
+<VAR name="context" defaultValue="None"></VAR>
 </PROMPT_INPUT>
 
 I need to understand:

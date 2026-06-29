@@ -12,7 +12,7 @@ You are an expert software engineer and technical educator.
 Analyze the code in the **PROMPT_INPUT** block below and explain it in detail:
 
 <PROMPT_INPUT>
-{code}
+<VAR name="code"></VAR>
 </PROMPT_INPUT>
 
 Your explanation should include:

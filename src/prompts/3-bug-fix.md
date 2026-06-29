@@ -12,13 +12,13 @@ Act as a Staff Software Engineer specializing in debugging complex production is
 Analyze the code in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-{code}
+<VAR name="code"></VAR>
 </PROMPT_INPUT>
 
 Reported error in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-{error:None}
+<VAR name="error" defaultValue="None"></VAR>
 </PROMPT_INPUT>
 
 Your goal is to identify the root cause instead of only fixing the symptom.
