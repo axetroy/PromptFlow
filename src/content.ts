@@ -583,15 +583,12 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
   // Show recently used prompts section when no search query
   if (!searchQuery && state.recentPromptIds.length > 0) {
     const recentSection = document.createElement('div');
-    recentSection.className = 'recent-section';
-    recentSection.innerHTML = `
-      <div class="recent-section-header">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/>
-        </svg>
-        Recently Used
-      </div>
-    `;
+    
+    // Section header for "Recently Used"
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.textContent = 'Recently Used';
+    recentSection.appendChild(header);
     
     // Get recent prompts that still exist in the full list
     const recentPrompts = state.recentPromptIds
@@ -601,7 +598,7 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
     
     recentPrompts.forEach((prompt, index) => {
       const item = document.createElement('div');
-      item.className = 'prompt-item recent-prompt' + (index === state.selectedIndex ? ' selected' : '');
+      item.className = 'prompt-item' + (index === state.selectedIndex ? ' selected' : '');
       item.dataset.section = 'recent';
       item.dataset.promptId = prompt.id;
       
@@ -640,7 +637,6 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
     // Add separator
     const separator = document.createElement('div');
     separator.className = 'section-separator';
-    separator.textContent = 'All Prompts';
     listContainer.appendChild(separator);
   }
   
