@@ -687,7 +687,7 @@ const SettingsApp: React.FC = () => {
           </div>
         </Header>
 
-        <Content style={{ padding: 24, maxWidth: 900, margin: '0 auto', width: '100%' }}>
+        <Content style={{ padding: 24, maxWidth: 1080, margin: '0 auto', width: '100%' }}>
           <Card title={<Space><SettingOutlined />General Settings</Space>} style={{ marginBottom: 24 }}>
             <Form layout="vertical">
               <Form.Item label="Trigger Command" tooltip="Type this command in any input field to open the prompt panel" style={{ marginBottom: 8 }}>
