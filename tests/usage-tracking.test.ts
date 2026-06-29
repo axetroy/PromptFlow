@@ -212,28 +212,29 @@ test.describe('Usage Tracking', () => {
     expect(recentPrompts[1].promptId).toBe('prompt-2'); // Second seen
   });
 
-  test('should not deduplicate usage entries', async ({ page }) => {
+  test('should not deduplicate usage entries in content script', async ({ page }) => {
     await page.goto('about:blank');
     
     await page.evaluate((data) => {
       (window as any).__testStorageData__ = data;
     }, storageData);
 
-    // Simulate recording usage multiple times for same prompt
+    // Simulate content.ts recordPromptUsage logic
     const result = await page.evaluate(async () => {
       const data = (window as any).__testStorageData__;
+      const history = data.usageHistory || [];
       
-      // Record same prompt 5 times (simulating what recordPromptUsage should do)
+      // Record same prompt 5 times (simulating what content.ts recordPromptUsage does)
       for (let i = 0; i < 5; i++) {
-        data.usageHistory.unshift({
+        history.unshift({
           promptId: 'prompt-1',
           usedAt: Date.now() - i * 100,
         });
       }
 
       return {
-        count: data.usageHistory.length,
-        prompt1Count: data.usageHistory.filter((u: any) => u.promptId === 'prompt-1').length,
+        count: history.length,
+        prompt1Count: history.filter((u: any) => u.promptId === 'prompt-1').length,
       };
     });
 

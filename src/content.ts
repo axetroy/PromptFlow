@@ -99,14 +99,11 @@ async function recordPromptUsage(promptId: string): Promise<void> {
       const data = (result['promptflow-data'] as { usageHistory?: PromptUsage[] } | undefined) || {};
       const history: PromptUsage[] = data.usageHistory || [];
       
-      // Remove any existing usage of the same prompt
-      const filtered = history.filter(u => u.promptId !== promptId);
-      
-      // Add new usage at the beginning
-      filtered.unshift({ promptId, usedAt: Date.now() });
+      // Add new usage at the beginning (no deduplication - we want to track total usage count)
+      history.unshift({ promptId, usedAt: Date.now() });
       
       // Trim to max size (100 entries)
-      const trimmed = filtered.slice(0, 100);
+      const trimmed = history.slice(0, 100);
       
       chrome.storage.local.set({
         'promptflow-data': {
@@ -114,7 +111,7 @@ async function recordPromptUsage(promptId: string): Promise<void> {
           usageHistory: trimmed,
         },
       }, () => {
-        // Update local state
+        // Update local state for "recent prompts" (unique prompts only)
         const seen = new Set<string>();
         const recentIds: string[] = [];
         for (const usage of trimmed) {
