@@ -729,7 +729,7 @@ function selectPrompt(prompt: Prompt): void {
   const langName = langNames[langCode] || 'English';
   
   // Append language instruction to prompt
-  const languageInstruction = `\n\nPlease respond in ${langName}.`;
+  const languageInstruction = `\n\n---\n\nPlease prioritize responding in ${langName} if no language has been specified earlier in the conversation.`;
   const promptContent = prompt.content + languageInstruction;
   
   const inputValue = getInputValue(state.currentInput);
