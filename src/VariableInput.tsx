@@ -15,7 +15,7 @@
  * - Responsive and accessible
  */
 
-import { getUniqueVariables, interpolate, Variable } from './utils/template-parser';
+import { getUniqueVariables, interpolate, generatePreviewSegments, Variable } from './utils/template-parser';
 
 export interface VariableInputOptions {
   prompt: {
@@ -196,6 +196,7 @@ const MODAL_CSS = `
   }
 
   .vf-preview {
+    position: relative;
     background-color: var(--vf-preview-bg, #f8f8f8);
     border: 1px solid var(--vf-preview-border, #e8e8e8);
     border-radius: 8px;
@@ -208,6 +209,53 @@ const MODAL_CSS = `
     white-space: break-spaces;
     word-break: break-word;
     font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+  }
+
+  .vf-preview-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+
+  .vf-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    background: transparent;
+    border: 1px solid var(--vf-copy-btn-border, #d9d9d9);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--vf-text-muted, #999);
+    transition: all 0.2s;
+  }
+
+  .vf-copy-btn:hover {
+    background: var(--vf-copy-btn-hover-bg, #f0f0f0);
+    color: var(--vf-text-primary, #333);
+  }
+
+  .vf-copy-btn.copied {
+    color: #52c41a;
+    border-color: #52c41a;
+  }
+
+  .vf-var-highlight {
+    background-color: var(--vf-var-highlight-bg, #e6f7ff);
+    color: var(--vf-var-highlight-color, #1890ff);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+  }
+
+  .vf-var-placeholder {
+    background-color: var(--vf-var-placeholder-bg, #fff2e8);
+    color: var(--vf-var-placeholder-color, #fa8c16);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+    font-style: italic;
   }
 
   .vf-footer {
@@ -328,6 +376,12 @@ const MODAL_CSS = `
       --vf-btn-cancel-bg: #262626;
       --vf-btn-cancel-hover: #333;
       --vf-btn-disabled-bg: #404040;
+      --vf-copy-btn-border: #404040;
+      --vf-copy-btn-hover-bg: #333;
+      --vf-var-highlight-bg: rgba(24, 144, 255, 0.2);
+      --vf-var-highlight-color: #40a9ff;
+      --vf-var-placeholder-bg: rgba(250, 140, 22, 0.2);
+      --vf-var-placeholder-color: #ffc53d;
     }
   }
 `;
@@ -353,14 +407,40 @@ function injectStyles(): void {
 }
 
 /**
- * Update the preview display
+ * Update the preview display with DOM-based rendering
  */
 function updatePreview(): void {
   if (!activeModal) return;
   
-  const previewEl = activeModal.querySelector('.vf-preview') as HTMLElement;
-  if (previewEl) {
-    previewEl.textContent = interpolate(activePromptContent, activeValues);
+  const previewContent = activeModal.querySelector('.vf-preview-content') as HTMLElement;
+  if (previewContent) {
+    const segments = generatePreviewSegments(activePromptContent, activeValues);
+    
+    // Clear existing content
+    previewContent.innerHTML = '';
+    
+    // Build DOM nodes for each segment
+    for (const segment of segments) {
+      if (segment.type === 'text') {
+        // Use text node for plain text to preserve whitespace
+        previewContent.appendChild(document.createTextNode(segment.content));
+      } else {
+        // Create span with appropriate class for variables
+        const span = document.createElement('span');
+        span.className = 'vf-var-highlight';
+        
+        if (segment.variable) {
+          span.title = `${segment.variable.name}${segment.variable.description ? ` - ${segment.variable.description}` : ''}`;
+          span.textContent = segment.content;
+        } else {
+          // Unresolved variable - show as placeholder
+          span.className = 'vf-var-placeholder';
+          span.textContent = segment.content;
+        }
+        
+        previewContent.appendChild(span);
+      }
+    }
   }
 }
 
@@ -524,7 +604,18 @@ export function showVariableInput(options: VariableInputOptions): void {
           <div class="vf-empty-state">This template does not contain any variables</div>
         `}
         <label class="vf-section-title">👁️ Preview</label>
-        <div class="vf-preview"></div>
+        <div class="vf-preview">
+          <div class="vf-preview-header">
+            <button type="button" class="vf-copy-btn" title="Copy to clipboard">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div class="vf-preview-content"></div>
+        </div>
       </div>
     </div>
     <div class="vf-footer">
@@ -604,8 +695,36 @@ export function showVariableInput(options: VariableInputOptions): void {
   
   const submitBtn = content.querySelector('.vf-submit-btn') as HTMLButtonElement;
   const tooltip = content.querySelector('.vf-tooltip') as HTMLElement;
+  const copyBtn = content.querySelector('.vf-copy-btn') as HTMLButtonElement;
   
   submitBtn?.addEventListener('click', handleSubmit);
+  
+  // Copy to clipboard functionality
+  copyBtn?.addEventListener('click', async () => {
+    const text = interpolate(activePromptContent, activeValues);
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.classList.add('copied');
+      copyBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        Copied!
+      `;
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        copyBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Copy
+        `;
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  });
   
   submitBtn?.addEventListener('focus', () => {
     if (tooltip) tooltip.style.opacity = '1';

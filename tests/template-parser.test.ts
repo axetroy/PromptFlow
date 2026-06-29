@@ -8,6 +8,7 @@
  * - allVariablesHaveDefaults
  * - interpolate
  * - generatePreview
+ * - generatePreviewSegments
  * - isValidVariableName
  * - getVariableStats
  * 
@@ -25,6 +26,7 @@ import {
   allVariablesHaveDefaults,
   interpolate,
   generatePreview,
+  generatePreviewSegments,
   isValidVariableName,
   getVariableStats,
 } from '../src/utils/template-parser';
@@ -161,5 +163,101 @@ How are you today?`;
       const textVar = variables.find(v => v.name === 'text');
       assert.strictEqual(textVar?.description, 'Text to translate');
     });
+  });
+});
+
+describe('generatePreviewSegments', () => {
+  it('should return single text segment for template without variables', () => {
+    const segments = generatePreviewSegments('Hello World!', {});
+    assert.strictEqual(segments.length, 1);
+    assert.strictEqual(segments[0].type, 'text');
+    assert.strictEqual(segments[0].content, 'Hello World!');
+  });
+
+  it('should return text and variable segments', () => {
+    const template = 'Hello <VAR name="name"></VAR>!';
+    const segments = generatePreviewSegments(template, { name: 'World' });
+    
+    assert.strictEqual(segments.length, 3);
+    
+    // First text segment
+    assert.strictEqual(segments[0].type, 'text');
+    assert.strictEqual(segments[0].content, 'Hello ');
+    
+    // Variable segment with resolved value
+    assert.strictEqual(segments[1].type, 'variable');
+    assert.strictEqual(segments[1].content, 'World');
+    assert.ok(segments[1].variable);
+    
+    // Last text segment
+    assert.strictEqual(segments[2].type, 'text');
+    assert.strictEqual(segments[2].content, '!');
+  });
+
+  it('should use default value when no value provided', () => {
+    const template = 'Hello <VAR name="name" defaultValue="Default"></VAR>!';
+    const segments = generatePreviewSegments(template, {});
+    
+    assert.strictEqual(segments[1].type, 'variable');
+    assert.strictEqual(segments[1].content, 'Default');
+  });
+
+  it('should prefer provided value over default', () => {
+    const template = 'Hello <VAR name="name" defaultValue="Default"></VAR>!';
+    const segments = generatePreviewSegments(template, { name: 'World' });
+    
+    assert.strictEqual(segments[1].type, 'variable');
+    assert.strictEqual(segments[1].content, 'World');
+  });
+
+  it('should keep original tag when variable is unresolved', () => {
+    const template = 'Hello <VAR name="name"></VAR>!';
+    const segments = generatePreviewSegments(template, {});
+    
+    assert.strictEqual(segments[1].type, 'variable');
+    assert.strictEqual(segments[1].content, '<VAR name="name"></VAR>');
+    assert.strictEqual(segments[1].variable, undefined);
+  });
+
+  it('should include variable metadata in segment', () => {
+    const template = '<VAR name="code" description="Source code" defaultValue="none"/>';
+    const segments = generatePreviewSegments(template, {});
+    
+    assert.strictEqual(segments.length, 1);
+    assert.strictEqual(segments[0].type, 'variable');
+    assert.strictEqual(segments[0].content, 'none');
+    assert.ok(segments[0].variable);
+    assert.strictEqual(segments[0].variable?.name, 'code');
+    assert.strictEqual(segments[0].variable?.description, 'Source code');
+    assert.strictEqual(segments[0].variable?.defaultValue, 'none');
+  });
+
+  it('should handle multiple variables', () => {
+    const template = '<VAR name="greeting"></VAR>, <VAR name="name"></VAR>!';
+    const segments = generatePreviewSegments(template, { greeting: 'Hello', name: 'World' });
+    
+    // Should have 4 segments (no empty text at start since template starts with variable)
+    assert.strictEqual(segments.length, 4);
+    
+    assert.strictEqual(segments[0].type, 'variable');
+    assert.strictEqual(segments[0].content, 'Hello');
+    
+    assert.strictEqual(segments[1].type, 'text');
+    assert.strictEqual(segments[1].content, ', ');
+    
+    assert.strictEqual(segments[2].type, 'variable');
+    assert.strictEqual(segments[2].content, 'World');
+    
+    assert.strictEqual(segments[3].type, 'text');
+    assert.strictEqual(segments[3].content, '!');
+  });
+
+  it('should preserve whitespace in text segments', () => {
+    const template = 'Line 1\n<VAR name="var"></VAR>\nLine 3';
+    const segments = generatePreviewSegments(template, { var: 'Middle' });
+    
+    assert.strictEqual(segments[0].content, 'Line 1\n');
+    assert.strictEqual(segments[1].content, 'Middle');
+    assert.strictEqual(segments[2].content, '\nLine 3');
   });
 });

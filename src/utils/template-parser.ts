@@ -385,6 +385,74 @@ export function generatePreview(template: string, values?: Record<string, string
 }
 
 /**
+ * Preview segment type for building DOM-based previews
+ */
+export interface PreviewSegment {
+  type: 'text' | 'variable';
+  content: string;
+  variable?: Variable;
+}
+
+/**
+ * Generate preview segments for building DOM-based previews
+ * Each segment is either plain text or a variable with its resolved value
+ */
+export function generatePreviewSegments(
+  template: string,
+  values: Record<string, string>
+): PreviewSegment[] {
+  const segments: PreviewSegment[] = [];
+  let lastIndex = 0;
+  
+  const { variables } = parseTemplate(template);
+  
+  for (const variable of variables) {
+    // Add text before this variable
+    if (variable.startIndex > lastIndex) {
+      segments.push({
+        type: 'text',
+        content: template.slice(lastIndex, variable.startIndex),
+      });
+    }
+    
+    // Determine the value for this variable
+    const value = values[variable.name];
+    let displayValue: string;
+    let isResolved: boolean;
+    
+    if (value !== undefined && value !== '') {
+      displayValue = value;
+      isResolved = true;
+    } else if (variable.defaultValue !== undefined && variable.defaultValue !== '') {
+      displayValue = variable.defaultValue;
+      isResolved = true;
+    } else {
+      // No value provided and no default - keep original tag
+      displayValue = variable.fullMatch;
+      isResolved = false;
+    }
+    
+    segments.push({
+      type: 'variable',
+      content: displayValue,
+      variable: isResolved ? variable : undefined,
+    });
+    
+    lastIndex = variable.endIndex;
+  }
+  
+  // Add remaining text after last variable
+  if (lastIndex < template.length) {
+    segments.push({
+      type: 'text',
+      content: template.slice(lastIndex),
+    });
+  }
+  
+  return segments;
+}
+
+/**
  * Validate variable name according to rules
  */
 export function isValidVariableName(name: string): boolean {
