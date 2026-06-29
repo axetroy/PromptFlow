@@ -7,10 +7,12 @@
  * Supports syntax:
  * - <VAR name="variable_name"></VAR> - Required variable
  * - <VAR name="variable_name" defaultValue="default_value"></VAR> - Variable with default value
+ * - <VAR name="variable_name" description="Description text"></VAR> - Variable with description
  * 
  * Examples:
  * - <VAR name="tone"></VAR> - User must provide value
  * - <VAR name="tone" defaultValue="professional"></VAR> - Uses "professional" if no value provided
+ * - <VAR name="topic" description="The main topic"></VAR> - Shows description in UI
  */
 
 import { getUniqueVariables, interpolate, Variable } from './utils/template-parser';

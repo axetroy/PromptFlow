@@ -234,11 +234,25 @@ Write a <VAR name="tone"></VAR> explanation about <VAR name="topic"></VAR>
 <VAR name="variable_name" defaultValue="default_value"></VAR>
 ```
 
+#### 带描述的变量
+
+```xml
+<VAR name="variable_name" description="Description text"></VAR>
+```
+
+#### 完整语法（所有属性）
+
+```xml
+<VAR name="variable_name" description="Description text" defaultValue="default_value"></VAR>
+```
+
 #### 自闭合语法
 
 ```xml
-<VAR name="variable_name" defaultValue="value"/>
+<VAR name="variable_name" description="Desc" defaultValue="val"/>
 ```
+
+**注意**：属性可以以任意顺序出现。
 
 ---
 
@@ -247,6 +261,7 @@ Write a <VAR name="tone"></VAR> explanation about <VAR name="topic"></VAR>
 | 参数 | 必需 | 类型 | 说明 |
 |------|------|------|------|
 | `name` | 是 | string | 变量唯一标识符，支持字母、数字、下划线、连字符，必须以字母或下划线开头 |
+| `description` | 否 | string | 变量的描述文本，用于在 UI 中显示给用户，帮助理解变量的用途 |
 | `defaultValue` | 否 | string | 当用户未提供值时使用的默认值 |
 
 ---
@@ -275,43 +290,43 @@ Write a <VAR name="tone"></VAR> explanation about <VAR name="topic"></VAR>
 
 ### 使用示例
 
-#### 示例 1：基础变量
+#### 示例 1：翻译 Prompt
 
 ```xml
-Translate the following text to <VAR name="target_language" defaultValue="English"></VAR>:
+Translate the following text to <VAR name="target_language" description="目标语言" defaultValue="English"></VAR>:
 
-<VAR name="text"></VAR>
+<VAR name="text" description="要翻译的文本"></VAR>
 ```
 
 #### 示例 2：代码审查
 
 ```xml
-Review the following <VAR name="language"></VAR> code:
+Review the following <VAR name="language" description="编程语言，如 JavaScript、Python 等"></VAR> code:
 
-<VAR name="code"></VAR>
+<VAR name="code" description="要审查的源代码"></VAR>
 
-Focus on: <VAR name="focus_areas" defaultValue="general improvements"></VAR>
+Focus on: <VAR name="focus_areas" description="审查重点" defaultValue="general improvements"></VAR>
 ```
 
 #### 示例 3：复杂 Prompt
 
 ```xml
 ---
-title: <VAR name="title" defaultValue="Untitled"></VAR>
-description: <VAR name="description" defaultValue="No description"></VAR>
+title: <VAR name="title" description="文档标题" defaultValue="Untitled"></VAR>
+description: <VAR name="description" description="文档描述" defaultValue="No description"></VAR>
 tags:
-  - <VAR name="tag1"></VAR>
-  - <VAR name="tag2" defaultValue="general"></VAR>
+  - <VAR name="tag1" description="标签1"></VAR>
+  - <VAR name="tag2" description="标签2" defaultValue="general"></VAR>
 ---
 
 # <VAR name="title" defaultValue="Untitled"></VAR>
 
-<VAR name="content"></VAR>
+<VAR name="content" description="文档内容"></VAR>
 
 ### Requirements
 
-- <VAR name="req1"></VAR>
-- <VAR name="req2" defaultValue="Follow best practices"></VAR>
+- <VAR name="req1" description="需求1"></VAR>
+- <VAR name="req2" description="需求2" defaultValue="Follow best practices"></VAR>
 ```
 
 ---
@@ -337,15 +352,21 @@ tags:
 #### 正则表达式
 
 ```javascript
-// 匹配 <VAR> 标签
-/<VAR\s+name="([^"]+)"(?:\s+defaultValue="([^"]*)")?(?:[^>]*)>(?:[\s\S]*?)<\/VAR>|<VAR\s+name="([^"]+)"(?:\s+defaultValue="([^"]*)")?\s*\/>/gi
+// 匹配 <VAR> 标签（闭合标签和自闭合标签）
+/<VAR\s+([^>]+)(?:[^>]*)>(?:[\s\S]*?)<\/VAR>|<VAR\s+([^>]+)\/>/gi
 ```
+
+#### 属性解析
+
+由于属性可能以任意顺序出现，采用两级解析策略：
+1. 正则表达式捕获整个属性字符串
+2. 遍历 `name="..."`、`description="..."`、`defaultValue="..."` 提取各属性值
 
 #### 解析流程
 
 1. 扫描模板中的所有 `<VAR>` 标签
-2. 提取 `name` 和 `defaultValue` 属性
-3. 返回变量列表供 UI 层渲染输入表单
+2. 提取 `name`、`description` 和 `defaultValue` 属性
+3. 返回变量列表供 UI 层渲染输入表单（包含描述信息）
 4. 用户填写后，执行替换操作
 
 #### 替换规则
@@ -353,6 +374,7 @@ tags:
 1. 如果用户提供了值，使用用户值替换
 2. 如果用户未提供值但有默认值，使用默认值替换
 3. 如果既无用户值也无默认值，保留原始 `<VAR>` 标签
+4. `description` 属性不参与替换，仅用于 UI 显示
 
 ---
 

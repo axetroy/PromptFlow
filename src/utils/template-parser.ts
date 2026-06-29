@@ -4,22 +4,25 @@
  * Supports syntax:
  * - <VAR name="variable_name"></VAR> - Required variable
  * - <VAR name="variable_name" defaultValue="default_value"></VAR> - Variable with default value
+ * - <VAR name="variable_name" description="Description text"></VAR> - Variable with description
  * 
  * Examples:
  * - <VAR name="tone"></VAR> -> User must provide value
  * - <VAR name="tone" defaultValue="professional"></VAR> -> Uses "professional" if no value provided
- * - <VAR name="topic"></VAR> -> User must provide value
+ * - <VAR name="topic" description="The main topic to explain"></VAR> -> Shows description in UI
  * 
  * Design Rationale:
  * - XML tag style ensures no conflict with Markdown, JSON, or code syntax
  * - <VAR> is uppercase to avoid conflict with HTML elements
  * - Supports defaultValue attribute for optional variables
+ * - Supports description attribute for variable documentation
  * - Name attribute is required, unique identifier for the variable
  */
 
 export interface Variable {
   name: string;
   defaultValue?: string;
+  description?: string;
   startIndex: number;
   endIndex: number;
   fullMatch: string;
@@ -34,13 +37,33 @@ export interface ParseResult {
  * Regular expression to match <VAR> template variables
  * Matches: <VAR name="..." ...></VAR> or <VAR name="..."/>
  * 
- * Supports:
- * - name attribute (required): The variable identifier
- * - defaultValue attribute (optional): Default value if no value provided
- * 
- * The regex matches the entire VAR tag including opening and closing tags
+ * Captures all attributes inside the tag, then parses them separately
+ * to handle attributes in any order.
  */
-const VAR_TAG_PATTERN = /<VAR\s+name="([^"]+)"(?:\s+defaultValue="([^"]*)")?(?:[^>]*)>(?:[\s\S]*?)<\/VAR>|<VAR\s+name="([^"]+)"(?:\s+defaultValue="([^"]*)")?\s*\/>/gi;
+const VAR_TAG_PATTERN = /<VAR\s+([^>]+)(?:[^>]*)>(?:[\s\S]*?)<\/VAR>|<VAR\s+([^>]+)\/>/gi;
+
+/**
+ * Parse attributes from a VAR tag attribute string
+ */
+function parseAttributes(attrString: string): { name: string; defaultValue?: string; description?: string } {
+  const result: { name: string; defaultValue?: string; description?: string } = { name: '' };
+  
+  const matches = attrString.matchAll(/(\w+)=\"([^\"]*)\"/g);
+  for (const m of matches) {
+    const attrName = m[1];
+    const attrValue = m[2];
+    
+    if (attrName === 'name') {
+      result.name = attrValue;
+    } else if (attrName === 'defaultValue') {
+      result.defaultValue = attrValue;
+    } else if (attrName === 'description') {
+      result.description = attrValue;
+    }
+  }
+  
+  return result;
+}
 
 /**
  * Parse template string and extract all variables
@@ -51,19 +74,22 @@ export function parseTemplate(template: string): ParseResult {
   
   let match;
   while ((match = VAR_TAG_PATTERN.exec(template)) !== null) {
-    // Handle both closing tag and self-closing tag formats
-    // Group 1,2: name and defaultValue for closing tag format
-    // Group 3,4: name and defaultValue for self-closing tag format
-    const name = match[1] || match[3];
-    const defaultValue = match[2] || match[4] || undefined;
+    // Get the attribute string from either closing tag or self-closing tag
+    const attrString = match[1] || match[2];
+    const attrs = parseAttributes(attrString);
+    
+    if (!attrs.name) {
+      continue; // Skip invalid VAR tags without name
+    }
     
     // Track occurrences for duplicate naming
-    const occurrence = seen.get(name) || 0;
-    seen.set(name, occurrence + 1);
+    const occurrence = seen.get(attrs.name) || 0;
+    seen.set(attrs.name, occurrence + 1);
     
     variables.push({
-      name,
-      defaultValue,
+      name: attrs.name,
+      defaultValue: attrs.defaultValue,
+      description: attrs.description,
       startIndex: match.index,
       endIndex: match.index + match[0].length,
       fullMatch: match[0],
@@ -119,19 +145,23 @@ export function allVariablesHaveDefaults(template: string): boolean {
  * @returns Interpolated string with values replaced
  */
 export function interpolate(template: string, values: Record<string, string>): string {
-  return template.replace(VAR_TAG_PATTERN, (match, g1, g2, g3, g4) => {
-    // Handle both closing tag and self-closing tag formats
-    const name = g1 || g3;
-    const defaultValue = g2 || g4;
+  return template.replace(VAR_TAG_PATTERN, (match, attrStr1, attrStr2) => {
+    // Parse attributes from either closing tag or self-closing tag format
+    const attrString = attrStr1 || attrStr2;
+    const attrs = parseAttributes(attrString);
     
-    const value = values[name];
+    if (!attrs.name) {
+      return match; // Invalid VAR tag, keep as-is
+    }
+    
+    const value = values[attrs.name];
     
     if (value !== undefined && value !== '') {
       return value;
     }
     
-    if (defaultValue !== undefined && defaultValue !== '') {
-      return defaultValue;
+    if (attrs.defaultValue !== undefined && attrs.defaultValue !== '') {
+      return attrs.defaultValue;
     }
     
     // Return original if no value provided and no default
