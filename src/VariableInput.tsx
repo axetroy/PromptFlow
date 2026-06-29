@@ -1,18 +1,15 @@
 /**
- * VariableInput - Pure DOM Implementation for Chrome Extension Content Script
+ * VariableInput - Shadow DOM Implementation for Chrome Extension Content Script
  * 
  * This module provides a variable input modal for filling in template variables
  * before inserting prompts into input fields.
+ * 
+ * Uses Shadow DOM for complete style isolation from the host page.
  * 
  * Supports syntax:
  * - <VAR name="variable_name"></VAR> - Required variable
  * - <VAR name="variable_name" defaultValue="default_value"></VAR> - Variable with default value
  * - <VAR name="variable_name" description="Description text"></VAR> - Variable with description
- * 
- * Features:
- * - CSS classes instead of inline styles
- * - Dark mode support via CSS custom properties
- * - Responsive and accessible
  */
 
 import { getUniqueVariables, interpolate, generatePreviewSegments, Variable } from './utils/template-parser';
@@ -28,7 +25,8 @@ export interface VariableInputOptions {
 }
 
 // Store for active modal instance
-let activeModal: HTMLElement | null = null;
+let activeHost: HTMLElement | null = null;
+let activeShadowRoot: ShadowRoot | null = null;
 let activeValues: Record<string, string> = {};
 let activeVariables: Variable[] = [];
 let activePromptContent: string = '';
@@ -402,23 +400,21 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Inject CSS styles into document head
+ * Inject CSS styles into Shadow DOM
  */
-function injectStyles(): void {
-  if (document.getElementById('vf-styles')) return;
+function injectStyles(root: ShadowRoot): void {
   const style = document.createElement('style');
-  style.id = 'vf-styles';
   style.textContent = MODAL_CSS;
-  document.head.appendChild(style);
+  root.appendChild(style);
 }
 
 /**
  * Update the preview display with DOM-based rendering
  */
 function updatePreview(): void {
-  if (!activeModal) return;
+  if (!activeShadowRoot) return;
   
-  const previewContent = activeModal.querySelector('.vf-preview-content') as HTMLElement;
+  const previewContent = activeShadowRoot.querySelector('.vf-preview-content') as HTMLElement;
   if (previewContent) {
     const segments = generatePreviewSegments(activePromptContent, activeValues);
     
@@ -463,9 +459,9 @@ function canSubmit(): boolean {
  * Update submit button state
  */
 function updateSubmitButton(): void {
-  if (!activeModal) return;
+  if (!activeShadowRoot) return;
   
-  const submitBtn = activeModal.querySelector('.vf-submit-btn') as HTMLButtonElement;
+  const submitBtn = activeShadowRoot.querySelector('.vf-submit-btn') as HTMLButtonElement;
   if (submitBtn) {
     const enabled = canSubmit();
     submitBtn.disabled = !enabled;
@@ -530,7 +526,7 @@ function focusNext(currentIndex: number): void {
       }
     } else {
       // All required fields filled - focus submit button
-      const submitBtn = activeModal?.querySelector('.vf-submit-btn') as HTMLButtonElement;
+      const submitBtn = activeShadowRoot?.querySelector('.vf-submit-btn') as HTMLButtonElement;
       if (submitBtn && !submitBtn.disabled) {
         submitBtn.focus();
       }
@@ -557,8 +553,20 @@ export function showVariableInput(options: VariableInputOptions): void {
     activeValues[v.name] = v.defaultValue || '';
   });
   
-  injectStyles();
+  // Create host element for Shadow DOM
+  const host = document.createElement('div');
+  host.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 2147483647;';
+  document.body.appendChild(host);
+  activeHost = host;
   
+  // Create Shadow DOM
+  const shadowRoot = host.attachShadow({ mode: 'closed' });
+  activeShadowRoot = shadowRoot;
+  
+  // Inject styles into Shadow DOM
+  injectStyles(shadowRoot);
+  
+  // Create modal container
   const modal = document.createElement('div');
   modal.className = 'vf-modal-overlay';
   
@@ -637,8 +645,7 @@ export function showVariableInput(options: VariableInputOptions): void {
   `;
   
   modal.appendChild(content);
-  document.body.appendChild(modal);
-  activeModal = modal;
+  shadowRoot.appendChild(modal);
   
   // Event handlers
   const handleOverlayClick = (e: MouseEvent) => {
@@ -767,15 +774,11 @@ export function showVariableInput(options: VariableInputOptions): void {
  * Hide and remove the variable input modal
  */
 export function hideVariableInput(): void {
-  if (activeModal) {
-    const cleanupHandlers = (activeModal as any)._cleanupHandlers;
-    if (cleanupHandlers?.handleKeyDown) {
-      document.removeEventListener('keydown', cleanupHandlers.handleKeyDown);
-    }
-    
-    activeModal.remove();
-    activeModal = null;
+  if (activeHost) {
+    activeHost.remove();
+    activeHost = null;
   }
+  activeShadowRoot = null;
   activeValues = {};
   activeVariables = [];
   activePromptContent = '';
