@@ -441,9 +441,9 @@ export function showVariableInput(options: VariableInputOptions): void {
     
     const badges = [];
     if (variable.defaultValue !== undefined) {
-      badges.push(`<span class="vf-badge vf-badge-default">默认值: ${escapeHtml(variable.defaultValue)}</span>`);
+      badges.push(`<span class="vf-badge vf-badge-default">Default: ${escapeHtml(variable.defaultValue)}</span>`);
     } else {
-      badges.push(`<span class="vf-badge vf-badge-required">必填</span>`);
+      badges.push(`<span class="vf-badge vf-badge-required">Required</span>`);
     }
     
     const badgesHtml = `<div class="vf-badges">${badges.join('')}</div>`;
@@ -457,7 +457,7 @@ export function showVariableInput(options: VariableInputOptions): void {
           class="vf-variable-input" 
           data-variable="${escapeHtml(variable.name)}"
           data-index="${index}"
-          placeholder="${variable.defaultValue ? escapeHtml(variable.defaultValue) : '请输入...'}"
+          placeholder="${variable.defaultValue ? escapeHtml(variable.defaultValue) : 'Enter value...'}"
           rows="3"
         >${escapeHtml(activeValues[variable.name])}</textarea>
       </div>
@@ -466,31 +466,31 @@ export function showVariableInput(options: VariableInputOptions): void {
   
   content.innerHTML = `
     <div class="vf-header">
-      <div class="vf-header-title">💬 填充变量</div>
+      <div class="vf-header-title">💬 Fill Variables</div>
       <div class="vf-header-subtitle">${escapeHtml(prompt.title)}</div>
     </div>
     <div class="vf-body">
       <div class="vf-body-inner">
         ${activeVariables.length > 0 ? `
-          <label class="vf-section-title">📋 变量填写</label>
+          <label class="vf-section-title">📋 Variable Values</label>
           ${variableInputsHtml}
         ` : `
-          <div class="vf-empty-state">此模板不包含变量</div>
+          <div class="vf-empty-state">This template does not contain any variables</div>
         `}
-        <label class="vf-section-title">👁️ 预览效果</label>
+        <label class="vf-section-title">👁️ Preview</label>
         <div class="vf-preview"></div>
       </div>
     </div>
     <div class="vf-footer">
       <div class="vf-footer-hint">
-        按 <kbd>Esc</kbd> 取消
+        Press <kbd>Esc</kbd> to cancel
       </div>
       <div class="vf-footer-actions">
         <div class="vf-tooltip">
-          按 <kbd>Enter</kbd> 插入
+          Press <kbd>Enter</kbd> to insert
         </div>
-        <button type="button" class="vf-cancel-btn">取消</button>
-        <button type="button" class="vf-submit-btn">✨ 插入 Prompt</button>
+        <button type="button" class="vf-cancel-btn">Cancel</button>
+        <button type="button" class="vf-submit-btn">✨ Insert Prompt</button>
       </div>
     </div>
   `;
