@@ -764,9 +764,12 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
     // Use native setter to bypass any framework overrides
     const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
     nativeSetter.call(textarea, newValue);
-    // Focus and set selection first
+    // Focus and set selection
     textarea.focus();
-    textarea.setSelectionRange(selectionStart, selectionEnd);
+    // Use setTimeout to ensure focus is applied before setting selection
+    setTimeout(() => {
+      textarea.setSelectionRange(selectionStart, selectionEnd);
+    }, 0);
     // Dispatch input event so frameworks can detect the change
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     return;
@@ -775,7 +778,9 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   if (targetInput instanceof HTMLInputElement) {
     targetInput.value = newValue;
     targetInput.focus();
-    setSelection(targetInput, selectionStart, selectionEnd);
+    setTimeout(() => {
+      setSelection(targetInput, selectionStart, selectionEnd);
+    }, 0);
     targetInput.dispatchEvent(new Event('input', { bubbles: true }));
   } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
     // For contenteditable, insert at position
@@ -791,9 +796,15 @@ function selectPrompt(prompt: Prompt): void {
   
   // Check if the prompt has template variables
   if (hasVariables(prompt.content)) {
-    // Store the prompt and show variable input modal
+    // Store the prompt
     state.pendingPrompt = prompt;
-    closePanel(true, true); // Keep focus, keep caret position
+    
+    // Store the trigger position for later use when inserting
+    const triggerStart = state.triggerStartPosition;
+    const caretPos = state.caretPosition;
+    
+    // Close panel but don't restore focus yet (variable modal will handle it)
+    closePanel(false, false);
     
     // Show variable input modal
     showVariableInput({
@@ -804,6 +815,10 @@ function selectPrompt(prompt: Prompt): void {
       },
       onConfirm: (filledContent: string) => {
         if (state.pendingPrompt) {
+          // Restore the state values that might have been cleared
+          state.currentInput = document.activeElement as HTMLInputElement | HTMLTextAreaElement | Element;
+          state.triggerStartPosition = triggerStart;
+          state.caretPosition = caretPos;
           insertPromptWithContent(state.pendingPrompt, filledContent);
           state.pendingPrompt = null;
         }
@@ -813,10 +828,10 @@ function selectPrompt(prompt: Prompt): void {
         if (state.currentInput) {
           if (state.currentInput instanceof HTMLInputElement || state.currentInput instanceof HTMLTextAreaElement) {
             state.currentInput.focus();
-            setCaretPosition(state.currentInput, state.caretPosition);
+            setCaretPosition(state.currentInput, caretPos);
           } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
             (state.currentInput as HTMLElement).focus();
-            setCaretPosition(state.currentInput, state.caretPosition);
+            setCaretPosition(state.currentInput, caretPos);
           }
         }
         state.pendingPrompt = null;

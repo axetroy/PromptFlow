@@ -85,7 +85,14 @@ function updateSubmitButton(): void {
 function focusNext(currentIndex: number): void {
   if (currentIndex < activeInputRefs.length - 1) {
     // Focus next input
-    activeInputRefs[currentIndex + 1].focus();
+    const nextInput = activeInputRefs[currentIndex + 1];
+    nextInput.focus();
+    
+    // If it's a textarea, move cursor to the end
+    if (nextInput instanceof HTMLTextAreaElement) {
+      const len = nextInput.value.length;
+      nextInput.setSelectionRange(len, len);
+    }
   } else {
     // Last input - focus submit button
     const submitBtn = activeModal?.querySelector('.vf-submit-btn') as HTMLButtonElement;
