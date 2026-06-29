@@ -503,9 +503,10 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
   searchInput.addEventListener('input', (e) => {
     const query = (e.target as HTMLInputElement).value.toLowerCase();
     state.searchQuery = query;
+    // Search only in title, description, and tags (not content)
     const filtered = prompts.filter(p => 
       p.title.toLowerCase().includes(query) ||
-      p.content.toLowerCase().includes(query) ||
+      (p.description && p.description.toLowerCase().includes(query)) ||
       p.tags.some(t => t.toLowerCase().includes(query))
     );
     state.prompts = filtered;
@@ -601,7 +602,7 @@ function renderPromptItem(prompt: Prompt, index: number, shadow: ShadowRoot, sea
     </div>
     <div class="prompt-item-tags">
       ${prompt.tags.map(tag => `
-        <span class="prompt-tag">${escapeHtml(tag)}</span>
+        <span class="prompt-tag">${highlightText(tag, searchQuery)}</span>
       `).join('')}
     </div>
   `;
