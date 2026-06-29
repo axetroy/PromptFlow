@@ -705,7 +705,10 @@ function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, s
  * Insert prompt into input with filled content (after variable interpolation)
  */
 function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
-  if (!state.currentInput) return;
+  if (!state.currentInput) {
+    console.error('[PromptFlow] No current input to insert prompt');
+    return;
+  }
   
   // Get browser's display language
   const browserLang = navigator.language || 'en';
@@ -749,32 +752,35 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   const selectionStart = state.triggerStartPosition + filledContent.length;
   const selectionEnd = selectionStart;
   
+  // Store reference to currentInput before closing panel
+  const targetInput = state.currentInput;
+  
+  // Close panel first to avoid any interference
+  closePanel(false, false);
+  
   // For textarea, directly set value and selection synchronously
-  if (state.currentInput instanceof HTMLTextAreaElement) {
-    const textarea = state.currentInput;
+  if (targetInput instanceof HTMLTextAreaElement) {
+    const textarea = targetInput;
     // Use native setter to bypass any framework overrides
     const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
     nativeSetter.call(textarea, newValue);
-    // Dispatch input event so frameworks can detect the change
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    // Focus and set selection
+    // Focus and set selection first
     textarea.focus();
     textarea.setSelectionRange(selectionStart, selectionEnd);
-    // Close panel
-    closePanel(false, false);
+    // Dispatch input event so frameworks can detect the change
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
     return;
   }
   
-  if (state.currentInput instanceof HTMLInputElement) {
-    state.currentInput.value = newValue;
-    state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
-    setSelection(state.currentInput, selectionStart, selectionEnd);
-  } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
+  if (targetInput instanceof HTMLInputElement) {
+    targetInput.value = newValue;
+    targetInput.focus();
+    setSelection(targetInput, selectionStart, selectionEnd);
+    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+  } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
     // For contenteditable, insert at position
-    insertContentWithNewlines(state.currentInput, promptContent, filledContent.length, filledContent.length);
+    insertContentWithNewlines(targetInput, promptContent, filledContent.length, filledContent.length);
   }
-  
-  closePanel(false, false);
 }
 
 /**
@@ -1040,22 +1046,21 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
 }
 
 function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean = true): void {
-  if (!state.isPanelOpen) return;
-
-  // Store input and actual caret position before closing
-  const previousInput = state.currentInput;
-  const previousPosition = state.caretPosition;
-
-  state.isPanelOpen = false;
-  state.currentInput = null;
-
-  document.removeEventListener('scroll', debouncedPositionPanel, true);
-  window.removeEventListener('resize', debouncedPositionPanel);
-
+  // Always try to remove panel container if it exists
   if (panelContainer) {
     panelContainer.remove();
     panelContainer = null;
   }
+  
+  // Store input and caret position for restoration
+  const previousInput = state.currentInput;
+  const previousPosition = state.caretPosition;
+
+  // Mark panel as closed
+  state.isPanelOpen = false;
+
+  document.removeEventListener('scroll', debouncedPositionPanel, true);
+  window.removeEventListener('resize', debouncedPositionPanel);
 
   // Restore focus to the input and optionally restore cursor position
   if (restoreFocus && previousInput) {
@@ -1068,6 +1073,13 @@ function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean 
       setCaretPosition(previousInput, previousPosition);
     }
   }
+}
+
+/**
+ * Clear currentInput state - call this when panel is truly closed
+ */
+function clearCurrentInput(): void {
+  state.currentInput = null;
 }
 
 function handleKeyDown(e: KeyboardEvent): void {
