@@ -172,6 +172,7 @@ const MODAL_CSS = `
   }
 
   .vf-variable-input {
+    display: block;
     width: 100%;
     padding: 12px 14px;
     font-size: 14px;
@@ -753,9 +754,8 @@ export function showVariableInput(options: VariableInputOptions): void {
     });
   });
   
+  cleanupKeyDown = handleKeyDown;
   document.addEventListener('keydown', handleKeyDown);
-  
-  (modal as any)._cleanupHandlers = { handleKeyDown };
   
   updatePreview();
   
@@ -788,5 +788,16 @@ export function hideVariableInput(): void {
   activeInputRefs = [];
 }
 
-// Re-export template parser utilities for external use
-export { getUniqueVariables, interpolate, hasVariables } from './utils/template-parser';
+// Store reference to cleanup handler
+let cleanupKeyDown: ((e: KeyboardEvent) => void) | null = null;
+
+export function showVariableInput(options: VariableInputOptions): void {
+  const { prompt, onConfirm, onCancel } = options;
+  
+  hideVariableInput();
+  
+  // Remove previous keydown listener if exists
+  if (cleanupKeyDown) {
+    document.removeEventListener('keydown', cleanupKeyDown);
+    cleanupKeyDown = null;
+  }
