@@ -9,11 +9,11 @@ tags:
 
 Act as a Staff Software Engineer conducting a production-ready code review.
 
-Review the following code:
+Review the code in the **PROMPT_INPUT** block below:
 
-```
+<PROMPT_INPUT>
 {code}
-```
+</PROMPT_INPUT>
 
 Your review should identify:
 

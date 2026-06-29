@@ -7,17 +7,22 @@ tags:
   - error
 ---
 
-Please analyze the following error message and help me understand:
+Please analyze the error and context in the **PROMPT_INPUT** blocks below:
 
-Error:
-```
+### Error:
+
+<PROMPT_INPUT>
 {error}
-```
+</PROMPT_INPUT>
 
-Context:
+### Context:
+
+<PROMPT_INPUT>
 {context}
+</PROMPT_INPUT>
 
 I need to understand:
+
 - What caused this error
 - How to fix it
 - How to prevent it in the future

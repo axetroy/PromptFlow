@@ -7,13 +7,17 @@ tags:
   - cleanup
 ---
 
-Refactor the following code to improve readability and maintainability:
+Refactor the code in the **PROMPT_INPUT** block below for readability and maintainability:
 
-```
+<PROMPT_INPUT>
 {code}
-```
+</PROMPT_INPUT>
 
-Goals:
+Keep behavior unchanged.
+Focus on:
+
 - Cleaner architecture
 - Better naming
-- Reduced complexity
+- Lower complexity
+
+Output only the refactored code.

@@ -9,11 +9,11 @@ tags:
 
 You are an expert software engineer and technical educator.
 
-Carefully analyze the following code and explain the following code in detail:
+Analyze the code in the **PROMPT_INPUT** block below and explain it in detail:
 
-```
+<PROMPT_INPUT>
 {code}
-```
+</PROMPT_INPUT>
 
 Your explanation should include:
 
