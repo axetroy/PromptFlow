@@ -799,7 +799,8 @@ function selectPrompt(prompt: Prompt): void {
     // Store the prompt
     state.pendingPrompt = prompt;
     
-    // Store the trigger position for later use when inserting
+    // Store the input reference and positions for later use when inserting
+    const targetInput = state.currentInput;
     const triggerStart = state.triggerStartPosition;
     const caretPos = state.caretPosition;
     
@@ -815,8 +816,8 @@ function selectPrompt(prompt: Prompt): void {
       },
       onConfirm: (filledContent: string) => {
         if (state.pendingPrompt) {
-          // Restore the state values that might have been cleared
-          state.currentInput = document.activeElement as HTMLInputElement | HTMLTextAreaElement | Element;
+          // Restore the state values using stored references
+          state.currentInput = targetInput;
           state.triggerStartPosition = triggerStart;
           state.caretPosition = caretPos;
           insertPromptWithContent(state.pendingPrompt, filledContent);
@@ -824,14 +825,14 @@ function selectPrompt(prompt: Prompt): void {
         }
       },
       onCancel: () => {
-        // Restore focus to input
-        if (state.currentInput) {
-          if (state.currentInput instanceof HTMLInputElement || state.currentInput instanceof HTMLTextAreaElement) {
-            state.currentInput.focus();
-            setCaretPosition(state.currentInput, caretPos);
-          } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
-            (state.currentInput as HTMLElement).focus();
-            setCaretPosition(state.currentInput, caretPos);
+        // Restore focus to original input
+        if (targetInput) {
+          if (targetInput instanceof HTMLInputElement || targetInput instanceof HTMLTextAreaElement) {
+            targetInput.focus();
+            setCaretPosition(targetInput, caretPos);
+          } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
+            (targetInput as HTMLElement).focus();
+            setCaretPosition(targetInput, caretPos);
           }
         }
         state.pendingPrompt = null;
