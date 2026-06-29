@@ -1,211 +1,131 @@
-# PromptFlow Chrome Extension
+# PromptFlow
 
 [![CI](https://github.com/axetroy/PromptFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/axetroy/PromptFlow/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/axetroy/PromptFlow?include_prereleases&label=release)](https://github.com/axetroy/PromptFlow/releases)
-[![License](https://img.shields.io/github/license/axetroy/PromptFlow)](LICENSE)
+[![License](https://img.shields.io/github/license/axetroy/PromptFlow)](LICENCE)
+
+A browser-level Prompt Command System — invoke any prompt instantly in any input field.
 
 <p align="center">
-    <img width="800" src="screenshot/screenshot.gif" alt="Screen Shot">
+  <img width="800" src="screenshot/screenshot.gif" alt="PromptFlow demo">
 </p>
 
 ---
 
-A browser-level Prompt Command System that provides quick prompt invocation in any input field.
-
 ## Features
 
-### 🚀 Quick Prompt Invocation
-- Type `/prompts` in any input field to open the prompt panel
-- Prompts are inserted directly at your cursor position
-- Works with `input`, `textarea`, and `contenteditable` elements
-
-### ⌨️ Keyboard Navigation
-- `↑` `↓` - Navigate through prompts
-- `Enter` - Select and insert prompt
-- `Esc` - Close panel
-
-### 🔍 Smart Search
-- Real-time filtering as you type
-- Searches title, content, and tags
-
-### 🌐 Multi-language Support
-- Automatically detects your browser language
-- AI responses will be in your preferred language
-
-### 🎨 Themes
-- Supports light and dark themes
-- Automatically follows your system preference
-
-### 💾 Data Management
-- **Import/Export** - Backup and share your prompts
-- **GitHub Sync** - Sync prompts from GitHub repositories
-- **CRUD Operations** - Create, edit, and delete custom prompts
-- **Default Prompts** - Built-in prompts for common tasks
-
-### 🔒 Privacy & Security
-- All data stored locally in your browser
-- No external API calls (except GitHub sync)
-- Shadow DOM for style isolation
+- ⚡ **Quick Invocation** — Type `/prompts` in any `input`, `textarea`, or `contenteditable` element to open the panel
+- ⌨️ **Keyboard Navigation** — `↑` `↓` to navigate, `Enter` to insert, `Esc` to close
+- 🔍 **Smart Search** — Real-time filtering across title, content, and tags
+- 🌐 **Multi-language** — Auto-detects browser language; AI responds in your preferred language
+- 🎨 **Themes** — Light & dark, follows system preference automatically
+- 💾 **Data Management** — Import/Export, GitHub Sync, CRUD, built-in default prompts
+- 🔒 **Privacy** — All data stored locally; no external calls except GitHub sync; Shadow DOM isolation
 
 ## Default Prompts
 
-| Prompt | Description |
-|--------|-------------|
-| Code Review | Review code and provide improvement suggestions |
-| Explain Code | Get detailed explanation of any code |
-| Bug Fix | Debug and fix code issues |
-| Write Tests | Generate test cases for code |
-| Refactor Code | Improve code structure and quality |
-| Analyze Error | Analyze and understand error messages |
-| Prompt Generator | Convert a topic into a structured, reusable prompt |
+| Prompt           | Description                                            |
+| ---------------- | ------------------------------------------------------ |
+| Code Review      | Review code and provide improvement suggestions        |
+| Explain Code     | Get detailed explanation of any code                   |
+| Bug Fix          | Debug and fix code issues                              |
+| Write Tests      | Generate test cases for code                           |
+| Refactor Code    | Improve code structure and quality                     |
+| Analyze Error    | Analyze and understand error messages                  |
+| Prompt Optimizer | Optimize and enhance prompts for large language models |
 
 ## Installation
 
 ### From Source
 
-1. Clone or download this repository
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" (toggle in top right)
-4. Click "Load unpacked"
-5. Select the `dist` folder
-
-### From Release
-
-Download the latest release from [Releases](https://github.com/axetroy/PromptFlow/releases) and unzip it.
-
-## Build
-
 ```bash
-# Install dependencies
+git clone https://github.com/axetroy/PromptFlow.git
+cd PromptFlow
 npm install
-
-# Build the extension
 npm run build
 ```
 
-This will compile TypeScript files and copy assets to the `dist/` folder.
+Then open `chrome://extensions/`, enable **Developer mode**, and click **Load unpacked** — select the `dist/` folder.
+
+### From Release
+
+Download the latest release from the [Releases page](https://github.com/axetroy/PromptFlow/releases) and unzip.
+
+## Usage
+
+1. Click any text input on any webpage
+2. Type `/prompts` to open the prompt panel
+3. Navigate with `↑` `↓` or type to search
+4. Press `Enter` to insert the prompt at cursor position
+5. Press `Esc` to close the panel
+
+### Settings
+
+Click the extension icon in the toolbar, or the settings button in the panel, to:
+
+- Customize the trigger command
+- Add / Edit / Delete prompts
+- Import / Export prompts
+- Sync prompts from GitHub
+- Reset to defaults
+
+### GitHub Sync
+
+Sync prompts from a GitHub repository:
+
+1. Open settings → **Sync from GitHub**
+2. Enter repository in `owner/repo` format
+3. Optionally specify branch and prompts path
+4. Prompts are synced automatically
+
+Repository requirements: prompt files must be `.md` with YAML frontmatter including a `title` field.
 
 ## Development
 
 ```bash
-# Install dependencies
 npm install
-
-# Type check
-npm run typecheck
-
-# Run tests
-npm test
-
-# Build for production
-npm run build
+npm run dev          # build once
+npm run typecheck    # TypeScript type checking
+npm test             # Playwright integration tests
+npm run build        # production build
 ```
-
-## Usage
-
-1. Navigate to any website with a text input
-2. Click on an input field, textarea, or contenteditable element
-3. Type `/prompts` to trigger the prompt panel
-4. Use arrow keys to navigate or type to search
-5. Press Enter to insert the selected prompt
-6. Press Escape to close the panel
-
-### Supported Input Types
-
-- Standard `<input>` elements
-- `<textarea>` elements
-- Contenteditable elements (`<div contenteditable>`, `<p contenteditable>`)
-- Works with ChatGPT, Claude, and other AI chat interfaces
-
-### Settings
-
-Click the extension icon in Chrome toolbar, or use the settings button in the prompt panel to:
-- Customize the trigger command
-- Add/Edit/Delete prompts
-- Import/Export prompts
-- Sync prompts from GitHub
-- Reset to default prompts
-
-### GitHub Sync
-
-Sync prompts from GitHub repositories:
-
-1. Open settings page
-2. Click "Sync from GitHub"
-3. Enter repository in format `owner/repo`
-4. Optionally specify branch and prompts path
-5. Prompts are automatically synced
-
-Repository structure requirements:
-- Prompt files must be `.md` files
-- Each file must have YAML frontmatter with `title` field
-- Optional frontmatter: `description`, `tags`
 
 ## Project Structure
 
 ```
-├── .github/
-│   └── workflows/
-│       └── ci.yml           # GitHub Actions CI/CD
-├── src/
-│   ├── types/               # TypeScript type definitions
-│   │   ├── prompt.ts        # Prompt type definitions
-│   │   └── sync.ts          # GitHub sync types
-│   ├── utils/               # Storage and utility functions
-│   ├── prompts/             # Default prompt templates
-│   ├── SettingsApp.tsx      # Settings page React app
-│   ├── SyncManager.tsx      # GitHub sync manager component
-│   ├── content.ts           # Content script (input detection, panel)
-│   ├── background.ts        # Service worker (data management)
-│   ├── cursor-utils.ts      # Cursor position utilities
-│   └── panel.css            # Panel styles
-├── scripts/
-│   ├── build.js             # esbuild bundler script
-│   ├── copy-assets.js       # Asset copy script
-│   └── generate-icons.js    # Icon generation script
-├── tests/                   # Playwright integration tests
-├── icons/                   # Extension icons
-├── .npmrc                   # npm configuration (Playwright mirror)
-├── playwright.config.ts     # Playwright configuration
-├── tsconfig.json            # TypeScript configuration
-└── package.json             # Project dependencies
+src/
+├── types/            # Type definitions (prompt, sync)
+├── utils/            # Storage & utility functions
+├── prompts/          # Default prompt templates (.md)
+├── SettingsApp.tsx   # Settings page (React)
+├── SyncManager.tsx   # GitHub sync manager
+├── content.ts        # Content script
+├── background.ts     # Service worker
+└── panel.css         # Panel styles
 ```
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────┐
-│       Chrome Extension          │
+│      Content Script             │
+│  Input monitoring & trigger     │
+│  Cursor management & insertion  │
 ├─────────────────────────────────┤
-│ Content Script                  │
-│  - Input monitoring             │
-│  - Trigger detection            │
-│  - Cursor management            │
-│  - Text insertion               │
+│      UI Layer (Floating Panel)  │
+│  Shadow DOM isolation           │
+│  Search & keyboard navigation   │
 ├─────────────────────────────────┤
-│ UI Layer (Floating Panel)       │
-│  - Shadow DOM isolation         │
-│  - Search filtering             │
-│  - Keyboard navigation          │
-├─────────────────────────────────┤
-│ Background Service Worker       │
-│  - Data management              │
-│  - Storage sync                 │
-│  - GitHub integration           │
-├─────────────────────────────────┤
-│ Storage Layer                   │
-│  - chrome.storage.local        │
-│  - Import/Export support       │
+│  Background Service Worker      │
+│  Data management & storage sync │
+│  GitHub integration             │
 └─────────────────────────────────┘
 ```
 
 ## CI/CD
 
-This project uses GitHub Actions for continuous integration:
-
-- **Test**: Runs type checks, build, and Playwright tests
-- **Release**: Creates zip archive on version tags
+GitHub Actions runs type checks, builds, and Playwright tests on every push. Releases are automatically packaged on version tags.
 
 ## License
 
-MIT
+[MIT](LICENCE)
