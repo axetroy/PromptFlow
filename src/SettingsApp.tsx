@@ -54,6 +54,9 @@ import {
 // Import SyncManager component
 import SyncManager from './SyncManager';
 
+// Import PromptPreview component
+import PromptPreview from './components/PromptPreview';
+
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -239,6 +242,8 @@ const SettingsApp: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [syncManagerVisible, setSyncManagerVisible] = useState(false);
+  const [previewPrompt, setPreviewPrompt] = useState<Prompt | null>(null);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -721,11 +726,21 @@ const SettingsApp: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 150,
+      width: 200,
       render: (_, record) => {
         const isReadOnly = record.isDefault || record.id.startsWith('sync-');
         return (
           <Space>
+            <Tooltip title="Preview">
+              <Button
+                type="text"
+                icon={<FileTextOutlined />}
+                onClick={() => {
+                  setPreviewPrompt(record);
+                  setPreviewVisible(true);
+                }}
+              />
+            </Tooltip>
             <Tooltip title={isReadOnly ? 'This prompt cannot be edited' : 'Edit'}>
               <Button 
                 type="text" 
@@ -966,6 +981,13 @@ const SettingsApp: React.FC = () => {
           onSyncRepo={handleSyncRepo}
           onToggleRepo={handleToggleRepo}
           onTogglePrompt={handleToggleSyncedPrompt}
+        />
+
+        {/* Prompt Preview Modal */}
+        <PromptPreview
+          prompt={previewPrompt}
+          visible={previewVisible}
+          onClose={() => setPreviewVisible(false)}
         />
       </Layout>
     </ConfigProvider>
