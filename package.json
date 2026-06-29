@@ -1,6 +1,6 @@
 {
   "name": "promptflow-extension",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "description": "Browser-level Prompt Command System - Quick Prompt invocation in any input field",
   "scripts": {
