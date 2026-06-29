@@ -1,4 +1,5 @@
 import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
+import { showVariableInput, hideVariableInput, getUniqueVariables, interpolate, hasVariables } from './VariableInput';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -9,6 +10,7 @@ interface ContentState {
   selectedIndex: number;
   prompts: Prompt[];
   searchQuery: string;
+  pendingPrompt: Prompt | null; // Prompt waiting for variable input
 }
 
 const state: ContentState = {
@@ -20,6 +22,7 @@ const state: ContentState = {
   selectedIndex: 0,
   prompts: [],
   searchQuery: '',
+  pendingPrompt: null,
 };
 
 let panelContainer: HTMLElement | null = null;
@@ -303,28 +306,27 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
   // Check that the trigger is complete (no partial matches like /pa for /p)
   const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
   
-  // CRITICAL: The cursor must be IMMEDIATELY after the trigger
+  // The cursor must be at or after the trigger end
+  // Whitespace after the trigger is OK (e.g., "/prompts " with cursor at 9 is valid)
   // Examples:
   // - "/prompts" with cursor at 8 → MATCH (cursor right after trigger)
-  // - "/prompts " with cursor at 9 → NO MATCH (space between trigger end and cursor)
-  // - "/prompts a" with cursor at 10 → NO MATCH (character 'a' after trigger)
+  // - "/prompts " with cursor at 9 → MATCH (whitespace after trigger is OK)
+  // - "/prompts world" with cursor at 15 → MATCH (whitespace between trigger and cursor is OK)
+  // - "/promptsX" with cursor at 9 → NO MATCH ('X' directly after trigger)
   
   const triggerEndPosition = lastIndex + trigger.length;
   
-  // If cursor is past the trigger, check what's between them
-  if (textBeforeCaret.length > triggerEndPosition) {
-    // There's text between trigger end and cursor
-    // If there's ANY whitespace there, the cursor is not at the trigger
-    const textBetween = textBeforeCaret.substring(triggerEndPosition);
-    if (textBetween.trim().length > 0) {
-      // Non-whitespace content between trigger and cursor - partial match
+  // If there's content between trigger end and cursor, check if it's all whitespace
+  if (textAfterTrigger.length > 0) {
+    // Only whitespace between trigger and cursor (or cursor is right at end) is valid
+    if (textAfterTrigger.trim().length > 0) {
+      // Non-whitespace content directly after trigger - partial match
       return -1;
     }
-    // There's whitespace between trigger and cursor - cursor is not at trigger
-    return -1;
+    // Only whitespace after trigger - this is valid
   }
   
-  // Cursor is at or before trigger end - this is a match
+  // Valid match
   return lastIndex;
 }
 
@@ -536,10 +538,19 @@ function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: st
       </div>
     `;
     
-    item.addEventListener('click', () => selectPrompt(prompt));
-    item.addEventListener('mouseenter', () => {
+    // Click to select
+    item.addEventListener('click', () => {
       state.selectedIndex = index;
       updateSelection(shadow, index);
+      selectPrompt(prompt);
+    });
+    
+    // Hover for visual feedback only (not selecting)
+    item.addEventListener('mouseenter', () => {
+      item.classList.add('hovered');
+    });
+    item.addEventListener('mouseleave', () => {
+      item.classList.remove('hovered');
     });
     
     listContainer.appendChild(item);
@@ -698,8 +709,14 @@ function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, s
   }
 }
 
-function selectPrompt(prompt: Prompt): void {
-  if (!state.currentInput) return;
+/**
+ * Insert prompt into input with filled content (after variable interpolation)
+ */
+function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
+  if (!state.currentInput) {
+    console.error('[PromptFlow] No current input to insert prompt');
+    return;
+  }
   
   // Get browser's display language
   const browserLang = navigator.language || 'en';
@@ -730,77 +747,146 @@ function selectPrompt(prompt: Prompt): void {
   
   // Append language instruction to prompt
   const languageInstruction = `\n\n---\n\nPlease prioritize responding in ${langName} if no language has been specified earlier in the conversation.`;
-  const promptContent = prompt.content + languageInstruction;
+  const promptContent = filledContent + languageInstruction;
   
   const inputValue = getInputValue(state.currentInput);
   
   // Replace trigger with prompt content
+  // - before: text before trigger
+  // - after: text after trigger (not after caret)
+  const triggerEndPosition = state.triggerStartPosition + state.currentTrigger.length;
   const before = inputValue.substring(0, state.triggerStartPosition);
-  const after = inputValue.substring(state.caretPosition);
+  const after = inputValue.substring(triggerEndPosition);
   const newValue = before + promptContent + after;
   
-  // Find first placeholder position (relative to original prompt.content)
-  const placeholder = findFirstPlaceholder(prompt.content);
+  // Position cursor at end of inserted prompt content (including language instruction)
+  // Cursor should be at: triggerStart + promptContent.length
+  const cursorPosition = state.triggerStartPosition + promptContent.length;
   
-  // Calculate selection range after insertion
-  let selectionStart: number;
-  let selectionEnd: number;
+  // Store reference to currentInput before closing panel
+  const targetInput = state.currentInput;
   
-  if (placeholder) {
-    // Select the entire first placeholder (including braces)
-    selectionStart = state.triggerStartPosition + placeholder.start;
-    selectionEnd = state.triggerStartPosition + placeholder.end;
-  } else {
-    // No placeholder found, position cursor at end of inserted text (before language instruction)
-    selectionStart = state.triggerStartPosition + prompt.content.length;
-    selectionEnd = selectionStart;
-  }
+  // Close panel first to avoid any interference
+  closePanel(false, false);
   
   // For textarea, directly set value and selection synchronously
-  if (state.currentInput instanceof HTMLTextAreaElement) {
-    const textarea = state.currentInput;
+  if (targetInput instanceof HTMLTextAreaElement) {
+    const textarea = targetInput;
     // Use native setter to bypass any framework overrides
     const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
     nativeSetter.call(textarea, newValue);
+    // Focus first
+    textarea.focus();
+    // Set cursor position immediately after focus
+    textarea.setSelectionRange(cursorPosition, cursorPosition);
     // Dispatch input event so frameworks can detect the change
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    // Focus and set selection
-    textarea.focus();
-    textarea.setSelectionRange(selectionStart, selectionEnd);
-    // Close panel
-    closePanel(false, false);
     return;
   }
   
-  if (state.currentInput instanceof HTMLInputElement) {
-    state.currentInput.value = newValue;
-    state.currentInput.dispatchEvent(new Event('input', { bubbles: true }));
-    setSelection(state.currentInput, selectionStart, selectionEnd);
-  } else if (state.currentInput.hasAttribute && state.currentInput.hasAttribute('contenteditable')) {
-    // For contenteditable, we need relative positions within prompt.content
-    const relativeStart = placeholder ? placeholder.start : prompt.content.length;
-    const relativeEnd = placeholder ? placeholder.end : prompt.content.length;
-    insertContentWithNewlines(state.currentInput, promptContent, relativeStart, relativeEnd);
+  if (targetInput instanceof HTMLInputElement) {
+    targetInput.value = newValue;
+    targetInput.focus();
+    targetInput.setSelectionRange(cursorPosition, cursorPosition);
+    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+  } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
+    // For contenteditable, insert at position (pass cursorPosition directly)
+    insertContentWithNewlines(targetInput, promptContent, cursorPosition);
   }
+}
+
+/**
+ * Select a prompt - checks for variables and shows input modal if needed
+ */
+function selectPrompt(prompt: Prompt): void {
+  if (!state.currentInput) return;
   
-  closePanel(false, false);
+  // Check if the prompt has template variables
+  if (hasVariables(prompt.content)) {
+    // Store the prompt
+    state.pendingPrompt = prompt;
+    
+    // Store the input reference and positions for later use when inserting
+    const targetInput = state.currentInput;
+    const triggerStart = state.triggerStartPosition;
+    const caretPos = state.caretPosition;
+    
+    // Close panel but don't restore focus yet (variable modal will handle it)
+    closePanel(false, false);
+    
+    // Show variable input modal
+    showVariableInput({
+      prompt: {
+        id: prompt.id,
+        title: prompt.title,
+        content: prompt.content,
+      },
+      onConfirm: (filledContent: string) => {
+        if (state.pendingPrompt) {
+          // Restore the state values using stored references
+          state.currentInput = targetInput;
+          state.triggerStartPosition = triggerStart;
+          state.caretPosition = caretPos;
+          insertPromptWithContent(state.pendingPrompt, filledContent);
+          state.pendingPrompt = null;
+        }
+      },
+      onCancel: () => {
+        // Restore focus to original input
+        if (targetInput) {
+          if (targetInput instanceof HTMLInputElement || targetInput instanceof HTMLTextAreaElement) {
+            targetInput.focus();
+            setCaretPosition(targetInput, caretPos);
+          } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
+            (targetInput as HTMLElement).focus();
+            setCaretPosition(targetInput, caretPos);
+          }
+        }
+        state.pendingPrompt = null;
+      },
+    });
+  } else {
+    // No variables, insert directly
+    insertPromptWithContent(prompt, prompt.content);
+  }
 }
 
 /**
  * Insert content into contenteditable element, properly handling newlines
- * Returns the actual text content length for selection calculation
+ * This function:
+ * 1. Gets current text content from element
+ * 2. Replaces trigger with content (preserving context before and after)
+ * 3. Clears element and re-inserts with proper <br> handling
+ * 4. Sets cursor position at the end of inserted content
  */
 function insertContentWithNewlines(
   element: Element,
-  content: string,
-  selectionStart: number,
-  selectionEnd: number
+  newContent: string,
+  cursorPosition: number
 ): void {
+  // Get current text content from the element
+  const currentContent = element.textContent || '';
+  
+  // Build new content using the same logic as textarea/inputs
+  // Get the stored trigger positions from the state
+  const triggerStartPosition = state.triggerStartPosition;
+  const triggerEndPosition = triggerStartPosition + state.currentTrigger.length;
+  
+  // Build new value: before + newContent + after
+  const before = currentContent.substring(0, triggerStartPosition);
+  const after = currentContent.substring(triggerEndPosition);
+  const finalContent = before + newContent + after;
+  
+  // Calculate cursor position in final content
+  const finalCursorPosition = triggerStartPosition + newContent.length;
+  
   // Clear the element
-  element.textContent = '';
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
   
   // Insert the new content with proper newline handling
-  const lines = content.split('\n');
+  const lines = finalContent.split('\n');
   
   for (let i = 0; i < lines.length; i++) {
     if (i > 0) {
@@ -813,19 +899,18 @@ function insertContentWithNewlines(
     }
   }
   
-  // Adjust selection positions to account for br tags
-  // In content string, \n is 1 char, but in DOM, <br> is a separate node
-  // We need to find the corresponding DOM position
-  const adjustedStart = findDOMPosition(element, selectionStart);
-  const adjustedEnd = findDOMPosition(element, selectionEnd);
+  // Focus the element first
+  (element as HTMLElement).focus();
   
-  // Set selection using adjusted positions
-  setSelectionAtPosition(element, adjustedStart, adjustedEnd);
+  // Find and set cursor position
+  const domPos = findDOMPosition(element, finalCursorPosition);
+  if (domPos) {
+    setCursorAtPosition(element, domPos);
+  }
 }
 
 /**
- * Find the DOM position (node + offset) corresponding to a character position in content
- * This accounts for <br> tags being separate nodes in the DOM
+ * Find the DOM position (node + offset) corresponding to a character position
  */
 function findDOMPosition(element: Element, targetCharPos: number): { node: Node; offset: number } | null {
   let charCount = 0;
@@ -843,17 +928,15 @@ function findDOMPosition(element: Element, targetCharPos: number): { node: Node;
       }
       charCount += nodeLength;
     } else if (node.nodeName === 'BR') {
-      // br tag represents a newline character in the content
-      // If target is at this newline position, find next text node
+      // br tag represents a newline character
       if (charCount === targetCharPos) {
         // Target is exactly at this br position
-        // Move to next text node or return null
         const nextTextNode = findNextTextNode(element, node);
         if (nextTextNode) {
           return { node: nextTextNode, offset: 0 };
         }
       }
-      charCount += 1; // br counts as 1 character in content
+      charCount += 1;
     }
   }
   
@@ -889,35 +972,15 @@ function findLastTextNode(element: Element): Node | null {
 }
 
 /**
- * Set selection at a specific DOM position
+ * Set cursor at a specific DOM position
  */
-function setSelectionAtPosition(element: Element, start: { node: Node; offset: number } | null, end: { node: Node; offset: number } | null): void {
+function setCursorAtPosition(element: Element, pos: { node: Node; offset: number }): void {
   const selection = window.getSelection();
   if (!selection) return;
   
   const range = document.createRange();
-  
-  if (start) {
-    range.setStart(start.node, start.offset);
-  } else {
-    // Default to beginning
-    const firstText = findFirstTextNode(element);
-    if (firstText) {
-      range.setStart(firstText, 0);
-    } else {
-      range.selectNodeContents(element);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      return;
-    }
-  }
-  
-  if (end) {
-    range.setEnd(end.node, end.offset);
-  } else {
-    range.collapse(false);
-  }
+  range.setStart(pos.node, pos.offset);
+  range.collapse(true);
   
   selection.removeAllRanges();
   selection.addRange(range);
@@ -1004,22 +1067,21 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
 }
 
 function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean = true): void {
-  if (!state.isPanelOpen) return;
-
-  // Store input and actual caret position before closing
-  const previousInput = state.currentInput;
-  const previousPosition = state.caretPosition;
-
-  state.isPanelOpen = false;
-  state.currentInput = null;
-
-  document.removeEventListener('scroll', debouncedPositionPanel, true);
-  window.removeEventListener('resize', debouncedPositionPanel);
-
+  // Always try to remove panel container if it exists
   if (panelContainer) {
     panelContainer.remove();
     panelContainer = null;
   }
+  
+  // Store input and caret position for restoration
+  const previousInput = state.currentInput;
+  const previousPosition = state.caretPosition;
+
+  // Mark panel as closed
+  state.isPanelOpen = false;
+
+  document.removeEventListener('scroll', debouncedPositionPanel, true);
+  window.removeEventListener('resize', debouncedPositionPanel);
 
   // Restore focus to the input and optionally restore cursor position
   if (restoreFocus && previousInput) {
@@ -1032,6 +1094,13 @@ function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean 
       setCaretPosition(previousInput, previousPosition);
     }
   }
+}
+
+/**
+ * Clear currentInput state - call this when panel is truly closed
+ */
+function clearCurrentInput(): void {
+  state.currentInput = null;
 }
 
 function handleKeyDown(e: KeyboardEvent): void {

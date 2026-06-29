@@ -34,22 +34,24 @@ test.describe('Trigger Detection', () => {
     
     if (lastIndex === -1) return -1;
 
-    const triggerEndPosition = lastIndex + trigger.length;
+    // Check that the trigger is complete (no partial matches like /pa for /p)
+    const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
     
-    // If cursor is past the trigger, check what's between them
-    if (textBeforeCaret.length > triggerEndPosition) {
-      // There's text between trigger end and cursor
-      // If there's ANY whitespace there, the cursor is not at the trigger
-      const textBetween = textBeforeCaret.substring(triggerEndPosition);
-      if (textBetween.trim().length > 0) {
-        // Non-whitespace content between trigger and cursor - partial match
+    // The cursor must be at or after the trigger end
+    // Whitespace after the trigger is OK (e.g., "/prompts " with cursor at 9 is valid)
+    // Non-whitespace directly after trigger (e.g., "/promptsX") is NOT valid
+    
+    // If there's content between trigger end and cursor, check if it's all whitespace
+    if (textAfterTrigger.length > 0) {
+      // Only whitespace between trigger and cursor (or cursor is right at end) is valid
+      if (textAfterTrigger.trim().length > 0) {
+        // Non-whitespace content directly after trigger - partial match
         return -1;
       }
-      // There's whitespace between trigger and cursor - cursor is not at trigger
-      return -1;
+      // Only whitespace after trigger - this is valid
     }
     
-    // Cursor is at or before trigger end - this is a match
+    // Valid match
     return lastIndex;
   }
 
@@ -59,14 +61,14 @@ test.describe('Trigger Detection', () => {
     expect(result).toBe(0);
   });
 
-  test('should NOT match when space follows trigger', () => {
-    // "/prompts " with cursor at position 9 (after the space)
+  test('should match when space follows trigger', () => {
+    // "/prompts " with cursor at position 9 (after the space) - whitespace is OK
     const result = findTriggerPosition('/prompts ', 9, '/prompts');
-    expect(result).toBe(-1);
+    expect(result).toBe(0);
   });
 
-  test('should NOT match when character follows trigger', () => {
-    // "/prompts a" with cursor at position 10 (after 'a')
+  test('should NOT match when non-whitespace character follows trigger', () => {
+    // "/prompts a" with cursor at position 10 (after 'a') - non-whitespace breaks match
     const result = findTriggerPosition('/prompts a', 10, '/prompts');
     expect(result).toBe(-1);
   });
@@ -108,10 +110,11 @@ test.describe('Trigger Detection', () => {
     expect(result).toBe(9);
   });
 
-  test('should NOT match if last occurrence has text after cursor', () => {
-    // "/prompts /prompts a" - last occurrence has 'a' after cursor
+  test('should match second occurrence with whitespace before cursor', () => {
+    // "/prompts /prompts a" - cursor at position 18 is after second trigger's trailing space
+    // The second trigger at index 9 is valid (only whitespace between trigger and cursor)
     const result = findTriggerPosition('/prompts /prompts a', 18, '/prompts');
-    expect(result).toBe(-1);
+    expect(result).toBe(9);
   });
 
   test('should match trigger after opening parenthesis', () => {
@@ -140,8 +143,9 @@ test.describe('Trigger Detection', () => {
 
   test('should match with newline between trigger and cursor', () => {
     // "/prompts\n" with cursor at position 9
+    // Newline is whitespace, so should match (same as space)
     const result = findTriggerPosition('/prompts\n', 9, '/prompts');
-    expect(result).toBe(-1); // newline is whitespace, so should not match
+    expect(result).toBe(0);
   });
 
   test('should match empty input with no trigger', () => {

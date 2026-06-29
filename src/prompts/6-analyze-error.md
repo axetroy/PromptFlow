@@ -12,13 +12,13 @@ Please analyze the error and context in the **PROMPT_INPUT** blocks below:
 ### Error:
 
 <PROMPT_INPUT>
-{error}
+<VAR name="error" description="The error message or stack trace to be analyzed" />
 </PROMPT_INPUT>
 
 ### Context:
 
 <PROMPT_INPUT>
-{context}
+<VAR name="context" description="The relevant code context to help analyze the error" defaultValue="None" />
 </PROMPT_INPUT>
 
 I need to understand:

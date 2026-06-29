@@ -10,7 +10,7 @@ tags:
 Refactor the code in the **PROMPT_INPUT** block below for readability and maintainability:
 
 <PROMPT_INPUT>
-{code}
+<VAR name="code" description="The source code to be refactored" />
 </PROMPT_INPUT>
 
 Keep behavior unchanged.

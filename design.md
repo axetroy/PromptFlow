@@ -78,9 +78,13 @@ Prompt 插入输入框光标位置
 
 ### 插入行为
 
-* 替换 `/prompts` 触发词
-* 或插入至光标位置
-* 保留原输入上下文结构
+1. 用户输入 `/prompts` 触发面板，此时记录 a. 光标位置 b. 输入框内容 c. 触发词位置
+2. 用户选择 Prompt，弹出变量填充界面（如果有变量）
+  2.1 如果用户取消选择，则重新聚焦输入框，并恢复原光标位置
+3. 用户确认插入，系统将 Prompt 内容插入至光标位置，并删除触发词 `/prompts`
+  3.1 如果用户取消选择，则重新聚焦输入框，并恢复原光标位置
+
+插入提示词不破坏上下文，不改变光标位置
 
 ---
 
@@ -189,20 +193,201 @@ Prompt 插入输入框光标位置
 
 ### 模板能力（扩展）
 
-支持变量插值：
+支持变量插值，使用 `<VAR>` XML 标签语法：
 
 ```text id="pf-template-1"
-Write a {tone} explanation about {topic}
+Write a <VAR name="tone"></VAR> explanation about <VAR name="topic"></VAR>
 ```
 
 变量类型：
 
-* `{tone}`
-* `{topic}`
+* `<VAR name="tone"></VAR>` - 必填变量
+* `<VAR name="tone" defaultValue="professional"></VAR>` - 带默认值的变量
 
 ---
 
-## 4.3 UI Layer（浮动面板）
+## 4.3 模板变量语法（VAR Tag）
+
+### 设计背景
+
+传统的变量语法如 `{variable_name}` 容易与以下场景冲突：
+- Markdown 中的强调/粗体：`**text**`, `{text}`
+- JSON/代码中的对象属性
+- 其他模板引擎（如 Handlebars、Nunjucks）
+- 正则表达式
+
+为了避免冲突，采用 XML 标签风格的 `<VAR>` 语法。
+
+---
+
+### 语法规范
+
+#### 基本语法
+
+```xml
+<VAR name="variable_name"></VAR>
+```
+
+#### 带默认值的变量
+
+```xml
+<VAR name="variable_name" defaultValue="default_value"></VAR>
+```
+
+#### 带描述的变量
+
+```xml
+<VAR name="variable_name" description="Description text"></VAR>
+```
+
+#### 完整语法（所有属性）
+
+```xml
+<VAR name="variable_name" description="Description text" defaultValue="default_value"></VAR>
+```
+
+#### 自闭合语法
+
+```xml
+<VAR name="variable_name" description="Desc" defaultValue="val"/>
+```
+
+**注意**：属性可以以任意顺序出现。
+
+---
+
+### 参数说明
+
+| 参数 | 必需 | 类型 | 说明 |
+|------|------|------|------|
+| `name` | 是 | string | 变量唯一标识符，支持字母、数字、下划线、连字符，必须以字母或下划线开头 |
+| `description` | 否 | string | 变量的描述文本，用于在 UI 中显示给用户，帮助理解变量的用途 |
+| `defaultValue` | 否 | string | 当用户未提供值时使用的默认值 |
+
+---
+
+### 变量名称规则
+
+* 必须以字母 (`a-z`, `A-Z`) 或下划线 (`_`) 开头
+* 可包含字母、数字 (`0-9`)、下划线 (`_`)、连字符 (`-`)
+* 大小写敏感
+* 不能包含空格
+
+**合法名称**：
+- `name`
+- `variable_name`
+- `variableName`
+- `topic_1`
+- `my-var`
+- `_private`
+
+**非法名称**：
+- `123name` (不能以数字开头)
+- `my name` (不能包含空格)
+- `var!` (不能包含特殊字符)
+
+---
+
+### 使用示例
+
+#### 示例 1：翻译 Prompt
+
+```xml
+Translate the following text to <VAR name="target_language" description="目标语言" defaultValue="English"></VAR>:
+
+<VAR name="text" description="要翻译的文本"></VAR>
+```
+
+#### 示例 2：代码审查
+
+```xml
+Review the following <VAR name="language" description="编程语言，如 JavaScript、Python 等"></VAR> code:
+
+<VAR name="code" description="要审查的源代码"></VAR>
+
+Focus on: <VAR name="focus_areas" description="审查重点" defaultValue="general improvements"></VAR>
+```
+
+#### 示例 3：复杂 Prompt
+
+```xml
+---
+title: <VAR name="title" description="文档标题" defaultValue="Untitled"></VAR>
+description: <VAR name="description" description="文档描述" defaultValue="No description"></VAR>
+tags:
+  - <VAR name="tag1" description="标签1"></VAR>
+  - <VAR name="tag2" description="标签2" defaultValue="general"></VAR>
+---
+
+# <VAR name="title" defaultValue="Untitled"></VAR>
+
+<VAR name="content" description="文档内容"></VAR>
+
+### Requirements
+
+- <VAR name="req1" description="需求1"></VAR>
+- <VAR name="req2" description="需求2" defaultValue="Follow best practices"></VAR>
+```
+
+---
+
+### 与其他语法的兼容性
+
+`<VAR>` 语法不会与以下常见语法冲突：
+
+| 语法 | 示例 | 是否冲突 |
+|------|------|----------|
+| Markdown 粗体 | `**bold**` | ❌ 不冲突 |
+| Markdown 大括号 | `{text}` | ❌ 不冲突 |
+| Handlebars | `{{name}}` | ❌ 不冲突 |
+| JavaScript 模板字面量 | `` `${var}` `` | ❌ 不冲突 |
+| printf 格式 | `%s %d` | ❌ 不冲突 |
+| Shell 变量 | `$VAR` | ❌ 不冲突 |
+| CSS 变量 | `--var` | ❌ 不冲突 |
+
+---
+
+### 技术实现
+
+#### 正则表达式
+
+```javascript
+// 匹配 <VAR> 标签（闭合标签和自闭合标签）
+/<VAR\s+([^>]+)(?:[^>]*)>(?:[\s\S]*?)<\/VAR>|<VAR\s+([^>]+)\/>/gi
+```
+
+#### 属性解析
+
+由于属性可能以任意顺序出现，采用两级解析策略：
+1. 正则表达式捕获整个属性字符串
+2. 遍历 `name="..."`、`description="..."`、`defaultValue="..."` 提取各属性值
+
+#### 解析流程
+
+1. 扫描模板中的所有 `<VAR>` 标签
+2. 提取 `name`、`description` 和 `defaultValue` 属性
+3. 返回变量列表供 UI 层渲染输入表单（包含描述信息）
+4. 用户填写后，执行替换操作
+
+#### 替换规则
+
+1. 如果用户提供了值，使用用户值替换
+2. 如果用户未提供值但有默认值，使用默认值替换
+3. 如果既无用户值也无默认值，保留原始 `<VAR>` 标签
+4. `description` 属性不参与替换，仅用于 UI 显示
+
+---
+
+### 设计原则
+
+1. **无歧义**：XML 标签风格确保不会与现有语法冲突
+2. **可扩展**：未来可添加更多属性（如 `type`、`required`、`description`）
+3. **易读写**：语法简洁明了，易于理解和编写
+4. **标准化**：采用常见的 XML 属性语法
+
+---
+
+## 4.4 UI Layer（浮动面板）
 
 ### 设计原则
 
@@ -235,7 +420,7 @@ PromptFlow Panel
 
 ---
 
-## 4.4 Background Service Worker
+## 4.5 Background Service Worker
 
 ### 职责
 
@@ -255,7 +440,7 @@ PromptFlow Panel
 
 ---
 
-## 4.5 Storage Layer
+## 4.6 Storage Layer
 
 ### 本地存储方案
 
