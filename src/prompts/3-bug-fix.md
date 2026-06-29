@@ -18,7 +18,7 @@ Analyze the code in the **PROMPT_INPUT** block below:
 Reported error in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-{error}
+{error:None}
 </PROMPT_INPUT>
 
 Your goal is to identify the root cause instead of only fixing the symptom.

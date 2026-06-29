@@ -18,7 +18,7 @@ Please analyze the error and context in the **PROMPT_INPUT** blocks below:
 ### Context:
 
 <PROMPT_INPUT>
-{context}
+{context:None}
 </PROMPT_INPUT>
 
 I need to understand:
