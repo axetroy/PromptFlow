@@ -1284,15 +1284,13 @@ function handleKeyDown(e: KeyboardEvent): void {
       e.preventDefault();
       e.stopPropagation();
       // Get the prompt at the current selected index
-      const selectedItem = items[state.selectedIndex];
-      if (selectedItem) {
+      const selectedItem = items[state.selectedIndex] as HTMLElement | null;
+      if (selectedItem?.dataset?.promptId) {
         const promptId = selectedItem.dataset.promptId;
-        if (promptId) {
-          // Find the prompt in state.prompts
-          const prompt = state.prompts.find(p => p.id === promptId);
-          if (prompt) {
-            selectPrompt(prompt);
-          }
+        // Find the prompt in state.prompts
+        const prompt = state.prompts.find(p => p.id === promptId);
+        if (prompt) {
+          selectPrompt(prompt);
         }
       }
       break;
