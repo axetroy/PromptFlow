@@ -306,28 +306,27 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
   // Check that the trigger is complete (no partial matches like /pa for /p)
   const textAfterTrigger = textBeforeCaret.substring(lastIndex + trigger.length);
   
-  // CRITICAL: The cursor must be IMMEDIATELY after the trigger
+  // The cursor must be IMMEDIATELY after the trigger (no non-whitespace characters between)
   // Examples:
   // - "/prompts" with cursor at 8 → MATCH (cursor right after trigger)
-  // - "/prompts " with cursor at 9 → NO MATCH (space between trigger end and cursor)
-  // - "/prompts a" with cursor at 10 → NO MATCH (character 'a' after trigger)
+  // - "/prompts world" with cursor at 15 → MATCH (whitespace between trigger and cursor is OK)
+  // - "/promptsX" with cursor at 9 → NO MATCH ('X' directly after trigger)
   
   const triggerEndPosition = lastIndex + trigger.length;
   
   // If cursor is past the trigger, check what's between them
   if (textBeforeCaret.length > triggerEndPosition) {
-    // There's text between trigger end and cursor
-    // If there's ANY whitespace there, the cursor is not at the trigger
+    // Check if there's non-whitespace content between trigger end and cursor
+    // Whitespace is allowed (e.g., "/prompts " is valid)
     const textBetween = textBeforeCaret.substring(triggerEndPosition);
     if (textBetween.trim().length > 0) {
-      // Non-whitespace content between trigger and cursor - partial match
+      // Non-whitespace content directly after trigger - partial match
       return -1;
     }
-    // There's whitespace between trigger and cursor - cursor is not at trigger
-    return -1;
+    // Only whitespace between trigger and cursor - this is valid
   }
   
-  // Cursor is at or before trigger end - this is a match
+  // Cursor is at or before trigger end, or has only whitespace after it - this is a match
   return lastIndex;
 }
 
@@ -744,13 +743,15 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   const inputValue = getInputValue(state.currentInput);
   
   // Replace trigger with prompt content
+  // - before: text before trigger (e.g., "hello ")
+  // - after: text after current caret position
   const before = inputValue.substring(0, state.triggerStartPosition);
   const after = inputValue.substring(state.caretPosition);
   const newValue = before + promptContent + after;
   
-  // Position cursor at end of inserted text (before language instruction)
-  const selectionStart = state.triggerStartPosition + filledContent.length;
-  const selectionEnd = selectionStart;
+  // Position cursor at end of inserted prompt content (before language instruction)
+  // Cursor should be at: triggerStart + filledContent.length
+  const cursorPosition = state.triggerStartPosition + filledContent.length;
   
   // Store reference to currentInput before closing panel
   const targetInput = state.currentInput;
@@ -764,12 +765,10 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
     // Use native setter to bypass any framework overrides
     const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
     nativeSetter.call(textarea, newValue);
-    // Focus and set selection
+    // Focus first
     textarea.focus();
-    // Use setTimeout to ensure focus is applied before setting selection
-    setTimeout(() => {
-      textarea.setSelectionRange(selectionStart, selectionEnd);
-    }, 0);
+    // Set cursor position immediately after focus
+    textarea.setSelectionRange(cursorPosition, cursorPosition);
     // Dispatch input event so frameworks can detect the change
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     return;
@@ -778,9 +777,7 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   if (targetInput instanceof HTMLInputElement) {
     targetInput.value = newValue;
     targetInput.focus();
-    setTimeout(() => {
-      setSelection(targetInput, selectionStart, selectionEnd);
-    }, 0);
+    targetInput.setSelectionRange(cursorPosition, cursorPosition);
     targetInput.dispatchEvent(new Event('input', { bubbles: true }));
   } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
     // For contenteditable, insert at position

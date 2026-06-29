@@ -59,14 +59,14 @@ test.describe('Trigger Detection', () => {
     expect(result).toBe(0);
   });
 
-  test('should NOT match when space follows trigger', () => {
-    // "/prompts " with cursor at position 9 (after the space)
+  test('should match when space follows trigger', () => {
+    // "/prompts " with cursor at position 9 (after the space) - whitespace is OK
     const result = findTriggerPosition('/prompts ', 9, '/prompts');
-    expect(result).toBe(-1);
+    expect(result).toBe(0);
   });
 
-  test('should NOT match when character follows trigger', () => {
-    // "/prompts a" with cursor at position 10 (after 'a')
+  test('should NOT match when non-whitespace character follows trigger', () => {
+    // "/prompts a" with cursor at position 10 (after 'a') - non-whitespace breaks match
     const result = findTriggerPosition('/prompts a', 10, '/prompts');
     expect(result).toBe(-1);
   });
