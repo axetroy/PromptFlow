@@ -167,8 +167,19 @@ export function PromptPanel({
 }: PromptPanelProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [isDark, setIsDark] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  
+  // Detect dark mode
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setIsDark(mediaQuery.matches);
+    
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
   
   const position = usePanelPosition();
   
@@ -282,6 +293,7 @@ export function PromptPanel({
   return (
     <div 
       id="promptflow-panel"
+      className={isDark ? 'dark' : ''}
       style={{ 
         top: position.top, 
         left: position.left,
