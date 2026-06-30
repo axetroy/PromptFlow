@@ -1,0 +1,279 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+#promptflow-panel {
+  --pf-bg: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+  --pf-border: rgba(0, 0, 0, 0.1);
+  --pf-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --pf-shadow-inset: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --pf-text-primary: #1a1a1a;
+  --pf-text-secondary: #666;
+  --pf-text-muted: #888;
+  --pf-text-placeholder: rgba(0, 0, 0, 0.35);
+  --pf-search-bg: rgba(0, 0, 0, 0.03);
+  --pf-search-border: rgba(0, 0, 0, 0.15);
+  --pf-search-focus-bg: rgba(0, 0, 0, 0.05);
+  --pf-item-hover-bg: rgba(0, 0, 0, 0.04);
+  --pf-item-selected-bg: rgba(99, 102, 241, 0.1);
+  --pf-item-selected-border: rgba(99, 102, 241, 0.3);
+  --pf-tag-bg: rgba(0, 0, 0, 0.06);
+  --pf-divider: rgba(0, 0, 0, 0.08);
+  --pf-footer-text: rgba(0, 0, 0, 0.4);
+  --pf-kbd-bg: rgba(0, 0, 0, 0.08);
+  --pf-kbd-text: rgba(0, 0, 0, 0.6);
+  --pf-settings-btn-text: rgba(0, 0, 0, 0.5);
+  --pf-settings-btn-hover-bg: rgba(0, 0, 0, 0.06);
+  --pf-settings-btn-hover-text: rgba(0, 0, 0, 0.8);
+  --pf-scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --pf-scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
+  --pf-section-header: #888;
+  --pf-empty-text: #999;
+  --pf-mark-bg: rgba(255, 193, 7, 0.4);
+  --pf-accent-rgb: 99, 102, 241;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: var(--pf-bg);
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  box-shadow: var(--pf-shadow), var(--pf-shadow-inset);
+  width: 620px;
+  max-height: 520px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: pf-fade-in 0.2s ease-out;
+}
+
+#promptflow-panel.dark {
+  --pf-bg: linear-gradient(180deg, #212122 0%, #151517 100%);
+  --pf-border: rgba(255, 255, 255, 0.1);
+  --pf-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --pf-shadow-inset: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --pf-text-primary: #fff;
+  --pf-text-secondary: #bababa;
+  --pf-text-muted: #a1a1a1;
+  --pf-text-placeholder: rgba(255, 255, 255, 0.4);
+  --pf-search-bg: rgba(255, 255, 255, 0.05);
+  --pf-search-border: rgba(255, 255, 255, 0.1);
+  --pf-search-focus-bg: rgba(255, 255, 255, 0.08);
+  --pf-item-hover-bg: rgba(255, 255, 255, 0.06);
+  --pf-item-selected-bg: rgba(99, 102, 241, 0.2);
+  --pf-item-selected-border: rgba(99, 102, 241, 0.5);
+  --pf-tag-bg: rgba(255, 255, 255, 0.1);
+  --pf-divider: rgba(255, 255, 255, 0.08);
+  --pf-footer-text: rgba(255, 255, 255, 0.4);
+  --pf-kbd-bg: rgba(0, 0, 0, 0.2);
+  --pf-kbd-text: rgba(255, 255, 255, 0.7);
+  --pf-settings-btn-text: rgba(255, 255, 255, 0.6);
+  --pf-settings-btn-hover-bg: rgba(255, 255, 255, 0.1);
+  --pf-settings-btn-hover-text: rgba(255, 255, 255, 0.9);
+  --pf-scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --pf-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --pf-section-header: #666;
+  --pf-empty-text: #666;
+  --pf-mark-bg: rgba(255, 193, 7, 0.3);
+}
+
+@keyframes pf-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+#promptflow-search {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--pf-search-border);
+  border-radius: 10px;
+  background: var(--pf-search-bg);
+  color: var(--pf-text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+#promptflow-search:focus {
+  border-color: rgba(var(--pf-accent-rgb), 0.5);
+  background: var(--pf-search-focus-bg);
+  box-shadow: 0 0 0 3px rgba(var(--pf-accent-rgb), 0.2);
+}
+
+#promptflow-search::placeholder {
+  color: var(--pf-text-placeholder);
+}
+
+#promptflow-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pf-scrollbar-thumb) transparent;
+}
+
+#promptflow-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#promptflow-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#promptflow-list::-webkit-scrollbar-thumb {
+  background: var(--pf-scrollbar-thumb);
+  border-radius: 3px;
+}
+
+#promptflow-list::-webkit-scrollbar-thumb:hover {
+  background: var(--pf-scrollbar-thumb-hover);
+}
+
+.prompt-item {
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  color: var(--pf-text-primary);
+}
+
+.prompt-item:hover,
+.prompt-item.hovered {
+  background: var(--pf-item-hover-bg);
+}
+
+.prompt-item.selected {
+  background: var(--pf-item-selected-bg);
+  border-color: var(--pf-item-selected-border);
+}
+
+.prompt-item-title {
+  font-weight: 500;
+  color: var(--pf-text-primary);
+  margin-bottom: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.prompt-item-description {
+  font-size: 12px;
+  color: var(--pf-text-secondary);
+  margin-bottom: 6px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.prompt-item-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.prompt-tag {
+  padding: 2px 8px;
+  background: var(--pf-tag-bg);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--pf-text-muted);
+  transition: all 0.15s ease;
+}
+
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--pf-empty-text);
+}
+
+#promptflow-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--pf-divider);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  color: var(--pf-footer-text);
+}
+
+.footer-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  line-height: 1.4;
+}
+
+.footer-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  min-width: 24px;
+  background: var(--pf-kbd-bg);
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 11px;
+  color: var(--pf-kbd-text);
+}
+
+#promptflow-settings-btn {
+  background: none;
+  border: none;
+  color: var(--pf-settings-btn-text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+
+#promptflow-settings-btn:hover {
+  background: var(--pf-settings-btn-hover-bg);
+  color: var(--pf-settings-btn-hover-text);
+}
+
+#promptflow-settings-btn svg {
+  flex-shrink: 0;
+}
+
+::selection {
+  background: rgba(var(--pf-accent-rgb), 0.4);
+  color: #ffffff;
+}
+
+#promptflow-panel mark {
+  background: var(--pf-mark-bg);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--pf-section-header);
+}
+
+.search-wrapper {
+  padding: 14px 16px;
+}

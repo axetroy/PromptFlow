@@ -5,6 +5,7 @@ const STORAGE_KEY = 'promptflow-data';
 
 interface BackgroundMessage {
   type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload?: any;
 }
 
@@ -75,12 +76,13 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 
 // Handle messages from content scripts
-chrome.runtime.onMessage.addListener((message: BackgroundMessage, sender, sendResponse) => {
-  handleMessage(message, sender).then(sendResponse);
+chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
+  handleMessage(message, _sender).then(sendResponse);
   return true; // Keep channel open for async response
 });
 
-async function handleMessage(message: BackgroundMessage, sender: chrome.runtime.MessageSender): Promise<any> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleMessage(message: BackgroundMessage, _sender: chrome.runtime.MessageSender): Promise<any> {
   const { type, payload } = message;
 
   switch (type) {
@@ -229,7 +231,7 @@ async function saveSettings(settings: PromptSettings): Promise<void> {
   notifyAllTabs('UPDATE_SETTINGS', settings);
 }
 
-async function notifyAllTabs(type: string, payload: any): Promise<void> {
+async function notifyAllTabs(type: string, payload: unknown): Promise<void> {
   const tabs = await chrome.tabs.query({});
   tabs.forEach(tab => {
     if (tab.id) {

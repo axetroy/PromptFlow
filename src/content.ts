@@ -1,5 +1,8 @@
-import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
-import { showVariableInput, hideVariableInput, getUniqueVariables, interpolate, hasVariables } from './VariableInput';
+import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS, PromptUsage } from './types';
+import { SyncedRepo, SyncedPrompt } from './types/sync';
+import { showVariableInput, hideVariableInput, hasVariables } from './components/modals/VariableInputModal';
+import { showPromptPanel, hidePromptPanel } from './components/PromptPanel';
+import { getInputValue, getCaretPosition, setCaretPosition, insertContentWithNewlines } from './utils/dom';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -12,11 +15,6 @@ interface ContentState {
   searchQuery: string;
   pendingPrompt: Prompt | null; // Prompt waiting for variable input
   recentPromptIds: string[]; // Recently used prompt IDs
-}
-
-interface PromptUsage {
-  promptId: string;
-  usedAt: number;
 }
 
 const state: ContentState = {
@@ -33,21 +31,6 @@ const state: ContentState = {
 };
 
 const MAX_RECENT_PROMPTS = 5;
-
-let panelContainer: HTMLElement | null = null;
-
-// Detect system theme preference
-function getCurrentTheme(): 'light' | 'dark' {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return ((...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  }) as T;
-}
 
 interface StorageData {
   prompts?: Prompt[];
@@ -136,6 +119,7 @@ async function loadPrompts(): Promise<Prompt[]> {
         disabledDefaultIds?: string[];
         syncedRepos?: SyncedRepo[];
         syncedPrompts?: SyncedPrompt[];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         settings?: any;
       } | undefined;
       
@@ -176,173 +160,6 @@ async function loadPrompts(): Promise<Prompt[]> {
   });
 }
 
-// Types for synced prompts (duplicated to avoid circular imports)
-interface SyncedRepo {
-  id: string;
-  repo: string;
-  branch: string;
-  promptsPath: string;
-  lastSyncedAt?: number;
-  enabled: boolean;
-  enabledPromptIds: string[];
-}
-
-interface SyncedPrompt {
-  id: string;
-  repoId: string;
-  title: string;
-  content: string;
-  description?: string;
-  tags: string[];
-  filePath: string;
-  createdAt: number;
-  updatedAt: number;
-  enabled?: boolean;
-}
-
-function getInputValue(input: HTMLInputElement | HTMLTextAreaElement | Element): string {
-  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-    return input.value || '';
-  }
-  if (input.hasAttribute('contenteditable')) {
-    return input.textContent || '';
-  }
-  return '';
-}
-
-function getCaretPosition(input: HTMLInputElement | HTMLTextAreaElement | Element): number {
-  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-    return input.selectionStart || 0;
-  }
-  if (input.hasAttribute('contenteditable')) {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const preCaretRange = range.cloneRange();
-      preCaretRange.selectNodeContents(input);
-      preCaretRange.setEnd(range.endContainer, range.endOffset);
-      return preCaretRange.toString().length;
-    }
-  }
-  return 0;
-}
-
-function getCaretRect(input: HTMLInputElement | HTMLTextAreaElement | Element): DOMRect | null {
-  // contenteditable elements - use selection range rect
-  if (input.hasAttribute('contenteditable')) {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const rects = range.getClientRects();
-      if (rects.length > 0) {
-        return rects[rects.length - 1];
-      }
-      return range.getBoundingClientRect();
-    }
-    return null;
-  }
-  
-  // For input/textarea, use a mirror div technique
-  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-    const inputRect = input.getBoundingClientRect();
-    const pos = input.selectionStart || 0;
-    
-    // Create a mirror div with same styling
-    const mirror = document.createElement('div');
-    const style = getComputedStyle(input);
-    
-    // Copy essential styles
-    const props = [
-      'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
-      'letterSpacing', 'lineHeight', 'textTransform',
-      'borderWidth', 'borderStyle', 'borderColor',
-      'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-      'boxSizing', 'wordBreak'
-    ];
-    
-    props.forEach(prop => {
-      mirror.style.setProperty(prop, style.getPropertyValue(prop === 'borderWidth' ? 'border-width' : 
-        prop === 'borderStyle' ? 'border-style' : 
-        prop === 'borderColor' ? 'border-color' : 
-        prop === 'boxSizing' ? 'box-sizing' : 
-        prop === 'wordBreak' ? 'word-break' : prop));
-    });
-    
-    mirror.style.position = 'absolute';
-    mirror.style.top = '-9999px';
-    mirror.style.left = '-9999px';
-    mirror.style.whiteSpace = 'pre-wrap';
-    mirror.style.overflow = 'hidden';
-    mirror.style.width = inputRect.width + 'px';
-    
-    // Add text before caret
-    const textBefore = input.value.substring(0, pos);
-    const textAfter = input.value.substring(pos);
-    
-    // Create span at caret position
-    mirror.innerHTML = escapeHtml(textBefore) + '<span id="caret-span">|</span>' + escapeHtml(textAfter);
-    document.body.appendChild(mirror);
-    
-    const caretSpan = document.getElementById('caret-span');
-    let rect: DOMRect | null = null;
-    
-    if (caretSpan) {
-      rect = caretSpan.getBoundingClientRect();
-      // Create a new rect relative to viewport
-      rect = new DOMRect(
-        rect.left,
-        rect.top,
-        0, // caret width is 0
-        rect.height
-      );
-    }
-    
-    document.body.removeChild(mirror);
-    return rect;
-  }
-  
-  return null;
-}
-
-function setCaretPosition(input: HTMLInputElement | HTMLTextAreaElement | Element, position: number): void {
-  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-    input.setSelectionRange(position, position);
-    input.focus();
-  } else if (input.hasAttribute('contenteditable')) {
-    const range = document.createRange();
-    const selection = window.getSelection();
-    let charCount = 0;
-    let found = false;
-
-    function traverseNodes(node: Node): void {
-      if (found) return;
-      if (node.nodeType === Node.TEXT_NODE) {
-        const nextCount = charCount + node.textContent!.length;
-        if (position <= nextCount) {
-          range.setStart(node, position - charCount);
-          range.setEnd(node, position - charCount);
-          found = true;
-        }
-        charCount = nextCount;
-      } else {
-        for (const child of Array.from(node.childNodes)) {
-          traverseNodes(child);
-          if (found) break;
-        }
-      }
-    }
-
-    traverseNodes(input);
-    if (!found) {
-      range.selectNodeContents(input);
-      range.collapse(false);
-    }
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-  }
-}
-
-
 function findTriggerPosition(inputValue: string, caretPos: number, trigger: string): number {
   const textBeforeCaret = inputValue.substring(0, caretPos);
   
@@ -358,7 +175,7 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
     // Check if it's at a word boundary
     const isWordBoundary = found === 0 || 
       /\s/.test(textBeforeCaret[found - 1]) ||
-      /[\(\[\{]/.test(textBeforeCaret[found - 1]);
+      /[([{]/.test(textBeforeCaret[found - 1]);
     
     if (isWordBoundary) {
       lastIndex = found;
@@ -380,7 +197,8 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
   // - "/prompts world" with cursor at 15 → MATCH (whitespace between trigger and cursor is OK)
   // - "/promptsX" with cursor at 9 → NO MATCH ('X' directly after trigger)
   
-  const triggerEndPosition = lastIndex + trigger.length;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _triggerEndPosition = lastIndex + trigger.length;
   
   // If there's content between trigger end and cursor, check if it's all whitespace
   if (textAfterTrigger.length > 0) {
@@ -397,444 +215,39 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
 }
 
 
-function createPanel(): HTMLElement {
-  const container = document.createElement('div');
-  // Use system theme as default, default to light theme
-  const theme = getCurrentTheme()
-  const isDark = theme === 'dark';
-  container.id = 'promptflow-panel-container';
-  container.classList.add(isDark ? 'dark' : 'light');
-  container.style.cssText = `
-    position: fixed;
-    z-index: 2147483647;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  `;
+/**
+ * Create and show the React PromptPanel
+ * This replaces the old createPanel/loadPanelApp functions
+ */
+async function createPanel(): Promise<void> {
+  // Load prompts first
+  const prompts = await loadPrompts();
+  state.prompts = prompts;
+  state.searchQuery = '';
   
-  document.body.appendChild(container);
-  
-  // Load React panel with current theme
-  loadPanelApp(container, theme);
-  
-  return container;
-}
-
-async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): Promise<void> {
-  // Create shadow DOM for style isolation
-  const shadow = container.attachShadow({ mode: 'open' });
-  
-  // Load styles
-  const linkEl = document.createElement('link');
-  linkEl.rel = 'stylesheet';
-  linkEl.href = chrome.runtime.getURL('panel.css');
-  shadow.appendChild(linkEl);
-  
-  // Create panel container with theme class
-  const panelWrapper = document.createElement('div');
-  panelWrapper.id = 'promptflow-panel';
-  const currentTheme = theme || getCurrentTheme();
-  if (currentTheme === 'dark') {
-    panelWrapper.classList.add('dark');
-  }
-  shadow.appendChild(panelWrapper);
-  
-  // Create search input
-  const searchContainer = document.createElement('div');
-  searchContainer.style.cssText = `
-    padding: 12px;
-    border-bottom: 1px solid transparent;
-  `;
-  
-  const searchInput = document.createElement('input');
-  searchInput.type = 'text';
-  searchInput.placeholder = 'Search prompts...';
-  searchInput.id = 'promptflow-search';
-  searchContainer.appendChild(searchInput);
-  panelWrapper.appendChild(searchContainer);
-  
-  // Create prompt list
-  const listContainer = document.createElement('div');
-  listContainer.id = 'promptflow-list';
-  panelWrapper.appendChild(listContainer);
-  
-  // Create footer
-  const footer = document.createElement('div');
-  footer.id = 'promptflow-footer';
-  footer.innerHTML = `
-    <div class="footer-hint">
-      <span class="footer-key">↑↓</span> Navigate
-      <span class="footer-key">Enter</span> Select
-      <span class="footer-key">Esc</span> Close
-    </div>
-    <button id="promptflow-settings-btn">
-        <svg viewBox="64 64 896 896" focusable="false" data-icon="setting" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-          <path d="M924.8 625.7l-65.5-56c3.1-19 4.7-38.4 4.7-57.8s-1.6-38.8-4.7-57.8l65.5-56a32.03 32.03 0 009.3-35.2l-.9-2.6a443.74 443.74 0 00-79.7-137.9l-1.8-2.1a32.12 32.12 0 00-35.1-9.5l-81.3 28.9c-30-24.6-63.5-44-99.7-57.6l-15.7-85a32.05 32.05 0 00-25.8-25.7l-2.7-.5c-52.1-9.4-106.9-9.4-159 0l-2.7.5a32.05 32.05 0 00-25.8 25.7l-15.8 85.4a351.86 351.86 0 00-99 57.4l-81.9-29.1a32 32 0 00-35.1 9.5l-1.8 2.1a446.02 446.02 0 00-79.7 137.9l-.9 2.6c-4.5 12.5-.8 26.5 9.3 35.2l66.3 56.6c-3.1 18.8-4.6 38-4.6 57.1 0 19.2 1.5 38.4 4.6 57.1L99 625.5a32.03 32.03 0 00-9.3 35.2l.9 2.6c18.1 50.4 44.9 96.9 79.7 137.9l1.8 2.1a32.12 32.12 0 0035.1 9.5l81.9-29.1c29.8 24.5 63.1 43.9 99 57.4l15.8 85.4a32.05 32.05 0 0025.8 25.7l2.7.5a449.4 449.4 0 00159 0l2.7-.5a32.05 32.05 0 0025.8-25.7l15.7-85a350 350 0 0099.7-57.6l81.3 28.9a32 32 0 0035.1-9.5l1.8-2.1c34.8-41.1 61.6-87.5 79.7-137.9l.9-2.6c4.5-12.3.8-26.3-9.3-35zM788.3 465.9c2.5 15.1 3.8 30.6 3.8 46.1s-1.3 31-3.8 46.1l-6.6 40.1 74.7 63.9a370.03 370.03 0 01-42.6 73.6L721 702.8l-31.4 25.8c-23.9 19.6-50.5 35-79.3 45.8l-38.1 14.3-17.9 97a377.5 377.5 0 01-85 0l-17.9-97.2-37.8-14.5c-28.5-10.8-55-26.2-78.7-45.7l-31.4-25.9-93.4 33.2c-17-22.9-31.2-47.6-42.6-73.6l75.5-64.5-6.5-40c-2.4-14.9-3.7-30.3-3.7-45.5 0-15.3 1.2-30.6 3.7-45.5l6.5-40-75.5-64.5c11.3-26.1 25.6-50.7 42.6-73.6l93.4 33.2 31.4-25.9c23.7-19.5 50.2-34.9 78.7-45.7l37.9-14.3 17.9-97.2c28.1-3.2 56.8-3.2 85 0l17.9 97 38.1 14.3c28.7 10.8 55.4 26.2 79.3 45.8l31.4 25.8 92.8-32.9c17 22.9 31.2 47.6 42.6 73.6L781.8 426l6.5 39.9zM512 326c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176zm79.2 255.2A111.6 111.6 0 01512 614c-29.9 0-58-11.7-79.2-32.8A111.6 111.6 0 01400 502c0-29.9 11.7-58 32.8-79.2C454 401.6 482.1 390 512 390c29.9 0 58 11.6 79.2 32.8A111.6 111.6 0 01624 502c0 29.9-11.7 58-32.8 79.2z">
-          </path>
-        </svg>
-      Settings
-    </button>
-  `;
-  panelWrapper.appendChild(footer);
-  
-  // Settings button click handler
-  const settingsBtn = shadow.getElementById('promptflow-settings-btn');
-  if (settingsBtn) {
-    settingsBtn.addEventListener('click', () => {
+  // Show the React PromptPanel
+  showPromptPanel({
+    prompts: state.prompts,
+    recentPromptIds: state.recentPromptIds,
+    searchQuery: state.searchQuery,
+    onSearchChange: (query: string) => {
+      state.searchQuery = query;
+    },
+    onPromptSelect: (prompt: Prompt) => {
+      selectPrompt(prompt);
+    },
+    onClose: () => {
+      closePanel();
+    },
+    onOpenSettings: () => {
       closePanel();
       // Send message to background script to open settings
       chrome.runtime.sendMessage({ type: 'OPEN_SETTINGS' }).catch(() => {
         // Fallback: open settings in new tab
         window.open(chrome.runtime.getURL('settings.html'), '_blank');
       });
-    });
-  }
-  
-  // Load prompts and render
-  const prompts = await loadPrompts();
-  state.prompts = prompts;
-  renderPromptList(shadow, prompts, '');
-  
-  // Focus search input
-  setTimeout(() => searchInput.focus(), 50);
-  
-  // Event listeners
-  searchInput.addEventListener('input', (e) => {
-    const query = (e.target as HTMLInputElement).value.toLowerCase();
-    state.searchQuery = query;
-    // Search only in title, description, and tags (not content)
-    const filtered = prompts.filter(p => 
-      p.title.toLowerCase().includes(query) ||
-      (p.description && p.description.toLowerCase().includes(query)) ||
-      p.tags.some(t => t.toLowerCase().includes(query))
-    );
-    state.prompts = filtered;
-    state.selectedIndex = 0;
-    renderPromptList(shadow, filtered, query);
+    },
   });
-
-  // Keyboard navigation in search input
-  searchInput.addEventListener('keydown', (e) => {
-    // Use the same keyboard navigation logic as handleKeyDown
-    const showRecentSection = !state.searchQuery && state.recentPromptIds.length > 0;
-    const recentCount = showRecentSection ? Math.min(state.recentPromptIds.length, 5) : 0;
-    const totalItems = recentCount + state.prompts.length;
-    
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        e.stopPropagation();
-        if (totalItems > 0) {
-          state.selectedIndex = Math.min(state.selectedIndex + 1, totalItems - 1);
-          updateSelection(shadow, state.selectedIndex);
-          scrollToSelected(shadow);
-        }
-        break;
-        
-      case 'ArrowUp':
-        e.preventDefault();
-        e.stopPropagation();
-        if (totalItems > 0) {
-          state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
-          updateSelection(shadow, state.selectedIndex);
-          scrollToSelected(shadow);
-        }
-        break;
-        
-      case 'Enter':
-        e.preventDefault();
-        e.stopPropagation();
-        // Get the prompt at the current selected index
-        const promptMap = new Map(state.prompts.map(p => [p.id, p]));
-        let prompt;
-        if (showRecentSection && state.selectedIndex < recentCount) {
-          const promptId = state.recentPromptIds[state.selectedIndex];
-          prompt = promptMap.get(promptId);
-        } else {
-          const allIndex = showRecentSection ? state.selectedIndex - recentCount : state.selectedIndex;
-          prompt = state.prompts[allIndex];
-        }
-        if (prompt) {
-          selectPrompt(prompt);
-        }
-        break;
-        
-      case 'Escape':
-        e.preventDefault();
-        e.stopPropagation();
-        closePanel();
-        break;
-    }
-  });
-}
-
-/**
- * Highlight search query in text by wrapping matches with <mark> tags
- */
-function highlightText(text: string, query: string): string {
-  if (!query) return escapeHtml(text);
-  
-  const escapedText = escapeHtml(text);
-  const escapedQuery = escapeHtml(query);
-  const regex = new RegExp(`(${escapeRegExp(escapedQuery)})`, 'gi');
-  return escapedText.replace(regex, '<mark>$1</mark>');
-}
-
-/**
- * Escape special regex characters
- */
-function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function renderPromptItem(prompt: Prompt, index: number, shadow: ShadowRoot, searchQuery: string = ''): HTMLElement {
-  const item = document.createElement('div');
-  item.className = 'prompt-item' + (index === state.selectedIndex ? ' selected' : '');
-  item.dataset.promptId = prompt.id;
-  
-  item.innerHTML = `
-    <div class="prompt-item-title">
-      ${highlightText(prompt.title, searchQuery)}
-    </div>
-    <div class="prompt-item-description">
-      ${highlightText(prompt.description || '', searchQuery)}
-    </div>
-    <div class="prompt-item-tags">
-      ${prompt.tags.map(tag => `
-        <span class="prompt-tag">${highlightText(tag, searchQuery)}</span>
-      `).join('')}
-    </div>
-  `;
-  
-  item.addEventListener('click', () => {
-    state.selectedIndex = index;
-    updateSelection(shadow, index);
-    selectPrompt(prompt);
-  });
-  
-  item.addEventListener('mouseenter', () => {
-    item.classList.add('hovered');
-  });
-  item.addEventListener('mouseleave', () => {
-    item.classList.remove('hovered');
-  });
-  
-  return item;
-}
-
-function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: string = ''): void {
-  const listContainer = shadow.getElementById('promptflow-list');
-  if (!listContainer) return;
-  
-  listContainer.innerHTML = '';
-  
-  // Calculate section offset
-  const showRecentSection = !searchQuery && state.recentPromptIds.length > 0;
-  const recentCount = showRecentSection ? Math.min(state.recentPromptIds.length, 5) : 0;
-  
-  // Show recently used prompts section when no search query
-  if (showRecentSection) {
-    const recentSection = document.createElement('div');
-    
-    // Section header for "Recently Used"
-    const header = document.createElement('div');
-    header.className = 'section-header';
-    header.textContent = 'Recently Used';
-    recentSection.appendChild(header);
-    
-    // Get recent prompts from all prompts (not filtered)
-    const recentPrompts = state.recentPromptIds
-      .map(id => state.prompts.find(p => p.id === id))
-      .filter((p): p is Prompt => p !== undefined)
-      .slice(0, 5);
-    
-    recentPrompts.forEach((prompt, index) => {
-      recentSection.appendChild(renderPromptItem(prompt, index, shadow, searchQuery));
-    });
-    
-    listContainer.appendChild(recentSection);
-  }
-  
-  // All Prompts section (always shown, or filtered results)
-  const allSection = document.createElement('div');
-  
-  if (showRecentSection) {
-    // Section header for "All Prompts"
-    const header = document.createElement('div');
-    header.className = 'section-header';
-    header.textContent = 'All Prompts';
-    allSection.appendChild(header);
-  }
-  
-  if (prompts.length === 0) {
-    allSection.innerHTML = `
-      <div class="empty-state">
-        No prompts found
-      </div>
-    `;
-    listContainer.appendChild(allSection);
-    return;
-  }
-  
-  prompts.forEach((prompt, index) => {
-    const adjustedIndex = index + recentCount;
-    allSection.appendChild(renderPromptItem(prompt, adjustedIndex, shadow, searchQuery));
-  });
-  
-  listContainer.appendChild(allSection);
-}
-
-function updateSelection(shadow: ShadowRoot, index: number): void {
-  const list = shadow.getElementById('promptflow-list');
-  if (!list) return;
-  
-  const items = list.querySelectorAll('.prompt-item');
-  items.forEach((item, i) => {
-    const el = item as HTMLElement;
-    if (i === index) {
-      el.classList.add('selected');
-    } else {
-      el.classList.remove('selected');
-    }
-  });
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-/**
- * Find the first placeholder in the content (e.g., {variable})
- */
-function findFirstPlaceholder(content: string): { start: number; end: number } | null {
-  const match = content.match(/\{[^}]+\}/);
-  if (match && match.index !== undefined) {
-    return {
-      start: match.index,
-      end: match.index + match[0].length
-    };
-  }
-  return null;
-}
-
-/**
- * Set text selection range for input/textarea elements
- */
-function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Element, start: number, end: number): void {
-  if (!input) return;
-  
-  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-    input.focus();
-    input.setSelectionRange(start, end);
-  } else if (input.hasAttribute && input.hasAttribute('contenteditable')) {
-    const range = document.createRange();
-    const selection = window.getSelection();
-    let charCount = 0;
-    let foundStart = false;
-    let foundEnd = false;
-
-    function traverseNodes(node: Node): void {
-      if (foundStart && foundEnd) return;
-      if (node.nodeType === Node.TEXT_NODE) {
-        const nodeLength = node.textContent!.length;
-        const nextCount = charCount + nodeLength;
-        const offset = start - charCount;
-        
-        // Check if start position is within this text node
-        // Only use this node if offset is within valid range (0 to nodeLength)
-        if (!foundStart && offset >= 0 && offset <= nodeLength) {
-          // If offset equals nodeLength, we need to move to next node
-          if (offset === nodeLength) {
-            // Don't set foundStart yet, will continue to next node
-          } else {
-            range.setStart(node, offset);
-            foundStart = true;
-          }
-        }
-        
-        // Check if end position is within this text node
-        const endOffset = end - charCount;
-        if (foundStart && !foundEnd && endOffset >= 0 && endOffset <= nodeLength) {
-          if (endOffset === nodeLength) {
-            // Don't set foundEnd yet, will continue to next node
-          } else {
-            range.setEnd(node, endOffset);
-            foundEnd = true;
-          }
-        }
-        
-        // If we're at the boundary of this node, continue to next
-        if (!foundStart && offset > nodeLength) {
-          foundStart = true;
-          range.setStartAfter(node);
-        }
-        if (foundStart && !foundEnd && endOffset > nodeLength) {
-          foundEnd = true;
-          range.setEndBefore(node);
-        }
-        
-        charCount = nextCount;
-      } else {
-        // For non-text nodes (like br), count as 1 character
-        if (node.nodeName === 'BR') {
-          const nextCount = charCount + 1;
-          if (!foundStart && start === nextCount) {
-            // Position is at the br, find next text node
-            foundStart = true;
-          }
-          if (foundStart && !foundEnd && end === nextCount) {
-            foundEnd = true;
-          }
-          charCount = nextCount;
-        }
-        
-        for (const child of Array.from(node.childNodes)) {
-          traverseNodes(child);
-          if (foundStart && foundEnd) break;
-        }
-      }
-    }
-
-    traverseNodes(input);
-    
-    // Handle case where positions are at boundaries
-    if (!foundStart || !foundEnd) {
-      // Try to collapse to appropriate position
-      const allTextNodes: Text[] = [];
-      function collectTextNodes(node: Node): void {
-        if (node.nodeType === Node.TEXT_NODE) {
-          allTextNodes.push(node as Text);
-        }
-        for (const child of Array.from(node.childNodes)) {
-          collectTextNodes(child);
-        }
-      }
-      collectTextNodes(input);
-      
-      if (allTextNodes.length > 0) {
-        if (!foundStart) {
-          // Start at beginning of first text node
-          range.setStart(allTextNodes[0], 0);
-        }
-        if (!foundEnd) {
-          // End at end of last text node (or at start if no nodes)
-          const lastNode = allTextNodes[allTextNodes.length - 1];
-          if (start <= lastNode.textContent!.length) {
-            range.setEnd(lastNode, start);
-          } else {
-            range.setEndAfter(lastNode);
-          }
-        }
-      } else {
-        // No text nodes, select entire contents
-        range.selectNodeContents(input);
-        range.collapse(false);
-      }
-    }
-    
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-  }
 }
 
 /**
@@ -913,13 +326,15 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   }
   
   if (targetInput instanceof HTMLInputElement) {
-    targetInput.value = newValue;
+    // Use native setter to bypass any framework overrides
+    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    nativeSetter.call(targetInput, newValue);
     targetInput.focus();
     targetInput.setSelectionRange(cursorPosition, cursorPosition);
     targetInput.dispatchEvent(new Event('input', { bubbles: true }));
   } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
     // For contenteditable, insert at position (pass cursorPosition directly)
-    insertContentWithNewlines(targetInput, promptContent, cursorPosition);
+    insertContentWithNewlines(targetInput, promptContent, state.triggerStartPosition, state.currentTrigger.length);
   }
 }
 
@@ -953,6 +368,9 @@ async function selectPrompt(prompt: Prompt): Promise<void> {
         content: prompt.content,
       },
       onConfirm: (filledContent: string) => {
+        // Hide the modal first
+        hideVariableInput();
+        
         if (state.pendingPrompt) {
           // Restore the state values using stored references
           state.currentInput = targetInput;
@@ -963,6 +381,9 @@ async function selectPrompt(prompt: Prompt): Promise<void> {
         }
       },
       onCancel: () => {
+        // Hide the modal
+        hideVariableInput();
+        
         // Restore focus to original input
         if (targetInput) {
           if (targetInput instanceof HTMLInputElement || targetInput instanceof HTMLTextAreaElement) {
@@ -990,180 +411,10 @@ async function selectPrompt(prompt: Prompt): Promise<void> {
  * 3. Clears element and re-inserts with proper <br> handling
  * 4. Sets cursor position at the end of inserted content
  */
-function insertContentWithNewlines(
-  element: Element,
-  newContent: string,
-  cursorPosition: number
-): void {
-  // Get current text content from the element
-  const currentContent = element.textContent || '';
-  
-  // Build new content using the same logic as textarea/inputs
-  // Get the stored trigger positions from the state
-  const triggerStartPosition = state.triggerStartPosition;
-  const triggerEndPosition = triggerStartPosition + state.currentTrigger.length;
-  
-  // Build new value: before + newContent + after
-  const before = currentContent.substring(0, triggerStartPosition);
-  const after = currentContent.substring(triggerEndPosition);
-  const finalContent = before + newContent + after;
-  
-  // Calculate cursor position in final content
-  const finalCursorPosition = triggerStartPosition + newContent.length;
-  
-  // Clear the element
-  while (element.firstChild) {
-    element.removeChild(element.firstChild);
-  }
-  
-  // Insert the new content with proper newline handling
-  const lines = finalContent.split('\n');
-  
-  for (let i = 0; i < lines.length; i++) {
-    if (i > 0) {
-      // Insert <br> for newlines between lines (including empty lines)
-      element.appendChild(document.createElement('br'));
-    }
-    
-    if (lines[i].length > 0) {
-      element.appendChild(document.createTextNode(lines[i]));
-    }
-  }
-  
-  // Focus the element first
-  (element as HTMLElement).focus();
-  
-  // Find and set cursor position
-  const domPos = findDOMPosition(element, finalCursorPosition);
-  if (domPos) {
-    setCursorAtPosition(element, domPos);
-  }
-}
-
 /**
- * Find the DOM position (node + offset) corresponding to a character position
+ * Open the prompt panel at the current input position
  */
-function findDOMPosition(element: Element, targetCharPos: number): { node: Node; offset: number } | null {
-  let charCount = 0;
-  
-  for (const node of Array.from(element.childNodes)) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const nodeLength = node.textContent!.length;
-      
-      // Check if target position is within this text node
-      if (charCount <= targetCharPos && targetCharPos <= charCount + nodeLength) {
-        return {
-          node,
-          offset: targetCharPos - charCount
-        };
-      }
-      charCount += nodeLength;
-    } else if (node.nodeName === 'BR') {
-      // br tag represents a newline character
-      if (charCount === targetCharPos) {
-        // Target is exactly at this br position
-        const nextTextNode = findNextTextNode(element, node);
-        if (nextTextNode) {
-          return { node: nextTextNode, offset: 0 };
-        }
-      }
-      charCount += 1;
-    }
-  }
-  
-  // If position beyond all content, return end of last text node
-  const lastTextNode = findLastTextNode(element);
-  if (lastTextNode) {
-    return { node: lastTextNode, offset: lastTextNode.textContent!.length };
-  }
-  
-  return null;
-}
-
-function findNextTextNode(element: Element, afterNode: Node): Node | null {
-  let foundAfter = false;
-  for (const node of Array.from(element.childNodes)) {
-    if (foundAfter && node.nodeType === Node.TEXT_NODE) {
-      return node;
-    }
-    if (node === afterNode) {
-      foundAfter = true;
-    }
-  }
-  return null;
-}
-
-function findLastTextNode(element: Element): Node | null {
-  for (let i = element.childNodes.length - 1; i >= 0; i--) {
-    if (element.childNodes[i].nodeType === Node.TEXT_NODE) {
-      return element.childNodes[i];
-    }
-  }
-  return null;
-}
-
-/**
- * Set cursor at a specific DOM position
- */
-function setCursorAtPosition(element: Element, pos: { node: Node; offset: number }): void {
-  const selection = window.getSelection();
-  if (!selection) return;
-  
-  const range = document.createRange();
-  range.setStart(pos.node, pos.offset);
-  range.collapse(true);
-  
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
-
-function findFirstTextNode(element: Element): Node | null {
-  for (const node of Array.from(element.childNodes)) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return node;
-    }
-  }
-  return null;
-}
-
-function positionPanel(): void {
-  if (!panelContainer || !state.currentInput) return;
-
-  const shadow = panelContainer.shadowRoot;
-  if (!shadow) return;
-
-  const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
-  if (!panel) return;
-
-  // Get panel dimensions
-  const panelWidth = 420;
-  const panelMinHeight = 200;
-  const panelMaxHeight = 500;
-  
-  // Calculate viewport dimensions
-  const viewportHeight = window.innerHeight;
-  const viewportWidth = window.innerWidth;
-
-  // Fixed position: center horizontally, with percentage padding from top
-  const topPaddingPercentage = 0.05; // 5% from top
-  const topPadding = viewportHeight * topPaddingPercentage;
-  
-  // Calculate panel height based on available space below the padding
-  const availableHeight = viewportHeight - topPadding - 20; // 20px bottom padding
-  const panelHeight = Math.min(Math.max(panelMinHeight, availableHeight), panelMaxHeight);
-
-  // Center horizontally
-  const leftPosition = (viewportWidth - panelWidth) / 2;
-
-  // Apply panel dimensions and position
-  panel.style.maxHeight = `${panelHeight}px`;
-  panelContainer.style.top = `${topPadding}px`;
-  panelContainer.style.left = `${leftPosition}px`;
-}
-
-const debouncedPositionPanel = debounce(positionPanel, 50);
-
-function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, triggerPos: number): void {
+async function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, triggerPos: number): Promise<void> {
   if (state.isPanelOpen) return;
   
   state.isPanelOpen = true;
@@ -1173,36 +424,16 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
   state.selectedIndex = 0;
   state.searchQuery = '';
   
-  panelContainer = createPanel();
-  
-  // Position panel after it's rendered
-  requestAnimationFrame(() => {
-    positionPanel();
-    
-    // Scroll panel into view if needed
-    const shadow = panelContainer?.shadowRoot;
-    if (shadow) {
-      const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
-      if (panel) {
-        const rect = panel.getBoundingClientRect();
-        if (rect.top < 0 || rect.bottom > window.innerHeight) {
-          panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      }
-    }
-  });
-  
-  // Listen for scroll/resize to reposition
-  document.addEventListener('scroll', debouncedPositionPanel, true);
-  window.addEventListener('resize', debouncedPositionPanel);
+  // Create and show the React panel
+  await createPanel();
 }
 
+/**
+ * Close the prompt panel
+ */
 function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean = true): void {
-  // Always try to remove panel container if it exists
-  if (panelContainer) {
-    panelContainer.remove();
-    panelContainer = null;
-  }
+  // Hide the React panel
+  hidePromptPanel();
   
   // Store input and caret position for restoration
   const previousInput = state.currentInput;
@@ -1210,9 +441,12 @@ function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean 
 
   // Mark panel as closed
   state.isPanelOpen = false;
-
-  document.removeEventListener('scroll', debouncedPositionPanel, true);
-  window.removeEventListener('resize', debouncedPositionPanel);
+  
+  // Clear the host element reference
+  const hostElement = document.getElementById('promptflow-panel-host');
+  if (hostElement) {
+    hostElement.remove();
+  }
 
   // Restore focus to the input and optionally restore cursor position
   if (restoreFocus && previousInput) {
@@ -1228,91 +462,41 @@ function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean 
 }
 
 /**
- * Clear currentInput state - call this when panel is truly closed
+ * Global keyboard handler - handles all keyboard events for both PromptPanel and VariableInputModal
  */
-function clearCurrentInput(): void {
-  state.currentInput = null;
-}
-
 function handleKeyDown(e: KeyboardEvent): void {
-  if (!state.isPanelOpen) return;
-  
-  const shadow = panelContainer?.shadowRoot;
-  if (!shadow) return;
-  
-  const list = shadow.getElementById('promptflow-list');
-  if (!list) return;
-  
-  // Get all prompt items (including those in recent section)
-  const items = list.querySelectorAll('.prompt-item');
-  
-  // Calculate max index
-  const maxIndex = items.length - 1;
-  
-  // Build combined prompt list for navigation: recent prompts + all prompts
-  const showRecentSection = !state.searchQuery && state.recentPromptIds.length > 0;
-  const recentCount = showRecentSection ? Math.min(state.recentPromptIds.length, 5) : 0;
-  
-  // Create a map of promptId to prompt for quick lookup
-  const promptMap = new Map(state.prompts.map(p => [p.id, p]));
-  
-  // Get the prompt at the current selected index
-  const getPromptAtIndex = (index: number): Prompt | undefined => {
-    if (showRecentSection && index < recentCount) {
-      // This is in the recent section
-      const promptId = state.recentPromptIds[index];
-      return promptMap.get(promptId);
-    } else {
-      // This is in the all prompts section
-      const allPromptsIndex = showRecentSection ? index - recentCount : index;
-      return state.prompts[allPromptsIndex];
-    }
-  };
-  
-  switch (e.key) {
-    case 'ArrowDown':
-      e.preventDefault();
-      e.stopPropagation();
-      state.selectedIndex = Math.min(state.selectedIndex + 1, maxIndex);
-      updateSelection(shadow, state.selectedIndex);
-      scrollToSelected(shadow);
-      break;
-      
-    case 'ArrowUp':
-      e.preventDefault();
-      e.stopPropagation();
-      state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
-      updateSelection(shadow, state.selectedIndex);
-      scrollToSelected(shadow);
-      break;
-      
-    case 'Enter':
-      e.preventDefault();
-      e.stopPropagation();
-      const prompt = getPromptAtIndex(state.selectedIndex);
-      if (prompt) {
-        selectPrompt(prompt);
+  // Handle Escape for VariableInputModal
+  if (e.key === 'Escape' && state.pendingPrompt) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const targetInput = state.currentInput;
+    const caretPos = state.caretPosition;
+    hideVariableInput();
+    
+    if (targetInput) {
+      if (targetInput instanceof HTMLInputElement || targetInput instanceof HTMLTextAreaElement) {
+        targetInput.focus();
+        setCaretPosition(targetInput, caretPos);
+      } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
+        (targetInput as HTMLElement).focus();
+        setCaretPosition(targetInput, caretPos);
       }
-      break;
-      
-    case 'Escape':
-      e.preventDefault();
-      e.stopPropagation();
-      closePanel();
-      break;
+    }
+    state.pendingPrompt = null;
+    return;
   }
-}
-
-function scrollToSelected(shadow: ShadowRoot): void {
-  const list = shadow.getElementById('promptflow-list');
-  if (!list) return;
   
-  const items = list.querySelectorAll('.prompt-item');
-  if (items[state.selectedIndex]) {
-    items[state.selectedIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  // Handle Escape for PromptPanel
+  if (e.key === 'Escape' && state.isPanelOpen) {
+    e.preventDefault();
+    e.stopPropagation();
+    closePanel();
+    return;
   }
 }
 
+// Handle input events on editable elements
 function handleInput(e: Event): void {
   const target = e.target as HTMLElement;
   
@@ -1342,11 +526,24 @@ function handleInput(e: Event): void {
   }
 }
 
+// Handle click events - close panel when clicking outside
 function handleClick(e: MouseEvent): void {
+  const target = e.target as Node;
+  
+  // Check if clicking outside the panel (for PromptPanel)
   if (state.isPanelOpen) {
-    const target = e.target as Node;
-    if (panelContainer && !panelContainer.contains(target) && !panelContainer.shadowRoot?.contains(target)) {
+    const panelHost = document.getElementById('promptflow-panel-host');
+    if (panelHost && !panelHost.contains(target) && !panelHost.shadowRoot?.contains(target)) {
       closePanel();
+    }
+  }
+  
+  // Check if clicking outside the variable input modal
+  if (state.pendingPrompt) {
+    const modalHost = document.getElementById('promptflow-variable-input-host');
+    if (modalHost && !modalHost.contains(target) && !modalHost.shadowRoot?.contains(target)) {
+      // Don't auto-close modal on outside click - let the modal handle it
+      // This is different from the panel behavior
     }
   }
 }
@@ -1422,11 +619,12 @@ if (document.readyState === 'loading') {
 }
 
 // Listen for messages from background
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'UPDATE_PROMPTS') {
     state.prompts = message.prompts;
-    if (state.isPanelOpen && panelContainer?.shadowRoot) {
-      renderPromptList(panelContainer.shadowRoot, state.prompts);
+    // If panel is open, close it - user will need to re-open to see new prompts
+    if (state.isPanelOpen) {
+      closePanel();
     }
   }
 });

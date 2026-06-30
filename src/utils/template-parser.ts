@@ -34,15 +34,6 @@ export interface ParseResult {
   template: string;
 }
 
-// State machine states
-enum State {
-  TEXT = 'TEXT',           // Normal text, looking for <
-  TAG_OPEN = 'TAG_OPEN',   // Found <, checking if it's VAR
-  TAG_NAME = 'TAG_NAME',   // Parsing tag name (VAR)
-  ATTRS = 'ATTRS',         // Parsing attributes
-  TAG_CLOSE = 'TAG_CLOSE', // Found > or />, finishing tag
-}
-
 /**
  * State machine parser for <VAR> template variables
  * 
@@ -108,7 +99,7 @@ function parseVarTag(template: string, startIndex: number): { variable: Variable
   }
   
   let isSelfClosing = false;
-  let contentEndIndex = i;
+  let contentEndIndex: number;
   
   if (template[i] === '/') {
     // Self-closing tag
