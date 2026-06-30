@@ -370,10 +370,10 @@ export function showPromptPanel(options: PromptPanelOptions): void {
   // Create Shadow DOM for style isolation
   const shadowRoot = hostElement.attachShadow({ mode: 'open' });
   
-  // Load the original panel.css stylesheet
+  // Load the original PromptPanel.css stylesheet
   const linkEl = document.createElement('link');
   linkEl.rel = 'stylesheet';
-  linkEl.href = chrome.runtime.getURL('panel.css');
+  linkEl.href = chrome.runtime.getURL('PromptPanel.css');
   shadowRoot.appendChild(linkEl);
   
   // Create container for React app inside Shadow DOM

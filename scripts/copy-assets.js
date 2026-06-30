@@ -42,10 +42,10 @@ manifest.version = version;
 fs.writeFileSync(manifestDest, JSON.stringify(manifest, null, 2));
 console.log(`Copied: ${manifestSrc} -> ${manifestDest} (version: ${version})`);
 
-// Copy panel.css
+// Copy PromptPanel.css
 copyFileSync(
-    path.join(__dirname, '..', 'src', 'panel.css'),
-    path.join(distDir, 'panel.css')
+    path.join(__dirname, '..', 'src', 'components', 'PromptPanel', 'PromptPanel.css'),
+    path.join(distDir, 'PromptPanel.css')
 );
 
 // Copy VariableInputModal.css

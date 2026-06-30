@@ -101,7 +101,6 @@ src/
 ├── SyncManager.tsx   # GitHub sync manager
 ├── content.ts        # Content script
 ├── background.ts     # Service worker
-└── panel.css         # Panel styles
 ```
 
 ## Architecture
