@@ -825,9 +825,6 @@ export function showVariableInput(options: VariableInputOptions): void {
     activeInputRefs.push(textarea);
     textarea.addEventListener('input', handleInputChange);
     textarea.addEventListener('keydown', handleKeyDown);
-    textarea.addEventListener('focus', () => {
-      textarea.select();
-    });
   });
   
   // Escape key listener - check if modal is still active before handling
