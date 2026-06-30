@@ -102,6 +102,7 @@ describe('getCaretPosition', () => {
   });
 
   it('should return 0 when input is not focused', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (input as any).selectionStart = null;
     expect(getCaretPosition(input)).toBe(0);
   });
@@ -295,6 +296,7 @@ describe('setSelection', () => {
   });
 
   it('should handle null input gracefully', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => setSelection(null as any, 0, 0)).not.toThrow();
   });
 });

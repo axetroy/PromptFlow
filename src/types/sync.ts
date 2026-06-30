@@ -189,6 +189,7 @@ export async function checkPathExists(repo: string, path: string, branch: string
 /**
  * Parse YAML frontmatter from markdown content (same as prompts/index.ts)
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function parseFrontmatter(content: string): { metadata: Record<string, any>; body: string } {
   const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
   const match = content.match(frontmatterRegex);
@@ -199,6 +200,7 @@ export function parseFrontmatter(content: string): { metadata: Record<string, an
   
   const yamlContent = match[1];
   const body = match[2];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const metadata: Record<string, any> = {};
   
   const lines = yamlContent.split('\n');

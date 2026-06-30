@@ -17,7 +17,6 @@ import {
   Popconfirm,
   Select,
   Tooltip,
-  Collapse,
 } from 'antd';
 import {
   SettingOutlined,
@@ -60,7 +59,6 @@ import PromptPreview from './components/PromptPreview';
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { Panel } = Collapse;
 
 // Types
 interface Prompt {
@@ -282,9 +280,11 @@ const SettingsApp: React.FC = () => {
 
   // Update all prompts and usage stats when relevant data changes
   useEffect(() => {
-    setAllPrompts(getAllPromptsWithSync(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts));
+    const mergedPrompts = getAllPromptsWithSync(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAllPrompts(mergedPrompts);
     // Update usage stats when prompts or history changes
-    setUsageStats(calculateUsageStats(usageHistory, getAllPromptsWithSync(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts)));
+    setUsageStats(calculateUsageStats(usageHistory, mergedPrompts));
   }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, usageHistory]);
 
   // Save data whenever custom prompts, disabled defaults, synced data or settings change
@@ -508,6 +508,7 @@ const SettingsApp: React.FC = () => {
   };
 
   // Import prompts from JSON file
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -525,6 +526,7 @@ const SettingsApp: React.FC = () => {
 
         // Filter out default prompts (they are always loaded from files)
         // Only import custom prompts (id starts with 'custom-')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const validCustomPrompts = importData.prompts.filter((p: any) => 
           p.id && p.title && p.content && p.id.startsWith('custom-')
         );

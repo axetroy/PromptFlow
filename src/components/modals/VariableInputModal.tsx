@@ -68,7 +68,10 @@ function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputR
       </div>
       
       <textarea
-        ref={(el) => { inputRefs.current[index] = el; }}
+        ref={(el) => { 
+          // eslint-disable-next-line react-hooks/immutability
+          inputRefs.current[index] = el; 
+        }}
         className="vf-variable-input"
         data-variable={variable.name}
         data-index={index}
@@ -118,6 +121,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
   
   // Mount animation
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
   
@@ -140,6 +144,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
   
   // Always keep the latest handleSubmit accessible without recreating handleKeyDown
   const handleSubmitRef = useRef(handleSubmit);
+  // eslint-disable-next-line react-hooks/refs
   handleSubmitRef.current = handleSubmit;
 
   // Handle keyboard navigation

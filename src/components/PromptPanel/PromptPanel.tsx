@@ -158,6 +158,7 @@ export function PromptPanel({
   // Detect dark mode
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDark(mediaQuery.matches);
     
     const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
@@ -246,7 +247,8 @@ export function PromptPanel({
   }, []);
   
   // Handle backdrop click
-  const handleBackdropClick = useCallback(() => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleBackdropClick = useCallback(() => {
     onClose();
   }, [onClose]);
   

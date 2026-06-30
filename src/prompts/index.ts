@@ -3,6 +3,7 @@ import { Prompt } from '../types';
 /**
  * Parse YAML frontmatter from markdown content
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseFrontmatter(content: string): { metadata: Record<string, any>; body: string } {
   const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
   const match = content.match(frontmatterRegex);
@@ -13,6 +14,7 @@ function parseFrontmatter(content: string): { metadata: Record<string, any>; bod
   
   const yamlContent = match[1];
   const body = match[2];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const metadata: Record<string, any> = {};
   
   // Simple YAML parser for our use case

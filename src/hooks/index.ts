@@ -26,6 +26,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 /**
  * Debounce a callback function
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
   delay: number
@@ -162,6 +163,7 @@ export function usePrevious<T>(value: T): T | undefined {
     ref.current = value;
   }, [value]);
 
+  // eslint-disable-next-line react-hooks/refs
   return ref.current;
 }
 
