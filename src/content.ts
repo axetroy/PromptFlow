@@ -677,6 +677,9 @@ async function selectPrompt(prompt: Prompt): Promise<void> {
         content: prompt.content,
       },
       onConfirm: (filledContent: string) => {
+        // Hide the modal first
+        hideVariableInput();
+        
         if (state.pendingPrompt) {
           // Restore the state values using stored references
           state.currentInput = targetInput;
@@ -687,6 +690,9 @@ async function selectPrompt(prompt: Prompt): Promise<void> {
         }
       },
       onCancel: () => {
+        // Hide the modal
+        hideVariableInput();
+        
         // Restore focus to original input
         if (targetInput) {
           if (targetInput instanceof HTMLInputElement || targetInput instanceof HTMLTextAreaElement) {
