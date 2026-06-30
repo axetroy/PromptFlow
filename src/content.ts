@@ -1,5 +1,6 @@
 import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
 import { showVariableInput, hideVariableInput, getUniqueVariables, interpolate, hasVariables } from './components/modals/VariableInputModal';
+import { showPromptPanel, hidePromptPanel } from './components/PromptPanel';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -33,8 +34,6 @@ const state: ContentState = {
 };
 
 const MAX_RECENT_PROMPTS = 5;
-
-let panelContainer: HTMLElement | null = null;
 
 // Detect system theme preference
 function getCurrentTheme(): 'light' | 'dark' {
@@ -397,185 +396,56 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
 }
 
 
-function createPanel(): HTMLElement {
-  const container = document.createElement('div');
-  // Use system theme as default, default to light theme
-  const theme = getCurrentTheme()
-  const isDark = theme === 'dark';
-  container.id = 'promptflow-panel-container';
-  container.classList.add(isDark ? 'dark' : 'light');
-  container.style.cssText = `
-    position: fixed;
-    z-index: 2147483647;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  `;
+/**
+ * Create and show the React PromptPanel
+ * This replaces the old createPanel/loadPanelApp functions
+ */
+async function createPanel(): Promise<void> {
+  // Load prompts first
+  const prompts = await loadPrompts();
+  state.prompts = prompts;
+  state.selectedIndex = 0;
+  state.searchQuery = '';
   
-  document.body.appendChild(container);
-  
-  // Load React panel with current theme
-  loadPanelApp(container, theme);
-  
-  return container;
-}
-
-async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): Promise<void> {
-  // Create shadow DOM for style isolation
-  const shadow = container.attachShadow({ mode: 'open' });
-  
-  // Load styles
-  const linkEl = document.createElement('link');
-  linkEl.rel = 'stylesheet';
-  linkEl.href = chrome.runtime.getURL('panel.css');
-  shadow.appendChild(linkEl);
-  
-  // Create panel container with theme class
-  const panelWrapper = document.createElement('div');
-  panelWrapper.id = 'promptflow-panel';
-  const currentTheme = theme || getCurrentTheme();
-  if (currentTheme === 'dark') {
-    panelWrapper.classList.add('dark');
-  }
-  shadow.appendChild(panelWrapper);
-  
-  // Create search input
-  const searchContainer = document.createElement('div');
-  searchContainer.style.cssText = `
-    padding: 12px;
-    border-bottom: 1px solid transparent;
-  `;
-  
-  const searchInput = document.createElement('input');
-  searchInput.type = 'text';
-  searchInput.placeholder = 'Search prompts...';
-  searchInput.id = 'promptflow-search';
-  searchContainer.appendChild(searchInput);
-  panelWrapper.appendChild(searchContainer);
-  
-  // Create prompt list
-  const listContainer = document.createElement('div');
-  listContainer.id = 'promptflow-list';
-  panelWrapper.appendChild(listContainer);
-  
-  // Create footer
-  const footer = document.createElement('div');
-  footer.id = 'promptflow-footer';
-  footer.innerHTML = `
-    <div class="footer-hint">
-      <span class="footer-key">↑↓</span> Navigate
-      <span class="footer-key">Enter</span> Select
-      <span class="footer-key">Esc</span> Close
-    </div>
-    <button id="promptflow-settings-btn">
-        <svg viewBox="64 64 896 896" focusable="false" data-icon="setting" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-          <path d="M924.8 625.7l-65.5-56c3.1-19 4.7-38.4 4.7-57.8s-1.6-38.8-4.7-57.8l65.5-56a32.03 32.03 0 009.3-35.2l-.9-2.6a443.74 443.74 0 00-79.7-137.9l-1.8-2.1a32.12 32.12 0 00-35.1-9.5l-81.3 28.9c-30-24.6-63.5-44-99.7-57.6l-15.7-85a32.05 32.05 0 00-25.8-25.7l-2.7-.5c-52.1-9.4-106.9-9.4-159 0l-2.7.5a32.05 32.05 0 00-25.8 25.7l-15.8 85.4a351.86 351.86 0 00-99 57.4l-81.9-29.1a32 32 0 00-35.1 9.5l-1.8 2.1a446.02 446.02 0 00-79.7 137.9l-.9 2.6c-4.5 12.5-.8 26.5 9.3 35.2l66.3 56.6c-3.1 18.8-4.6 38-4.6 57.1 0 19.2 1.5 38.4 4.6 57.1L99 625.5a32.03 32.03 0 00-9.3 35.2l.9 2.6c18.1 50.4 44.9 96.9 79.7 137.9l1.8 2.1a32.12 32.12 0 0035.1 9.5l81.9-29.1c29.8 24.5 63.1 43.9 99 57.4l15.8 85.4a32.05 32.05 0 0025.8 25.7l2.7.5a449.4 449.4 0 00159 0l2.7-.5a32.05 32.05 0 0025.8-25.7l15.7-85a350 350 0 0099.7-57.6l81.3 28.9a32 32 0 0035.1-9.5l1.8-2.1c34.8-41.1 61.6-87.5 79.7-137.9l.9-2.6c4.5-12.3.8-26.3-9.3-35zM788.3 465.9c2.5 15.1 3.8 30.6 3.8 46.1s-1.3 31-3.8 46.1l-6.6 40.1 74.7 63.9a370.03 370.03 0 01-42.6 73.6L721 702.8l-31.4 25.8c-23.9 19.6-50.5 35-79.3 45.8l-38.1 14.3-17.9 97a377.5 377.5 0 01-85 0l-17.9-97.2-37.8-14.5c-28.5-10.8-55-26.2-78.7-45.7l-31.4-25.9-93.4 33.2c-17-22.9-31.2-47.6-42.6-73.6l75.5-64.5-6.5-40c-2.4-14.9-3.7-30.3-3.7-45.5 0-15.3 1.2-30.6 3.7-45.5l6.5-40-75.5-64.5c11.3-26.1 25.6-50.7 42.6-73.6l93.4 33.2 31.4-25.9c23.7-19.5 50.2-34.9 78.7-45.7l37.9-14.3 17.9-97.2c28.1-3.2 56.8-3.2 85 0l17.9 97 38.1 14.3c28.7 10.8 55.4 26.2 79.3 45.8l31.4 25.8 92.8-32.9c17 22.9 31.2 47.6 42.6 73.6L781.8 426l6.5 39.9zM512 326c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176zm79.2 255.2A111.6 111.6 0 01512 614c-29.9 0-58-11.7-79.2-32.8A111.6 111.6 0 01400 502c0-29.9 11.7-58 32.8-79.2C454 401.6 482.1 390 512 390c29.9 0 58 11.6 79.2 32.8A111.6 111.6 0 01624 502c0 29.9-11.7 58-32.8 79.2z">
-          </path>
-        </svg>
-      Settings
-    </button>
-  `;
-  panelWrapper.appendChild(footer);
-  
-  // Settings button click handler
-  const settingsBtn = shadow.getElementById('promptflow-settings-btn');
-  if (settingsBtn) {
-    settingsBtn.addEventListener('click', () => {
+  // Show the React PromptPanel
+  showPromptPanel({
+    prompts: state.prompts,
+    recentPromptIds: state.recentPromptIds,
+    selectedIndex: state.selectedIndex,
+    searchQuery: state.searchQuery,
+    onSearchChange: (query: string) => {
+      state.searchQuery = query;
+      // Filter prompts based on search
+      if (query) {
+        const lowerQuery = query.toLowerCase();
+        state.prompts = prompts.filter(p => 
+          p.title.toLowerCase().includes(lowerQuery) ||
+          (p.description && p.description.toLowerCase().includes(lowerQuery)) ||
+          p.tags.some(t => t.toLowerCase().includes(lowerQuery))
+        );
+      } else {
+        state.prompts = prompts;
+      }
+      state.selectedIndex = 0;
+    },
+    onSelectIndex: (index: number) => {
+      state.selectedIndex = index;
+    },
+    onPromptSelect: (prompt: Prompt) => {
+      selectPrompt(prompt);
+    },
+    onClose: () => {
+      closePanel();
+    },
+    onOpenSettings: () => {
       closePanel();
       // Send message to background script to open settings
       chrome.runtime.sendMessage({ type: 'OPEN_SETTINGS' }).catch(() => {
         // Fallback: open settings in new tab
         window.open(chrome.runtime.getURL('settings.html'), '_blank');
       });
-    });
-  }
-  
-  // Load prompts and render
-  const prompts = await loadPrompts();
-  state.prompts = prompts;
-  renderPromptList(shadow, prompts, '');
-  
-  // Focus search input
-  setTimeout(() => searchInput.focus(), 50);
-  
-  // Event listeners
-  searchInput.addEventListener('input', (e) => {
-    const query = (e.target as HTMLInputElement).value.toLowerCase();
-    state.searchQuery = query;
-    // Search only in title, description, and tags (not content)
-    const filtered = prompts.filter(p => 
-      p.title.toLowerCase().includes(query) ||
-      (p.description && p.description.toLowerCase().includes(query)) ||
-      p.tags.some(t => t.toLowerCase().includes(query))
-    );
-    state.prompts = filtered;
-    state.selectedIndex = 0;
-    renderPromptList(shadow, filtered, query);
+    },
   });
-
-  // Keyboard navigation in search input
-  searchInput.addEventListener('keydown', (e) => {
-    // Use the same keyboard navigation logic as handleKeyDown
-    const showRecentSection = !state.searchQuery && state.recentPromptIds.length > 0;
-    const recentCount = showRecentSection ? Math.min(state.recentPromptIds.length, 5) : 0;
-    const totalItems = recentCount + state.prompts.length;
-    
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        e.stopPropagation();
-        if (totalItems > 0) {
-          state.selectedIndex = Math.min(state.selectedIndex + 1, totalItems - 1);
-          updateSelection(shadow, state.selectedIndex);
-          scrollToSelected(shadow);
-        }
-        break;
-        
-      case 'ArrowUp':
-        e.preventDefault();
-        e.stopPropagation();
-        if (totalItems > 0) {
-          state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
-          updateSelection(shadow, state.selectedIndex);
-          scrollToSelected(shadow);
-        }
-        break;
-        
-      case 'Enter':
-        e.preventDefault();
-        e.stopPropagation();
-        // Get the prompt at the current selected index
-        const promptMap = new Map(state.prompts.map(p => [p.id, p]));
-        let prompt;
-        if (showRecentSection && state.selectedIndex < recentCount) {
-          const promptId = state.recentPromptIds[state.selectedIndex];
-          prompt = promptMap.get(promptId);
-        } else {
-          const allIndex = showRecentSection ? state.selectedIndex - recentCount : state.selectedIndex;
-          prompt = state.prompts[allIndex];
-        }
-        if (prompt) {
-          selectPrompt(prompt);
-        }
-        break;
-        
-      case 'Escape':
-        e.preventDefault();
-        e.stopPropagation();
-        closePanel();
-        break;
-    }
-  });
-}
-
-/**
- * Highlight search query in text by wrapping matches with <mark> tags
- */
-function highlightText(text: string, query: string): string {
-  if (!query) return escapeHtml(text);
-  
-  const escapedText = escapeHtml(text);
-  const escapedQuery = escapeHtml(query);
-  const regex = new RegExp(`(${escapeRegExp(escapedQuery)})`, 'gi');
-  return escapedText.replace(regex, '<mark>$1</mark>');
 }
 
 /**
@@ -583,118 +453,6 @@ function highlightText(text: string, query: string): string {
  */
 function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function renderPromptItem(prompt: Prompt, index: number, shadow: ShadowRoot, searchQuery: string = ''): HTMLElement {
-  const item = document.createElement('div');
-  item.className = 'prompt-item' + (index === state.selectedIndex ? ' selected' : '');
-  item.dataset.promptId = prompt.id;
-  
-  item.innerHTML = `
-    <div class="prompt-item-title">
-      ${highlightText(prompt.title, searchQuery)}
-    </div>
-    <div class="prompt-item-description">
-      ${highlightText(prompt.description || '', searchQuery)}
-    </div>
-    <div class="prompt-item-tags">
-      ${prompt.tags.map(tag => `
-        <span class="prompt-tag">${highlightText(tag, searchQuery)}</span>
-      `).join('')}
-    </div>
-  `;
-  
-  item.addEventListener('click', () => {
-    state.selectedIndex = index;
-    updateSelection(shadow, index);
-    selectPrompt(prompt);
-  });
-  
-  item.addEventListener('mouseenter', () => {
-    item.classList.add('hovered');
-  });
-  item.addEventListener('mouseleave', () => {
-    item.classList.remove('hovered');
-  });
-  
-  return item;
-}
-
-function renderPromptList(shadow: ShadowRoot, prompts: Prompt[], searchQuery: string = ''): void {
-  const listContainer = shadow.getElementById('promptflow-list');
-  if (!listContainer) return;
-  
-  listContainer.innerHTML = '';
-  
-  // Calculate section offset
-  const showRecentSection = !searchQuery && state.recentPromptIds.length > 0;
-  const recentCount = showRecentSection ? Math.min(state.recentPromptIds.length, 5) : 0;
-  
-  // Show recently used prompts section when no search query
-  if (showRecentSection) {
-    const recentSection = document.createElement('div');
-    
-    // Section header for "Recently Used"
-    const header = document.createElement('div');
-    header.className = 'section-header';
-    header.textContent = 'Recently Used';
-    recentSection.appendChild(header);
-    
-    // Get recent prompts from all prompts (not filtered)
-    const recentPrompts = state.recentPromptIds
-      .map(id => state.prompts.find(p => p.id === id))
-      .filter((p): p is Prompt => p !== undefined)
-      .slice(0, 5);
-    
-    recentPrompts.forEach((prompt, index) => {
-      recentSection.appendChild(renderPromptItem(prompt, index, shadow, searchQuery));
-    });
-    
-    listContainer.appendChild(recentSection);
-  }
-  
-  // All Prompts section (always shown, or filtered results)
-  const allSection = document.createElement('div');
-  
-  if (showRecentSection) {
-    // Section header for "All Prompts"
-    const header = document.createElement('div');
-    header.className = 'section-header';
-    header.textContent = 'All Prompts';
-    allSection.appendChild(header);
-  }
-  
-  if (prompts.length === 0) {
-    allSection.innerHTML = `
-      <div class="empty-state">
-        No prompts found
-      </div>
-    `;
-    listContainer.appendChild(allSection);
-    return;
-  }
-  
-  prompts.forEach((prompt, index) => {
-    const adjustedIndex = index + recentCount;
-    allSection.appendChild(renderPromptItem(prompt, adjustedIndex, shadow, searchQuery));
-  });
-  
-  listContainer.appendChild(allSection);
-}
-
-function updateSelection(shadow: ShadowRoot, index: number): void {
-  const list = shadow.getElementById('promptflow-list');
-  if (!list) return;
-  
-  const items = list.querySelectorAll('.prompt-item');
-  items.forEach((item, i) => {
-    const el = item as HTMLElement;
-    if (i === index) {
-      el.classList.add('selected');
-    } else {
-      el.classList.remove('selected');
-    }
-  });
 }
 
 function escapeHtml(text: string): string {
@@ -1126,44 +884,10 @@ function findFirstTextNode(element: Element): Node | null {
   return null;
 }
 
-function positionPanel(): void {
-  if (!panelContainer || !state.currentInput) return;
-
-  const shadow = panelContainer.shadowRoot;
-  if (!shadow) return;
-
-  const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
-  if (!panel) return;
-
-  // Get panel dimensions
-  const panelWidth = 420;
-  const panelMinHeight = 200;
-  const panelMaxHeight = 500;
-  
-  // Calculate viewport dimensions
-  const viewportHeight = window.innerHeight;
-  const viewportWidth = window.innerWidth;
-
-  // Fixed position: center horizontally, with percentage padding from top
-  const topPaddingPercentage = 0.05; // 5% from top
-  const topPadding = viewportHeight * topPaddingPercentage;
-  
-  // Calculate panel height based on available space below the padding
-  const availableHeight = viewportHeight - topPadding - 20; // 20px bottom padding
-  const panelHeight = Math.min(Math.max(panelMinHeight, availableHeight), panelMaxHeight);
-
-  // Center horizontally
-  const leftPosition = (viewportWidth - panelWidth) / 2;
-
-  // Apply panel dimensions and position
-  panel.style.maxHeight = `${panelHeight}px`;
-  panelContainer.style.top = `${topPadding}px`;
-  panelContainer.style.left = `${leftPosition}px`;
-}
-
-const debouncedPositionPanel = debounce(positionPanel, 50);
-
-function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, triggerPos: number): void {
+/**
+ * Open the prompt panel at the current input position
+ */
+async function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, triggerPos: number): Promise<void> {
   if (state.isPanelOpen) return;
   
   state.isPanelOpen = true;
@@ -1173,36 +897,16 @@ function openPanel(input: HTMLInputElement | HTMLTextAreaElement | Element, trig
   state.selectedIndex = 0;
   state.searchQuery = '';
   
-  panelContainer = createPanel();
-  
-  // Position panel after it's rendered
-  requestAnimationFrame(() => {
-    positionPanel();
-    
-    // Scroll panel into view if needed
-    const shadow = panelContainer?.shadowRoot;
-    if (shadow) {
-      const panel = shadow.getElementById('promptflow-panel') as HTMLElement;
-      if (panel) {
-        const rect = panel.getBoundingClientRect();
-        if (rect.top < 0 || rect.bottom > window.innerHeight) {
-          panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      }
-    }
-  });
-  
-  // Listen for scroll/resize to reposition
-  document.addEventListener('scroll', debouncedPositionPanel, true);
-  window.addEventListener('resize', debouncedPositionPanel);
+  // Create and show the React panel
+  await createPanel();
 }
 
+/**
+ * Close the prompt panel
+ */
 function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean = true): void {
-  // Always try to remove panel container if it exists
-  if (panelContainer) {
-    panelContainer.remove();
-    panelContainer = null;
-  }
+  // Hide the React panel
+  hidePromptPanel();
   
   // Store input and caret position for restoration
   const previousInput = state.currentInput;
@@ -1210,9 +914,12 @@ function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean 
 
   // Mark panel as closed
   state.isPanelOpen = false;
-
-  document.removeEventListener('scroll', debouncedPositionPanel, true);
-  window.removeEventListener('resize', debouncedPositionPanel);
+  
+  // Clear the host element reference
+  const hostElement = document.getElementById('promptflow-panel-host');
+  if (hostElement) {
+    hostElement.remove();
+  }
 
   // Restore focus to the input and optionally restore cursor position
   if (restoreFocus && previousInput) {
@@ -1234,85 +941,23 @@ function clearCurrentInput(): void {
   state.currentInput = null;
 }
 
+/**
+ * Global keyboard handler - now delegates to the React component
+ */
 function handleKeyDown(e: KeyboardEvent): void {
+  // The React PromptPanel handles its own keyboard events internally
+  // This handler is kept for backwards compatibility but most logic is in the React component
   if (!state.isPanelOpen) return;
   
-  const shadow = panelContainer?.shadowRoot;
-  if (!shadow) return;
-  
-  const list = shadow.getElementById('promptflow-list');
-  if (!list) return;
-  
-  // Get all prompt items (including those in recent section)
-  const items = list.querySelectorAll('.prompt-item');
-  
-  // Calculate max index
-  const maxIndex = items.length - 1;
-  
-  // Build combined prompt list for navigation: recent prompts + all prompts
-  const showRecentSection = !state.searchQuery && state.recentPromptIds.length > 0;
-  const recentCount = showRecentSection ? Math.min(state.recentPromptIds.length, 5) : 0;
-  
-  // Create a map of promptId to prompt for quick lookup
-  const promptMap = new Map(state.prompts.map(p => [p.id, p]));
-  
-  // Get the prompt at the current selected index
-  const getPromptAtIndex = (index: number): Prompt | undefined => {
-    if (showRecentSection && index < recentCount) {
-      // This is in the recent section
-      const promptId = state.recentPromptIds[index];
-      return promptMap.get(promptId);
-    } else {
-      // This is in the all prompts section
-      const allPromptsIndex = showRecentSection ? index - recentCount : index;
-      return state.prompts[allPromptsIndex];
-    }
-  };
-  
-  switch (e.key) {
-    case 'ArrowDown':
-      e.preventDefault();
-      e.stopPropagation();
-      state.selectedIndex = Math.min(state.selectedIndex + 1, maxIndex);
-      updateSelection(shadow, state.selectedIndex);
-      scrollToSelected(shadow);
-      break;
-      
-    case 'ArrowUp':
-      e.preventDefault();
-      e.stopPropagation();
-      state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
-      updateSelection(shadow, state.selectedIndex);
-      scrollToSelected(shadow);
-      break;
-      
-    case 'Enter':
-      e.preventDefault();
-      e.stopPropagation();
-      const prompt = getPromptAtIndex(state.selectedIndex);
-      if (prompt) {
-        selectPrompt(prompt);
-      }
-      break;
-      
-    case 'Escape':
-      e.preventDefault();
-      e.stopPropagation();
-      closePanel();
-      break;
+  // Handle Escape at the document level (in case focus is lost from React component)
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    closePanel();
   }
 }
 
-function scrollToSelected(shadow: ShadowRoot): void {
-  const list = shadow.getElementById('promptflow-list');
-  if (!list) return;
-  
-  const items = list.querySelectorAll('.prompt-item');
-  if (items[state.selectedIndex]) {
-    items[state.selectedIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }
-}
-
+// Handle input events on editable elements
 function handleInput(e: Event): void {
   const target = e.target as HTMLElement;
   
@@ -1342,10 +987,13 @@ function handleInput(e: Event): void {
   }
 }
 
+// Handle click events - close panel when clicking outside
 function handleClick(e: MouseEvent): void {
   if (state.isPanelOpen) {
     const target = e.target as Node;
-    if (panelContainer && !panelContainer.contains(target) && !panelContainer.shadowRoot?.contains(target)) {
+    // Check if click is outside the panel host element
+    const panelHost = document.getElementById('promptflow-panel-host');
+    if (panelHost && !panelHost.contains(target) && !panelHost.shadowRoot?.contains(target)) {
       closePanel();
     }
   }
