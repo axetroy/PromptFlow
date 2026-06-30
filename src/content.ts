@@ -1,6 +1,6 @@
 import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
 import { showVariableInput, hideVariableInput, getUniqueVariables, interpolate, hasVariables } from './components/modals/VariableInputModal';
-import { showPromptPanel, hidePromptPanel } from './components/PromptPanel';
+import { showPromptPanel, hidePromptPanel, updatePanelSelection } from './components/PromptPanel';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -947,63 +947,34 @@ function handleKeyDown(e: KeyboardEvent): void {
     return;
   }
   
-  // Arrow keys for panel navigation - delegate to React component via custom event
+  // Arrow keys for panel navigation
   if (state.isPanelOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')) {
     const panelHost = document.getElementById('promptflow-panel-host');
     if (panelHost && panelHost.shadowRoot) {
-      const searchInput = panelHost.shadowRoot.querySelector('#promptflow-search') as HTMLInputElement;
-      if (searchInput && document.activeElement === searchInput) {
-        // Search input is focused, handle navigation
-        const list = panelHost.shadowRoot.querySelector('#promptflow-list');
-        if (list) {
-          const items = list.querySelectorAll('.prompt-item');
-          const selectedItems = list.querySelectorAll('.prompt-item.selected');
-          
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            e.stopPropagation();
-            // Remove current selection
-            selectedItems.forEach(item => item.classList.remove('selected'));
-            // Calculate new index
-            let newIndex = 0;
-            if (selectedItems.length > 0) {
-              const currentIndex = Array.from(items).indexOf(selectedItems[0]);
-              newIndex = Math.min(currentIndex + 1, items.length - 1);
-            }
-            // Add selection to new item
-            items[newIndex]?.classList.add('selected');
-            // Update state
-            state.selectedIndex = newIndex;
-            // Scroll into view
-            items[newIndex]?.scrollIntoView({ block: 'nearest' });
-          } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            e.stopPropagation();
-            // Remove current selection
-            selectedItems.forEach(item => item.classList.remove('selected'));
-            // Calculate new index
-            let newIndex = items.length - 1;
-            if (selectedItems.length > 0) {
-              const currentIndex = Array.from(items).indexOf(selectedItems[0]);
-              newIndex = Math.max(currentIndex - 1, 0);
-            }
-            // Add selection to new item
-            items[newIndex]?.classList.add('selected');
-            // Update state
-            state.selectedIndex = newIndex;
-            // Scroll into view
-            items[newIndex]?.scrollIntoView({ block: 'nearest' });
-          } else if (e.key === 'Enter') {
-            e.preventDefault();
-            e.stopPropagation();
-            // Select the currently highlighted item
-            if (selectedItems.length > 0) {
-              const selectedItem = selectedItems[0] as HTMLElement;
-              selectedItem.click();
-            } else if (items.length > 0) {
-              // If nothing is selected, select the first item
-              (items[0] as HTMLElement).click();
-            }
+      const list = panelHost.shadowRoot.querySelector('#promptflow-list');
+      if (list) {
+        const items = list.querySelectorAll('.prompt-item');
+        
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          e.stopPropagation();
+          const newIndex = Math.min(state.selectedIndex + 1, items.length - 1);
+          state.selectedIndex = newIndex;
+          updatePanelSelection(newIndex);
+          items[newIndex]?.scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          e.stopPropagation();
+          const newIndex = Math.max(state.selectedIndex - 1, 0);
+          state.selectedIndex = newIndex;
+          updatePanelSelection(newIndex);
+          items[newIndex]?.scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          const item = items[state.selectedIndex] as HTMLElement;
+          if (item) {
+            item.click();
           }
         }
       }

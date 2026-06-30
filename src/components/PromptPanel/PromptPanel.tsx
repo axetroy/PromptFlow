@@ -11,7 +11,7 @@
  * - Light/dark mode support
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect, createElement } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, createElement } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import type { Prompt } from '../../types';
 // Note: CSS is loaded via link element in showPromptPanel
@@ -19,6 +19,9 @@ import type { Prompt } from '../../types';
 // Panel dimensions (matching original)
 const PANEL_WIDTH = 620;
 const PANEL_MAX_HEIGHT = 520;
+
+// Global ref to access panel instance for keyboard navigation
+let panelInstanceRef: { updateSelection: (index: number) => void } | null = null;
 
 interface PromptPanelProps {
   prompts: Prompt[];
@@ -162,6 +165,33 @@ export function PromptPanel({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   
+  // Register this instance for external keyboard navigation
+  useEffect(() => {
+    const updateSelection = (index: number) => {
+      onSelectIndex(index);
+    };
+    panelInstanceRef = { updateSelection };
+    
+    return () => {
+      panelInstanceRef = null;
+    };
+  }, [onSelectIndex]);
+  
+  // Update DOM classes when selectedIndex changes (for external keyboard navigation)
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    
+    const items = list.querySelectorAll('.prompt-item');
+    items.forEach((item, i) => {
+      if (i === selectedIndex) {
+        item.classList.add('selected');
+      } else {
+        item.classList.remove('selected');
+      }
+    });
+  }, [selectedIndex]);
+  
   // Detect dark mode
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -200,48 +230,8 @@ export function PromptPanel({
   const recentCount = showRecentSection ? recentPrompts.length : 0;
   const totalItems = recentCount + filteredPrompts.length;
   
-  // Handle keyboard navigation
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        e.stopPropagation();
-        if (totalItems > 0) {
-          onSelectIndex(Math.min(selectedIndex + 1, totalItems - 1));
-        }
-        break;
-        
-      case 'ArrowUp':
-        e.preventDefault();
-        e.stopPropagation();
-        if (totalItems > 0) {
-          onSelectIndex(Math.max(selectedIndex - 1, 0));
-        }
-        break;
-        
-      case 'Enter':
-        e.preventDefault();
-        e.stopPropagation();
-        // Get prompt at current index
-        let prompt: Prompt | undefined;
-        if (showRecentSection && selectedIndex < recentCount) {
-          prompt = recentPrompts[selectedIndex];
-        } else {
-          const allIndex = showRecentSection ? selectedIndex - recentCount : selectedIndex;
-          prompt = filteredPrompts[allIndex];
-        }
-        if (prompt) {
-          onPromptSelect(prompt);
-        }
-        break;
-        
-      case 'Escape':
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        break;
-    }
-  }, [totalItems, selectedIndex, onSelectIndex, onPromptSelect, onClose, showRecentSection, recentCount, recentPrompts, filteredPrompts]);
+  // Keyboard navigation is handled by content.ts
+  // This component just displays the UI based on props
   
   // Handle search input change
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -414,5 +404,14 @@ export function hidePromptPanel(): void {
   if (hostElement) {
     hostElement.remove();
     hostElement = null;
+  }
+}
+
+/**
+ * Update the selected index in the panel (for external keyboard navigation)
+ */
+export function updatePanelSelection(index: number): void {
+  if (panelInstanceRef) {
+    panelInstanceRef.updateSelection(index);
   }
 }
