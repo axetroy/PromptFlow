@@ -9,7 +9,9 @@
     "dev": "npm run clean && rspack build",
     "typecheck": "tsc --noEmit",
     "generate-icons": "node generate-icons.js",
-    "test": "vitest run",
+    "test": "vitest run && playwright test",
+    "test:install": "npx playwright install chromium",
+    "pretest": "npm run test:install",
     "test:watch": "vitest"
   },
   "keywords": [
@@ -28,6 +30,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "canvas": "^3.2.3",
+    "jsdom": "^29.1.1",
     "rimraf": "^5.0.7",
     "sharp": "^0.35.2",
     "typescript": "^5.4.0",
