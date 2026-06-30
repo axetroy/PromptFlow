@@ -336,7 +336,7 @@ export function showVariableInput(options: VariableInputOptions): void {
   // Load the CSS stylesheet
   const linkEl = document.createElement('link');
   linkEl.rel = 'stylesheet';
-  linkEl.href = chrome.runtime.getURL('variable-input.css');
+  linkEl.href = chrome.runtime.getURL('VariableInputModal.css');
   shadowRoot.appendChild(linkEl);
   
   // Create container for React app inside Shadow DOM
