@@ -245,11 +245,6 @@ export function PromptPanel({
     searchInputRef.current?.focus();
   }, []);
   
-  // Handle backdrop click
-  const handleBackdropClick = useCallback(() => {
-    onClose();
-  }, [onClose]);
-  
   // Handle settings click
   const handleSettingsClick = useCallback(() => {
     onClose();

@@ -3,9 +3,9 @@ import { SYNC_INTERVALS, SyncIntervalKey, syncAllEnabledRepos, getSyncStatus as 
 
 const STORAGE_KEY = 'promptflow-data';
 
-interface BackgroundMessage {
+interface BackgroundMessage<T = unknown> {
   type: string;
-  payload?: any;
+  payload?: T;
 }
 
 async function initializeStorage(): Promise<void> {
@@ -75,12 +75,12 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 
 // Handle messages from content scripts
-chrome.runtime.onMessage.addListener((message: BackgroundMessage, sender, sendResponse) => {
-  handleMessage(message, sender).then(sendResponse);
+chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
+  handleMessage(message).then(sendResponse);
   return true; // Keep channel open for async response
 });
 
-async function handleMessage(message: BackgroundMessage, sender: chrome.runtime.MessageSender): Promise<any> {
+async function handleMessage(message: BackgroundMessage): Promise<unknown> {
   const { type, payload } = message;
 
   switch (type) {
@@ -229,7 +229,7 @@ async function saveSettings(settings: PromptSettings): Promise<void> {
   notifyAllTabs('UPDATE_SETTINGS', settings);
 }
 
-async function notifyAllTabs(type: string, payload: any): Promise<void> {
+async function notifyAllTabs<T>(type: string, payload: T): Promise<void> {
   const tabs = await chrome.tabs.query({});
   tabs.forEach(tab => {
     if (tab.id) {

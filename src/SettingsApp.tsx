@@ -17,7 +17,6 @@ import {
   Popconfirm,
   Select,
   Tooltip,
-  Collapse,
 } from 'antd';
 import {
   SettingOutlined,
@@ -60,7 +59,6 @@ import PromptPreview from './components/PromptPreview';
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { Panel } = Collapse;
 
 // Types
 interface Prompt {
@@ -824,7 +822,9 @@ const SettingsApp: React.FC = () => {
                   Sync from GitHub {syncedRepos.length > 0 && `(${syncedRepos.length})`}
                 </Button>
                 <Button icon={<UploadOutlined />} onClick={handleExport}>Export</Button>
-                <Button icon={<DownloadOutlined />} onClick={() => fileInputRef.current?.click()}>Import</Button>
+                <Button icon={<DownloadOutlined />} onClick={() => fileInputRef.current?.click()}>
+                  Import
+                </Button>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>Add Prompt</Button>
               </Space>
             }
@@ -989,6 +989,15 @@ const SettingsApp: React.FC = () => {
           prompt={previewPrompt}
           visible={previewVisible}
           onClose={() => setPreviewVisible(false)}
+        />
+
+        {/* Hidden file input for import */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          style={{ display: 'none' }}
+          onChange={handleImport}
         />
       </Layout>
     </ConfigProvider>

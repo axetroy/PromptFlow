@@ -154,15 +154,16 @@ export function useLocalStorage<T>(
 
 /**
  * Previous value hook
+ * Note: This returns a ref, which should be accessed outside render
  */
-export function usePrevious<T>(value: T): T | undefined {
+export function usePrevious<T>(value: T): React.MutableRefObject<T | undefined> {
   const ref = useRef<T | undefined>(undefined);
 
   useEffect(() => {
     ref.current = value;
   }, [value]);
 
-  return ref.current;
+  return ref;
 }
 
 /**

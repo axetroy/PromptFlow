@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Tag, Space, Typography } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
-import { parseTemplate, Variable } from '../utils/template-parser';
+import { parseTemplate } from '../utils/template-parser';
 
 const { Text } = Typography;
 

@@ -18,9 +18,45 @@
  * - <VAR name="variable_name" description="Description text"></VAR> - Variable with description
  */
 
-import React, { useState, useEffect, useRef, useCallback, createElement } from 'react';
+import React, { useState, useEffect, useCallback, createElement, useMemo } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { Variable, interpolate, generatePreviewSegments, getUniqueVariables } from '../../utils/template-parser';
+
+// Custom hook to create callback refs for multiple elements
+function useCallbackRefs<T>(count: number) {
+  const refs = useMemo(() => Array.from({ length: count }, () => ({ current: null as T | null })), [count]);
+  const callbacks = useMemo(() => 
+    refs.map((ref) => (el: T | null) => {
+      ref.current = el;
+    })
+  , [refs]);
+  
+  return { refs, callbacks };
+}
+
+// Hook to focus element without triggering selection issues
+function useStableFocus() {
+  const focusElement = useCallback((el: HTMLElement | null) => {
+    if (el) {
+      // Store current selection info
+      const { selectionStart, selectionEnd, value } = el;
+      
+      // Focus the element
+      el.focus();
+      
+      // Restore selection if it's a textarea/input and value hasn't changed
+      if ('setSelectionRange' in el && el.value === value) {
+        try {
+          el.setSelectionRange(selectionStart, selectionEnd);
+        } catch {
+          // Ignore errors in setSelectionRange
+        }
+      }
+    }
+  }, []);
+  
+  return focusElement;
+}
 // Note: CSS is loaded via link element in showVariableInput
 
 export interface VariableInputOptions {
@@ -45,10 +81,10 @@ interface VariableInputItemProps {
   onChange: (name: string, value: string) => void;
   onKeyDown: (e: React.KeyboardEvent, index: number) => void;
   index: number;
-  inputRefs: React.RefObject<(HTMLTextAreaElement | null)[]>;
+  inputRefCallback: (el: HTMLTextAreaElement | null) => void;
 }
 
-function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputRefs }: VariableInputItemProps) {
+function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputRefCallback }: VariableInputItemProps) {
   return (
     <div className="vf-variable-item">
       <span className="vf-variable-name">{`\${${variable.name}}`}</span>
@@ -68,7 +104,7 @@ function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputR
       </div>
       
       <textarea
-        ref={(el) => { inputRefs.current[index] = el; }}
+        ref={inputRefCallback}
         className="vf-variable-input"
         data-variable={variable.name}
         data-index={index}
@@ -114,7 +150,11 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
   
-  const inputRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
+  const { refs: inputRefs, callbacks: inputCallbacks } = useCallbackRefs<HTMLTextAreaElement>(variables.length);
+  const stableFocus = useStableFocus();
+  
+  // Create getter to access refs by index (for imperative access)
+  const getInputRef = useCallback((index: number) => inputRefs[index]?.current ?? null, [inputRefs]);
   
   // Mount animation
   useEffect(() => {
@@ -137,10 +177,6 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
     const filledContent = interpolate(prompt.content, values);
     onConfirm(filledContent);
   }, [prompt.content, values, onConfirm]);
-  
-  // Always keep the latest handleSubmit accessible without recreating handleKeyDown
-  const handleSubmitRef = useRef(handleSubmit);
-  handleSubmitRef.current = handleSubmit;
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
@@ -148,27 +184,27 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
       e.preventDefault();
       const nextIndex = e.shiftKey ? index - 1 : index + 1;
       if (nextIndex >= 0 && nextIndex < variables.length) {
-        inputRefs.current[nextIndex]?.focus();
+        stableFocus(getInputRef(nextIndex));
       } else if (nextIndex >= variables.length && canSubmit) {
-        handleSubmitRef.current();
+        handleSubmit();
       } else if (nextIndex < 0) {
-        inputRefs.current[0]?.focus();
+        stableFocus(getInputRef(0));
       }
     } else if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
       const nextIndex = index + 1;
       if (nextIndex < variables.length) {
-        inputRefs.current[nextIndex]?.focus();
+        stableFocus(getInputRef(nextIndex));
       } else if (canSubmit) {
-        handleSubmitRef.current();
+        handleSubmit();
       }
     } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       if (canSubmit) {
-        handleSubmitRef.current();
+        handleSubmit();
       }
     }
-  }, [variables.length, canSubmit]);
+  }, [variables.length, canSubmit, getInputRef, handleSubmit, stableFocus]);
   
   // Handle cancel
   const handleCancel = useCallback(() => {
@@ -199,14 +235,14 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
   
   // Focus first input on mount
   useEffect(() => {
-    if (mounted && inputRefs.current[0]) {
+    if (mounted) {
       // Small delay to ensure animation is visible
       const timer = setTimeout(() => {
-        inputRefs.current[0]?.focus();
+        stableFocus(getInputRef(0));
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [mounted]);
+  }, [mounted, getInputRef, stableFocus]);
   
   // Generate preview segments
   const previewSegments = generatePreviewSegments(prompt.content, values);
@@ -235,7 +271,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     index={index}
-                    inputRefs={inputRefs}
+                    inputRefCallback={inputCallbacks[index]}
                   />
                 ))}
               </>

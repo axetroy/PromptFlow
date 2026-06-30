@@ -143,7 +143,7 @@ export function setInputCaretPosition(input: HTMLInputElement | HTMLTextAreaElem
 export function calculatePromptInsertion(
   triggerStartPosition: number,
   promptContent: string,
-  caretPosition: number
+  _caretPosition: number
 ): { newValue: string; selectionStart: number; selectionEnd: number; before: string; after: string } {
   // Note: The actual replacement logic depends on external state
   // This is a helper that calculates what the values should be

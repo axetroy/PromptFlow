@@ -1,8 +1,8 @@
-import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS, PromptUsage } from './types';
+import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS, PromptUsage, PromptSettings } from './types';
 import { SyncedRepo, SyncedPrompt } from './types/sync';
-import { showVariableInput, hideVariableInput, getUniqueVariables, interpolate, hasVariables } from './components/modals/VariableInputModal';
+import { showVariableInput, hideVariableInput, hasVariables } from './components/modals/VariableInputModal';
 import { showPromptPanel, hidePromptPanel } from './components/PromptPanel';
-import { escapeHtml, getInputValue, getCaretPosition, getCaretRect, setCaretPosition, setSelection, insertContentWithNewlines } from './utils/dom';
+import { getInputValue, getCaretPosition, setCaretPosition, insertContentWithNewlines } from './utils/dom';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -119,7 +119,7 @@ async function loadPrompts(): Promise<Prompt[]> {
         disabledDefaultIds?: string[];
         syncedRepos?: SyncedRepo[];
         syncedPrompts?: SyncedPrompt[];
-        settings?: any;
+        settings?: PromptSettings;
       } | undefined;
       
       // Get custom prompts and disabled default IDs
@@ -195,8 +195,6 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
   // - "/prompts " with cursor at 9 → MATCH (whitespace after trigger is OK)
   // - "/prompts world" with cursor at 15 → MATCH (whitespace between trigger and cursor is OK)
   // - "/promptsX" with cursor at 9 → NO MATCH ('X' directly after trigger)
-  
-  const triggerEndPosition = lastIndex + trigger.length;
   
   // If there's content between trigger end and cursor, check if it's all whitespace
   if (textAfterTrigger.length > 0) {
@@ -457,13 +455,6 @@ function closePanel(restoreFocus: boolean = true, restoreCaretPosition: boolean 
       setCaretPosition(previousInput, previousPosition);
     }
   }
-}
-
-/**
- * Clear currentInput state - call this when panel is truly closed
- */
-function clearCurrentInput(): void {
-  state.currentInput = null;
 }
 
 /**
