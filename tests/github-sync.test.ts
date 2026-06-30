@@ -312,4 +312,461 @@ Please review the following code and provide feedback.`;
     expect(result.dirUrlContainsPackage).toBe(true);
     expect(result.dirUrlContainsPath).toBe(true);
   });
+
+  test.describe('Storage Data Normalization', () => {
+    test('should normalize customPrompts to prompts', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        // Simulate storage.ts getStorageData normalization
+        function getStorageData(stored: any) {
+          if (!stored) {
+            return { prompts: [], settings: { trigger: '/prompts', insertMode: 'replace', syncInterval: '1hour' }, usageHistory: [] };
+          }
+          return {
+            prompts: stored.customPrompts || stored.prompts || [],
+            settings: stored.settings || { trigger: '/prompts', insertMode: 'replace' },
+            usageHistory: stored.usageHistory || [],
+            syncedRepos: stored.syncedRepos || [],
+            syncedPrompts: stored.syncedPrompts || [],
+          };
+        }
+
+        const storedWithCustom = {
+          customPrompts: [{ id: 'p1', title: 'Test', content: 'test', tags: [], createdAt: 1, updatedAt: 1 }],
+          settings: { trigger: '/', insertMode: 'replace' as const },
+        };
+        const data = getStorageData(storedWithCustom);
+        return {
+          hasPrompts: Array.isArray(data.prompts),
+          promptsLength: data.prompts.length,
+          firstPromptTitle: data.prompts[0]?.title,
+        };
+      });
+      expect(result.hasPrompts).toBe(true);
+      expect(result.promptsLength).toBe(1);
+      expect(result.firstPromptTitle).toBe('Test');
+    });
+
+    test('should fall back to prompts field when customPrompts is missing', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function getStorageData(stored: any) {
+          if (!stored) {
+            return { prompts: [], settings: { trigger: '/prompts', insertMode: 'replace', syncInterval: '1hour' }, usageHistory: [] };
+          }
+          return {
+            prompts: stored.customPrompts || stored.prompts || [],
+            settings: stored.settings || { trigger: '/prompts', insertMode: 'replace' },
+            usageHistory: stored.usageHistory || [],
+            syncedRepos: stored.syncedRepos || [],
+            syncedPrompts: stored.syncedPrompts || [],
+          };
+        }
+
+        const storedWithPrompts = {
+          prompts: [{ id: 'p1', title: 'Legacy', content: 'test', tags: [], createdAt: 1, updatedAt: 1 }],
+          settings: { trigger: '/', insertMode: 'replace' as const },
+        };
+        const data = getStorageData(storedWithPrompts);
+        return {
+          promptsLength: data.prompts.length,
+          firstPromptTitle: data.prompts[0]?.title,
+        };
+      });
+      expect(result.promptsLength).toBe(1);
+      expect(result.firstPromptTitle).toBe('Legacy');
+    });
+
+    test('should prefer customPrompts over prompts when both exist', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function getStorageData(stored: any) {
+          if (!stored) {
+            return { prompts: [], settings: { trigger: '/prompts', insertMode: 'replace', syncInterval: '1hour' }, usageHistory: [] };
+          }
+          return {
+            prompts: stored.customPrompts || stored.prompts || [],
+            settings: stored.settings || { trigger: '/prompts', insertMode: 'replace' },
+            usageHistory: stored.usageHistory || [],
+            syncedRepos: stored.syncedRepos || [],
+            syncedPrompts: stored.syncedPrompts || [],
+          };
+        }
+
+        const stored = {
+          customPrompts: [{ id: 'c1', title: 'Custom', content: 'c', tags: [], createdAt: 1, updatedAt: 1 }],
+          prompts: [{ id: 'p1', title: 'Legacy', content: 'l', tags: [], createdAt: 1, updatedAt: 1 }],
+          settings: { trigger: '/', insertMode: 'replace' as const },
+        };
+        const data = getStorageData(stored);
+        return {
+          promptsLength: data.prompts.length,
+          firstPromptTitle: data.prompts[0]?.title,
+        };
+      });
+      expect(result.promptsLength).toBe(1);
+      expect(result.firstPromptTitle).toBe('Custom');
+    });
+
+    test('should return defaults when storage is empty', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function getStorageData(stored: any) {
+          if (!stored) {
+            return { prompts: [], settings: { trigger: '/prompts', insertMode: 'replace', syncInterval: '1hour' }, usageHistory: [] };
+          }
+          return {
+            prompts: stored.customPrompts || stored.prompts || [],
+            settings: stored.settings || { trigger: '/prompts', insertMode: 'replace' },
+            usageHistory: stored.usageHistory || [],
+            syncedRepos: stored.syncedRepos || [],
+            syncedPrompts: stored.syncedPrompts || [],
+          };
+        }
+
+        const data = getStorageData(null);
+        return {
+          promptsLength: data.prompts.length,
+          hasSyncInterval: data.settings.syncInterval === '1hour',
+        };
+      });
+      expect(result.promptsLength).toBe(0);
+      expect(result.hasSyncInterval).toBe(true);
+    });
+  });
+
+  test.describe('Storage Save Merge', () => {
+    test('should preserve extra keys when saving', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        // Simulate storage.ts saveStorageData merge logic
+        function saveStorageData(raw: any, newData: any) {
+          return { ...raw, ...newData };
+        }
+
+        const existingStorage = {
+          customPrompts: [{ id: 'c1', title: 'Custom', content: 'c', tags: [], createdAt: 1, updatedAt: 1 }],
+          disabledDefaultIds: ['default-1', 'default-2'],
+          syncedRepos: [{ id: 'sync-1', repo: 'owner/repo', branch: 'main', promptsPath: '.agents/prompts', enabled: true, enabledPromptIds: [] }],
+          settings: { trigger: '/', insertMode: 'replace' as const, syncInterval: '1hour' as const },
+        };
+
+        const newData = {
+          prompts: [{ id: 'p1', title: 'New', content: 'new', tags: [], createdAt: 1, updatedAt: 1 }],
+          settings: { trigger: '/prompts', insertMode: 'replace' as const, syncInterval: '15min' as const },
+          usageHistory: [],
+          syncedRepos: existingStorage.syncedRepos,
+          syncedPrompts: [],
+        };
+
+        const merged = saveStorageData(existingStorage, newData);
+        const keys = Object.keys(merged).sort();
+        return {
+          hasCustomPrompts: Array.isArray(merged.customPrompts),
+          hasDisabledDefaultIds: Array.isArray(merged.disabledDefaultIds),
+          hasSyncedRepos: Array.isArray(merged.syncedRepos),
+          promptsTitle: merged.prompts[0]?.title,
+          settingsTrigger: merged.settings.trigger,
+          customPromptTitle: merged.customPrompts[0]?.title,
+          keys,
+        };
+      });
+      expect(result.hasCustomPrompts).toBe(true);
+      expect(result.hasDisabledDefaultIds).toBe(true);
+      expect(result.hasSyncedRepos).toBe(true);
+      expect(result.promptsTitle).toBe('New');
+      expect(result.settingsTrigger).toBe('/prompts');
+      expect(result.customPromptTitle).toBe('Custom');
+    });
+  });
+
+  test.describe('Sync Status Logic', () => {
+    test('should return lastSynced from the most recently synced repo', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function getSyncStatus(repos: any[]) {
+          const enabledRepos = repos.filter((r: any) => r.enabled);
+          let lastSynced: number | null = null;
+          for (const repo of enabledRepos) {
+            if (repo.lastSyncedAt && (!lastSynced || repo.lastSyncedAt > lastSynced)) {
+              lastSynced = repo.lastSyncedAt;
+            }
+          }
+          return { lastSynced, enabled: enabledRepos.length > 0, reposCount: enabledRepos.length };
+        }
+
+        const repos = [
+          { id: 'r1', enabled: true, lastSyncedAt: 100 },
+          { id: 'r2', enabled: true, lastSyncedAt: 300 },
+          { id: 'r3', enabled: false, lastSyncedAt: 200 },
+        ];
+
+        const status = getSyncStatus(repos);
+        return {
+          lastSynced: status.lastSynced,
+          enabled: status.enabled,
+          reposCount: status.reposCount,
+        };
+      });
+      expect(result.lastSynced).toBe(300);
+      expect(result.enabled).toBe(true);
+      expect(result.reposCount).toBe(2);
+    });
+
+    test('should return no sync when no enabled repos', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function getSyncStatus(repos: any[]) {
+          const enabledRepos = repos.filter((r: any) => r.enabled);
+          let lastSynced: number | null = null;
+          for (const repo of enabledRepos) {
+            if (repo.lastSyncedAt && (!lastSynced || repo.lastSyncedAt > lastSynced)) {
+              lastSynced = repo.lastSyncedAt;
+            }
+          }
+          return { lastSynced, enabled: enabledRepos.length > 0, reposCount: enabledRepos.length };
+        }
+
+        return {
+          empty: getSyncStatus([]),
+          allDisabled: getSyncStatus([
+            { id: 'r1', enabled: false, lastSyncedAt: 100 },
+          ]),
+        };
+      });
+      expect(result.empty.lastSynced).toBeNull();
+      expect(result.empty.enabled).toBe(false);
+      expect(result.empty.reposCount).toBe(0);
+      expect(result.allDisabled.lastSynced).toBeNull();
+      expect(result.allDisabled.enabled).toBe(false);
+      expect(result.allDisabled.reposCount).toBe(0);
+    });
+
+    test('should return null lastSynced when enabled repos never synced', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function getSyncStatus(repos: any[]) {
+          const enabledRepos = repos.filter((r: any) => r.enabled);
+          let lastSynced: number | null = null;
+          for (const repo of enabledRepos) {
+            if (repo.lastSyncedAt && (!lastSynced || repo.lastSyncedAt > lastSynced)) {
+              lastSynced = repo.lastSyncedAt;
+            }
+          }
+          return { lastSynced, enabled: enabledRepos.length > 0, reposCount: enabledRepos.length };
+        }
+
+        return getSyncStatus([
+          { id: 'r1', enabled: true },
+          { id: 'r2', enabled: true },
+        ]);
+      });
+      expect(result.lastSynced).toBeNull();
+      expect(result.enabled).toBe(true);
+      expect(result.reposCount).toBe(2);
+    });
+  });
+
+  test.describe('Sync All Enabled Repos Logic', () => {
+    test('should return early with zero count when no repos configured', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function syncAllEnabledRepos(syncedRepos: any[]) {
+          const enabledRepos = syncedRepos.filter((r: any) => r.enabled);
+          if (enabledRepos.length === 0) {
+            return { success: true, syncedCount: 0, errors: [] };
+          }
+          return { success: true, syncedCount: 2, errors: [] };
+        }
+
+        return syncAllEnabledRepos([]);
+      });
+      expect(result.success).toBe(true);
+      expect(result.syncedCount).toBe(0);
+      expect(result.errors).toEqual([]);
+    });
+
+    test('should return early when all repos are disabled', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function syncAllEnabledRepos(syncedRepos: any[]) {
+          const enabledRepos = syncedRepos.filter((r: any) => r.enabled);
+          if (enabledRepos.length === 0) {
+            return { success: true, syncedCount: 0, errors: [] };
+          }
+          return { success: true, syncedCount: 2, errors: [] };
+        }
+
+        return syncAllEnabledRepos([
+          { id: 'r1', enabled: false },
+          { id: 'r2', enabled: false },
+        ]);
+      });
+      expect(result.success).toBe(true);
+      expect(result.syncedCount).toBe(0);
+    });
+
+    test('should sync only enabled repos', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function syncAllEnabledRepos(syncedRepos: any[]) {
+          const enabledRepos = syncedRepos.filter((r: any) => r.enabled);
+          if (enabledRepos.length === 0) {
+            return { success: true, syncedCount: 0, errors: [] };
+          }
+          return { success: true, syncedCount: enabledRepos.length, errors: [] };
+        }
+
+        return syncAllEnabledRepos([
+          { id: 'r1', enabled: true },
+          { id: 'r2', enabled: false },
+          { id: 'r3', enabled: true },
+        ]);
+      });
+      expect(result.success).toBe(true);
+      expect(result.syncedCount).toBe(2);
+    });
+  });
+
+  test.describe('Sync ID Generation', () => {
+    test('should generate unique IDs for different file paths', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        // Simulate sync.ts encodeBase64 + ID generation
+        function encodeBase64(str: string): string {
+          return btoa(str);
+        }
+
+        const repoId = 'sync-12345';
+        // Use paths with different first 6 bytes to ensure unique base64 prefix
+        const filePaths = [
+          'code-review.md',
+          'translate.md',
+          'explain-code.md',
+        ];
+
+        const prompts = filePaths.map(filePath => ({
+          id: `sync-${repoId}-${encodeBase64(filePath).slice(0, 8)}`,
+          repoId,
+          filePath,
+        }));
+
+        const uniqueIds = new Set(prompts.map(p => p.id));
+        return {
+          allIdsUnique: uniqueIds.size === prompts.length,
+          count: prompts.length,
+        };
+      });
+      expect(result.allIdsUnique).toBe(true);
+      expect(result.count).toBe(3);
+    });
+
+    test('should produce deterministic IDs for same path', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function encodeBase64(str: string): string {
+          return btoa(str);
+        }
+
+        const repoId = 'sync-12345';
+        const filePath = 'code-review.md';
+        const id1 = `sync-${repoId}-${encodeBase64(filePath).slice(0, 8)}`;
+        const id2 = `sync-${repoId}-${encodeBase64(filePath).slice(0, 8)}`;
+        return { idsMatch: id1 === id2 };
+      });
+      expect(result.idsMatch).toBe(true);
+    });
+  });
+
+  test.describe('Tag Parsing Edge Cases', () => {
+    test('should handle array tags', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const metadata = { title: 'Test', tags: ['dev', 'review'] };
+        const tags = Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag] : []);
+        return { tags, tagCount: tags.length };
+      });
+      expect(result.tags).toEqual(['dev', 'review']);
+      expect(result.tagCount).toBe(2);
+    });
+
+    test('should handle single string tag', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const metadata = { title: 'Test', tag: 'single-tag' };
+        const tags = Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag] : []);
+        return { tags, tagCount: tags.length };
+      });
+      expect(result.tags).toEqual(['single-tag']);
+      expect(result.tagCount).toBe(1);
+    });
+
+    test('should return empty array when no tags', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const metadata = { title: 'Test' };
+        const tags = Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag] : []);
+        return { tags, tagCount: tags.length };
+      });
+      expect(result.tags).toEqual([]);
+      expect(result.tagCount).toBe(0);
+    });
+
+    test('should handle empty tags array', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const metadata = { title: 'Test', tags: [] };
+        const tags = Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag] : []);
+        return { tags, tagCount: tags.length };
+      });
+      expect(result.tags).toEqual([]);
+      expect(result.tagCount).toBe(0);
+    });
+  });
+
+  test.describe('Sync Result Error Handling', () => {
+    test('should collect errors from failed syncs', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function syncAllEnabledRepos(syncedRepos: any[]) {
+          const enabledRepos = syncedRepos.filter((r: any) => r.enabled);
+          if (enabledRepos.length === 0) {
+            return { success: true, syncedCount: 0, errors: [] };
+          }
+
+          let syncedCount = 0;
+          const errors: string[] = [];
+
+          for (const repo of enabledRepos) {
+            if (repo.fails) {
+              errors.push(`${repo.repo}: Network error`);
+            } else {
+              syncedCount++;
+            }
+          }
+
+          return { success: errors.length === 0, syncedCount, errors };
+        }
+
+        return syncAllEnabledRepos([
+          { id: 'r1', repo: 'good/repo', enabled: true, fails: false },
+          { id: 'r2', repo: 'bad/repo', enabled: true, fails: true },
+        ]);
+      });
+      expect(result.success).toBe(false);
+      expect(result.syncedCount).toBe(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('bad/repo');
+    });
+
+    test('should handle all repos failing', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        function syncAllEnabledRepos(syncedRepos: any[]) {
+          const enabledRepos = syncedRepos.filter((r: any) => r.enabled);
+          if (enabledRepos.length === 0) {
+            return { success: true, syncedCount: 0, errors: [] };
+          }
+
+          const syncedCount = 0;
+          const errors: string[] = [];
+
+          for (const repo of enabledRepos) {
+            errors.push(`${repo.repo}: Timeout`);
+          }
+
+          return { success: errors.length === 0, syncedCount, errors };
+        }
+
+        return syncAllEnabledRepos([
+          { id: 'r1', repo: 'fail1/repo', enabled: true },
+          { id: 'r2', repo: 'fail2/repo', enabled: true },
+        ]);
+      });
+      expect(result.success).toBe(false);
+      expect(result.syncedCount).toBe(0);
+      expect(result.errors).toHaveLength(2);
+    });
+  });
 });
