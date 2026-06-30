@@ -3,7 +3,6 @@
  * Complete CSS for the variable input modal with light/dark mode support
  */
 
-/* Light mode (default) */
 :host {
   --vf-overlay-bg: rgba(0, 0, 0, 0.5);
   --vf-content-bg: #fff;
@@ -27,6 +26,7 @@
   --vf-preview-border: #e8e8e8;
   --vf-copy-btn-border: #d9d9d9;
   --vf-copy-btn-hover-bg: #f0f0f0;
+  --vf-copy-success-color: #52c41a;
   --vf-var-highlight-bg: #ede9fe;
   --vf-var-highlight-color: #7c3aed;
   --vf-var-highlight-border: #a78bfa;
@@ -40,15 +40,17 @@
   --vf-btn-cancel-bg: #fff;
   --vf-btn-cancel-hover: #f5f5f5;
   --vf-btn-disabled-bg: #d9d9d9;
+  --vf-btn-primary-color: #fff;
   --vf-btn-primary-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --vf-btn-primary-hover: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
   --vf-header-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --vf-accent: #667eea;
+  --vf-accent-rgb: 102, 126, 234;
   --vf-scrollbar-thumb: #ccc;
   --vf-scrollbar-track: #f1f1f1;
   --vf-divider-color: #e8e8e8;
 }
 
-/* Dark mode */
 @media (prefers-color-scheme: dark) {
   :host {
     --vf-overlay-bg: rgba(0, 0, 0, 0.7);
@@ -73,6 +75,7 @@
     --vf-preview-border: #3a3a3a;
     --vf-copy-btn-border: #555;
     --vf-copy-btn-hover-bg: #3a3a3a;
+    --vf-copy-success-color: #73d13d;
     --vf-var-highlight-bg: #2e1f4a;
     --vf-var-highlight-color: #a78bfa;
     --vf-var-highlight-border: #7c3aed;
@@ -86,35 +89,12 @@
     --vf-btn-cancel-bg: #333;
     --vf-btn-cancel-hover: #444;
     --vf-btn-disabled-bg: #444;
+    --vf-btn-primary-color: #fff;
     --vf-btn-primary-bg: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
     --vf-btn-primary-hover: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --vf-scrollbar-thumb: #555;
     --vf-scrollbar-track: #2a2a2a;
     --vf-divider-color: #404040;
-  }
-}
-
-/* Custom scrollbar for dark mode */
-@media (prefers-color-scheme: dark) {
-  .vf-body::-webkit-scrollbar {
-    width: 8px;
-  }
-  .vf-body::-webkit-scrollbar-track {
-    background: var(--vf-scrollbar-track);
-  }
-  .vf-body::-webkit-scrollbar-thumb {
-    background: var(--vf-scrollbar-thumb);
-    border-radius: 4px;
-  }
-  .vf-preview::-webkit-scrollbar {
-    width: 8px;
-  }
-  .vf-preview::-webkit-scrollbar-track {
-    background: var(--vf-scrollbar-track);
-  }
-  .vf-preview::-webkit-scrollbar-thumb {
-    background: var(--vf-scrollbar-thumb);
-    border-radius: 4px;
   }
 }
 
@@ -160,7 +140,7 @@
   padding: 20px 24px;
   border-bottom: 1px solid var(--vf-border-color);
   background: var(--vf-header-gradient);
-  color: #fff;
+  color: var(--vf-btn-primary-color);
 }
 
 .vf-header-title {
@@ -286,8 +266,8 @@
 
 .vf-variable-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: var(--vf-accent);
+  box-shadow: 0 0 0 3px rgba(var(--vf-accent-rgb), 0.15);
 }
 
 .vf-variable-input::placeholder {
@@ -387,7 +367,7 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  color: #fff;
+  color: var(--vf-btn-primary-color);
   transition: background 0.2s, opacity 0.2s;
 }
 
@@ -419,8 +399,8 @@
 }
 
 .vf-copy-btn.copied {
-  border-color: #52c41a;
-  color: #52c41a;
+  border-color: var(--vf-copy-success-color);
+  color: var(--vf-copy-success-color);
 }
 
 .vf-copy-btn svg {

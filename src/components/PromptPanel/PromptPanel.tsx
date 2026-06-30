@@ -282,7 +282,7 @@ export function PromptPanel({
       tabIndex={-1}
     >
       {/* Search Input */}
-      <div style={{ padding: '14px 16px' }}>
+      <div className="search-wrapper">
         <input
           ref={searchInputRef}
           id="promptflow-search"
