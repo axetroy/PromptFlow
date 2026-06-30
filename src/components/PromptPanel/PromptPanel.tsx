@@ -375,7 +375,7 @@ export function showPromptPanel(options: PromptPanelOptions): void {
   
   // Create host element for Shadow DOM with position
   hostElement = document.createElement('div');
-  hostElement.id = 'promptflow-panel-container';
+  hostElement.id = 'promptflow-panel-host';
   hostElement.style.cssText = `position: fixed; z-index: 2147483647; top: ${topPadding}px; left: ${leftPosition}px;`;
   document.body.appendChild(hostElement);
   

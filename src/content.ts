@@ -908,19 +908,26 @@ function clearCurrentInput(): void {
 }
 
 /**
- * Global keyboard handler - now delegates to the React component
+ * Global keyboard handler - handles Escape key for both PromptPanel and VariableInputModal
  */
 function handleKeyDown(e: KeyboardEvent): void {
-  // The React PromptPanel handles its own keyboard events internally
-  // This handler is kept for backwards compatibility but most logic is in the React component
-  if (!state.isPanelOpen) return;
-  
-  // Handle Escape at the document level (in case focus is lost from React component)
+  // Handle Escape for VariableInputModal (React component should also handle this)
   if (e.key === 'Escape') {
-    e.preventDefault();
-    e.stopPropagation();
-    closePanel();
+    if (state.pendingPrompt) {
+      // ESC on modal - the modal will call onCancel which we handle
+      // Don't prevent default here, let the modal handle it
+      return;
+    }
+    
+    // Handle Escape for PromptPanel
+    if (state.isPanelOpen) {
+      e.preventDefault();
+      e.stopPropagation();
+      closePanel();
+    }
   }
+  
+  // Arrow keys for panel navigation are handled by the React component
 }
 
 // Handle input events on editable elements
@@ -955,12 +962,22 @@ function handleInput(e: Event): void {
 
 // Handle click events - close panel when clicking outside
 function handleClick(e: MouseEvent): void {
+  const target = e.target as Node;
+  
+  // Check if clicking outside the panel (for PromptPanel)
   if (state.isPanelOpen) {
-    const target = e.target as Node;
-    // Check if click is outside the panel host element
     const panelHost = document.getElementById('promptflow-panel-host');
     if (panelHost && !panelHost.contains(target) && !panelHost.shadowRoot?.contains(target)) {
       closePanel();
+    }
+  }
+  
+  // Check if clicking outside the variable input modal
+  if (state.pendingPrompt) {
+    const modalHost = document.getElementById('promptflow-variable-input-host');
+    if (modalHost && !modalHost.contains(target) && !modalHost.shadowRoot?.contains(target)) {
+      // Don't auto-close modal on outside click - let the modal handle it
+      // This is different from the panel behavior
     }
   }
 }
