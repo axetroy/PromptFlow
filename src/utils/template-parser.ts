@@ -108,7 +108,7 @@ function parseVarTag(template: string, startIndex: number): { variable: Variable
   }
   
   let isSelfClosing = false;
-  let contentEndIndex = i;
+  let contentEndIndex: number;
   
   if (template[i] === '/') {
     // Self-closing tag

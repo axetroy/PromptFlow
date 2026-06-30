@@ -8,8 +8,9 @@
     "build": "npm run clean && rspack build",
     "dev": "npm run clean && rspack build",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
     "generate-icons": "node generate-icons.js",
-    "test": "vitest run && playwright test",
+    "test": "npm run lint && vitest run && playwright test",
     "test:install": "npx playwright install chromium",
     "pretest": "npm run test:install",
     "test:watch": "vitest"
@@ -23,6 +24,7 @@
   "author": "Axetroy <axetroy.dev@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "@rspack/cli": "^2.1.1",
     "@rspack/core": "^2.1.1",
@@ -30,10 +32,14 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "canvas": "^3.2.3",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^29.1.1",
     "rimraf": "^5.0.7",
     "sharp": "^0.35.2",
     "typescript": "^5.4.0",
+    "typescript-eslint": "^8.62.1",
     "vitest": "^4.1.9"
   },
   "engines": {

@@ -849,7 +849,7 @@ const SettingsApp: React.FC = () => {
                     <Button 
                       type="link" 
                       size="small" 
-                      icon={!!syncingMap[repo.id] ? <LoadingOutlined /> : <SyncOutlined spin={!syncingMap[repo.id]} />}
+                      icon={syncingMap[repo.id] ? <LoadingOutlined /> : <SyncOutlined spin={!syncingMap[repo.id]} />}
                       onClick={() => handleSyncRepo(repo.id)}
                       loading={!!syncingMap[repo.id]}
                     >

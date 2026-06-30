@@ -174,7 +174,7 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
     // Check if it's at a word boundary
     const isWordBoundary = found === 0 || 
       /\s/.test(textBeforeCaret[found - 1]) ||
-      /[\(\[\{]/.test(textBeforeCaret[found - 1]);
+      /[([{]/.test(textBeforeCaret[found - 1]);
     
     if (isWordBoundary) {
       lastIndex = found;
