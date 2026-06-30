@@ -5,9 +5,15 @@ const STORAGE_KEY = 'promptflow-data';
 export async function getStorageData(): Promise<StorageData> {
   return new Promise((resolve) => {
     chrome.storage.local.get([STORAGE_KEY], (result) => {
-      const data = result[STORAGE_KEY] as StorageData | undefined;
-      if (data?.prompts && data?.settings) {
-        resolve(data);
+      const data = result[STORAGE_KEY] as (StorageData & { customPrompts?: Prompt[]; disabledDefaultIds?: string[] }) | undefined;
+      if (data) {
+        resolve({
+          prompts: data.customPrompts || data.prompts || [],
+          settings: data.settings || DEFAULT_SETTINGS,
+          usageHistory: data.usageHistory || [],
+          syncedRepos: data.syncedRepos || [],
+          syncedPrompts: data.syncedPrompts || [],
+        });
       } else {
         const defaultData: StorageData = {
           prompts: DEFAULT_PROMPTS,
@@ -21,8 +27,14 @@ export async function getStorageData(): Promise<StorageData> {
 }
 
 export async function saveStorageData(data: StorageData): Promise<void> {
+  const raw = await new Promise<Record<string, unknown>>((resolve) => {
+    chrome.storage.local.get([STORAGE_KEY], (result) => {
+      resolve((result[STORAGE_KEY] as Record<string, unknown>) || {});
+    });
+  });
+  const merged = { ...raw, ...data };
   return new Promise((resolve) => {
-    chrome.storage.local.set({ [STORAGE_KEY]: data }, resolve);
+    chrome.storage.local.set({ [STORAGE_KEY]: merged }, resolve);
   });
 }
 

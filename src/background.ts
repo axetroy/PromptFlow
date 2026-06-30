@@ -1,5 +1,6 @@
 import { StorageData, Prompt, PromptSettings, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
 import { SYNC_INTERVALS, SyncIntervalKey, syncAllEnabledRepos, getSyncStatus as getSyncStatusFromUtils } from './utils/sync';
+import { getStorageData, getPrompts, getSettings, saveSettings, addPrompt as storageAddPrompt, updatePrompt as storageUpdatePrompt, deletePrompt as storageDeletePrompt } from './utils/storage';
 
 const STORAGE_KEY = 'promptflow-data';
 
@@ -103,6 +104,7 @@ async function handleMessage(message: BackgroundMessage, _sender: chrome.runtime
 
     case 'SAVE_SETTINGS':
       await saveSettings(payload as PromptSettings);
+      notifyAllTabs('UPDATE_SETTINGS', payload as PromptSettings);
       // Re-initialize auto-sync with new interval
       if (payload.syncInterval) {
         await initializeAutoSync();
@@ -159,76 +161,25 @@ async function openSettings(): Promise<void> {
   }
 }
 
-async function getStorageData(): Promise<StorageData> {
-  const result = await chrome.storage.local.get([STORAGE_KEY]);
-  const data = result[STORAGE_KEY] as StorageData | undefined;
-  return data || { prompts: [], settings: DEFAULT_SETTINGS };
-}
-
-async function getPrompts(): Promise<Prompt[]> {
-  const data = await getStorageData();
-  return data.prompts;
-}
-
-async function getSettings(): Promise<PromptSettings> {
-  const data = await getStorageData();
-  return data.settings;
-}
-
 async function addPrompt(prompt: Prompt): Promise<Prompt[]> {
-  const data = await getStorageData();
-  const newPrompt: Prompt = {
-    ...prompt,
-    id: prompt.id || crypto.randomUUID(),
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-  data.prompts.push(newPrompt);
-  await chrome.storage.local.set({ [STORAGE_KEY]: data });
-
-  // Notify all tabs
-  notifyAllTabs('UPDATE_PROMPTS', data.prompts);
-
-  return data.prompts;
+  await storageAddPrompt(prompt);
+  const prompts = await getPrompts();
+  notifyAllTabs('UPDATE_PROMPTS', prompts);
+  return prompts;
 }
 
 async function updatePrompt(id: string, updates: Partial<Prompt>): Promise<Prompt[]> {
-  const data = await getStorageData();
-  const index = data.prompts.findIndex(p => p.id === id);
-
-  if (index !== -1) {
-    data.prompts[index] = {
-      ...data.prompts[index],
-      ...updates,
-      updatedAt: Date.now(),
-    };
-    await chrome.storage.local.set({ [STORAGE_KEY]: data });
-
-    // Notify all tabs
-    notifyAllTabs('UPDATE_PROMPTS', data.prompts);
-  }
-
-  return data.prompts;
+  await storageUpdatePrompt(id, updates);
+  const prompts = await getPrompts();
+  notifyAllTabs('UPDATE_PROMPTS', prompts);
+  return prompts;
 }
 
 async function deletePrompt(id: string): Promise<Prompt[]> {
-  const data = await getStorageData();
-  data.prompts = data.prompts.filter(p => p.id !== id);
-  await chrome.storage.local.set({ [STORAGE_KEY]: data });
-
-  // Notify all tabs
-  notifyAllTabs('UPDATE_PROMPTS', data.prompts);
-
-  return data.prompts;
-}
-
-async function saveSettings(settings: PromptSettings): Promise<void> {
-  const data = await getStorageData();
-  data.settings = settings;
-  await chrome.storage.local.set({ [STORAGE_KEY]: data });
-
-  // Notify all tabs
-  notifyAllTabs('UPDATE_SETTINGS', settings);
+  await storageDeletePrompt(id);
+  const prompts = await getPrompts();
+  notifyAllTabs('UPDATE_PROMPTS', prompts);
+  return prompts;
 }
 
 async function notifyAllTabs(type: string, payload: unknown): Promise<void> {
