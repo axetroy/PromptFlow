@@ -12,13 +12,13 @@ Act as a Staff Software Engineer specializing in debugging complex production is
 Analyze the code in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-<VAR name="code" description="The source code with issues" />
+<VAR name="code" description="The source code with issues">{code}</VAR>
 </PROMPT_INPUT>
 
 Reported error in the **PROMPT_INPUT** block below:
 
 <PROMPT_INPUT>
-<VAR name="error" description="The error message to be analyzed" defaultValue="None" />
+<VAR name="error" description="The error message to be analyzed" defaultValue="None">{error}</VAR>
 </PROMPT_INPUT>
 
 Your goal is to identify the root cause instead of only fixing the symptom.
