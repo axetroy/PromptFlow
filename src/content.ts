@@ -914,7 +914,7 @@ function clearCurrentInput(): void {
 }
 
 /**
- * Global keyboard handler - handles Escape key for both PromptPanel and VariableInputModal
+ * Global keyboard handler - handles all keyboard events for both PromptPanel and VariableInputModal
  */
 function handleKeyDown(e: KeyboardEvent): void {
   // Handle Escape for VariableInputModal
@@ -922,7 +922,6 @@ function handleKeyDown(e: KeyboardEvent): void {
     e.preventDefault();
     e.stopPropagation();
     
-    // Simulate cancel by calling onCancel logic directly
     const targetInput = state.currentInput;
     const caretPos = state.caretPosition;
     hideVariableInput();
@@ -940,14 +939,76 @@ function handleKeyDown(e: KeyboardEvent): void {
     return;
   }
   
-  // Handle Escape for PromptPanel
+  // Handle keyboard navigation for PromptPanel
   if (e.key === 'Escape' && state.isPanelOpen) {
     e.preventDefault();
     e.stopPropagation();
     closePanel();
+    return;
   }
   
-  // Arrow keys for panel navigation are handled by the React component
+  // Arrow keys for panel navigation - delegate to React component via custom event
+  if (state.isPanelOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')) {
+    const panelHost = document.getElementById('promptflow-panel-host');
+    if (panelHost && panelHost.shadowRoot) {
+      const searchInput = panelHost.shadowRoot.querySelector('#promptflow-search') as HTMLInputElement;
+      if (searchInput && document.activeElement === searchInput) {
+        // Search input is focused, handle navigation
+        const list = panelHost.shadowRoot.querySelector('#promptflow-list');
+        if (list) {
+          const items = list.querySelectorAll('.prompt-item');
+          const selectedItems = list.querySelectorAll('.prompt-item.selected');
+          
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            // Remove current selection
+            selectedItems.forEach(item => item.classList.remove('selected'));
+            // Calculate new index
+            let newIndex = 0;
+            if (selectedItems.length > 0) {
+              const currentIndex = Array.from(items).indexOf(selectedItems[0]);
+              newIndex = Math.min(currentIndex + 1, items.length - 1);
+            }
+            // Add selection to new item
+            items[newIndex]?.classList.add('selected');
+            // Update state
+            state.selectedIndex = newIndex;
+            // Scroll into view
+            items[newIndex]?.scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            // Remove current selection
+            selectedItems.forEach(item => item.classList.remove('selected'));
+            // Calculate new index
+            let newIndex = items.length - 1;
+            if (selectedItems.length > 0) {
+              const currentIndex = Array.from(items).indexOf(selectedItems[0]);
+              newIndex = Math.max(currentIndex - 1, 0);
+            }
+            // Add selection to new item
+            items[newIndex]?.classList.add('selected');
+            // Update state
+            state.selectedIndex = newIndex;
+            // Scroll into view
+            items[newIndex]?.scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            // Select the currently highlighted item
+            if (selectedItems.length > 0) {
+              const selectedItem = selectedItems[0] as HTMLElement;
+              selectedItem.click();
+            } else if (items.length > 0) {
+              // If nothing is selected, select the first item
+              (items[0] as HTMLElement).click();
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 // Handle input events on editable elements

@@ -183,17 +183,8 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
     }
   }, [prompt.content, values]);
   
-  // Handle escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleCancel();
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [handleCancel]);
+  // ESC key handling is done in content.ts via handleKeyDown
+  // No need for a separate listener in the React component
   
   // Focus first input on mount
   useEffect(() => {
