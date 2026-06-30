@@ -1,27 +1,24 @@
 /**
  * PromptPanel - React Component for Prompt Selection
  * 
- * A React component that provides a panel for searching and selecting prompts.
- * Uses Shadow DOM for complete style isolation from the host page.
+ * This React component matches the original DOM implementation exactly,
+ * using the same class names and HTML structure for style compatibility.
  * 
  * Features:
  * - Search filtering by title, description, and tags
  * - Keyboard navigation (Arrow keys, Enter to select)
  * - Recent prompts section
  * - Light/dark mode support
- * - Smart positioning (centered horizontally, percentage from top)
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect, createElement } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import type { Prompt } from '../../types';
-import './PromptPanel.css';
+// Note: CSS is loaded via link element in showPromptPanel
 
-// Panel dimensions
-const PANEL_WIDTH = 420;
-const PANEL_MIN_HEIGHT = 200;
-const PANEL_MAX_HEIGHT = 500;
-const TOP_PADDING_PERCENTAGE = 0.05; // 5% from top
+// Panel dimensions (matching original)
+const PANEL_WIDTH = 620;
+const PANEL_MAX_HEIGHT = 520;
 
 interface PromptPanelProps {
   prompts: Prompt[];
@@ -33,15 +30,6 @@ interface PromptPanelProps {
   onPromptSelect: (prompt: Prompt) => void;
   onClose: () => void;
   onOpenSettings: () => void;
-}
-
-interface PromptItemProps {
-  prompt: Prompt;
-  isSelected: boolean;
-  searchQuery: string;
-  onClick: () => void;
-  onMouseEnter: () => void;
-  onMouseDown: (e: React.MouseEvent) => void;
 }
 
 function escapeHtml(text: string): string {
@@ -60,13 +48,29 @@ function highlightText(text: string, query: string): React.ReactNode {
   
   return parts.map((part, index) => {
     if (part.toLowerCase() === query.toLowerCase()) {
-      return <mark key={index} className="pp-highlight">{part}</mark>;
+      return <mark key={index}>{part}</mark>;
     }
     return <span key={index}>{part}</span>;
   });
 }
 
-function PromptItem({ prompt, isSelected, searchQuery, onClick, onMouseEnter, onMouseDown }: PromptItemProps) {
+function PromptItem({
+  prompt,
+  isSelected,
+  isHovered,
+  searchQuery,
+  onClick,
+  onMouseEnter,
+  onMouseLeave
+}: {
+  prompt: Prompt;
+  isSelected: boolean;
+  isHovered: boolean;
+  searchQuery: string;
+  onClick: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
   const itemRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -75,26 +79,32 @@ function PromptItem({ prompt, isSelected, searchQuery, onClick, onMouseEnter, on
     }
   }, [isSelected]);
   
+  const className = [
+    'prompt-item',
+    isSelected ? 'selected' : '',
+    isHovered ? 'hovered' : ''
+  ].filter(Boolean).join(' ');
+  
   return (
     <div
       ref={itemRef}
-      className={`pp-item ${isSelected ? 'selected' : ''}`}
+      className={className}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
-      onMouseDown={onMouseDown}
+      onMouseLeave={onMouseLeave}
     >
-      <div className="pp-item-title">
+      <div className="prompt-item-title">
         {highlightText(prompt.title, searchQuery)}
       </div>
       {prompt.description && (
-        <div className="pp-item-description">
+        <div className="prompt-item-description">
           {highlightText(prompt.description, searchQuery)}
         </div>
       )}
       {prompt.tags.length > 0 && (
-        <div className="pp-item-tags">
+        <div className="prompt-item-tags">
           {prompt.tags.map((tag, index) => (
-            <span key={index} className="pp-tag">{tag}</span>
+            <span key={index} className="prompt-tag">{tag}</span>
           ))}
         </div>
       )}
@@ -109,9 +119,9 @@ function usePanelPosition() {
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
-    const topPadding = viewportHeight * TOP_PADDING_PERCENTAGE;
+    const topPadding = viewportHeight * 0.05;
     const availableHeight = viewportHeight - topPadding - 20;
-    const maxHeight = Math.min(Math.max(PANEL_MIN_HEIGHT, availableHeight), PANEL_MAX_HEIGHT);
+    const maxHeight = Math.min(Math.max(200, availableHeight), PANEL_MAX_HEIGHT);
     
     const leftPosition = (viewportWidth - PANEL_WIDTH) / 2;
     
@@ -125,8 +135,12 @@ function usePanelPosition() {
   useLayoutEffect(() => {
     calculatePosition();
     
-    // Listen for scroll/resize to reposition
-    const debouncedCalculate = debounce(calculatePosition, 50);
+    // Debounce function
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const debouncedCalculate = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(calculatePosition, 50);
+    };
     
     document.addEventListener('scroll', debouncedCalculate, true);
     window.addEventListener('resize', debouncedCalculate);
@@ -138,14 +152,6 @@ function usePanelPosition() {
   }, [calculatePosition]);
   
   return position;
-}
-
-function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return ((...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  }) as T;
 }
 
 export function PromptPanel({
@@ -160,6 +166,7 @@ export function PromptPanel({
   onOpenSettings,
 }: PromptPanelProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   
@@ -191,16 +198,6 @@ export function PromptPanel({
   const recentCount = showRecentSection ? recentPrompts.length : 0;
   const totalItems = recentCount + filteredPrompts.length;
   
-  // Get prompt at index (considering recent section)
-  const getPromptAtIndex = useCallback((index: number): Prompt | undefined => {
-    if (showRecentSection && index < recentCount) {
-      return recentPrompts[index];
-    } else {
-      const allIndex = showRecentSection ? index - recentCount : index;
-      return filteredPrompts[allIndex];
-    }
-  }, [showRecentSection, recentCount, recentPrompts, filteredPrompts]);
-  
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     switch (e.key) {
@@ -223,7 +220,14 @@ export function PromptPanel({
       case 'Enter':
         e.preventDefault();
         e.stopPropagation();
-        const prompt = getPromptAtIndex(selectedIndex);
+        // Get prompt at current index
+        let prompt: Prompt | undefined;
+        if (showRecentSection && selectedIndex < recentCount) {
+          prompt = recentPrompts[selectedIndex];
+        } else {
+          const allIndex = showRecentSection ? selectedIndex - recentCount : selectedIndex;
+          prompt = filteredPrompts[allIndex];
+        }
         if (prompt) {
           onPromptSelect(prompt);
         }
@@ -235,7 +239,7 @@ export function PromptPanel({
         onClose();
         break;
     }
-  }, [totalItems, selectedIndex, onSelectIndex, getPromptAtIndex, onPromptSelect, onClose]);
+  }, [totalItems, selectedIndex, onSelectIndex, onPromptSelect, onClose, showRecentSection, recentCount, recentPrompts, filteredPrompts]);
   
   // Handle search input change
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,11 +248,6 @@ export function PromptPanel({
     onSearchChange(value);
     onSelectIndex(0); // Reset selection when search changes
   }, [onSearchChange, onSelectIndex]);
-  
-  // Handle mouse down on items to prevent blur of search input
-  const handleItemMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-  }, []);
   
   // Focus search input on mount
   useEffect(() => {
@@ -266,99 +265,82 @@ export function PromptPanel({
     onOpenSettings();
   }, [onClose, onOpenSettings]);
   
+  // Render prompt item
+  const renderPromptItem = (prompt: Prompt, index: number, actualIndex: number) => (
+    <PromptItem
+      key={prompt.id}
+      prompt={prompt}
+      isSelected={selectedIndex === actualIndex}
+      isHovered={hoveredIndex === actualIndex}
+      searchQuery={localSearch}
+      onClick={() => onPromptSelect(prompt)}
+      onMouseEnter={() => setHoveredIndex(actualIndex)}
+      onMouseLeave={() => setHoveredIndex(null)}
+    />
+  );
+  
   return (
     <div 
-      className="pp-container" 
-      style={{ top: position.top, left: position.left }}
-      onClick={handleBackdropClick}
+      id="promptflow-panel"
+      style={{ 
+        top: position.top, 
+        left: position.left,
+        maxHeight: position.maxHeight 
+      }}
+      onClick={e => e.stopPropagation()}
     >
-      <div 
-        className="pp-panel" 
-        style={{ maxHeight: position.maxHeight }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Search Input */}
-        <div className="pp-search-container">
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="pp-search-input"
-            placeholder="Search prompts..."
-            value={localSearch}
-            onChange={handleSearchChange}
-            onKeyDown={handleKeyDown}
-          />
-        </div>
+      {/* Search Input */}
+      <div style={{ padding: '14px 16px' }}>
+        <input
+          ref={searchInputRef}
+          id="promptflow-search"
+          type="text"
+          placeholder="Search prompts..."
+          value={localSearch}
+          onChange={handleSearchChange}
+          onKeyDown={handleKeyDown}
+        />
+      </div>
+      
+      {/* Prompt List */}
+      <div ref={listRef} id="promptflow-list">
+        {/* Recent Section */}
+        {showRecentSection && recentPrompts.length > 0 && (
+          <>
+            <div className="section-header">Recent</div>
+            {recentPrompts.map((prompt, index) => renderPromptItem(prompt, index, index))}
+            <div className="section-header">All Prompts</div>
+          </>
+        )}
         
-        {/* Prompt List */}
-        <div ref={listRef} className="pp-list">
-          {totalItems > 0 ? (
-            <>
-              {/* Recent Section */}
-              {showRecentSection && recentPrompts.length > 0 && (
-                <div className="pp-list-section">
-                  <div className="pp-section-title">Recent</div>
-                  {recentPrompts.map((prompt, index) => (
-                    <PromptItem
-                      key={prompt.id}
-                      prompt={prompt}
-                      isSelected={selectedIndex === index}
-                      searchQuery={localSearch}
-                      onClick={() => onPromptSelect(prompt)}
-                      onMouseEnter={() => onSelectIndex(index)}
-                      onMouseDown={handleItemMouseDown}
-                    />
-                  ))}
-                </div>
-              )}
-              
-              {/* All Prompts Section */}
-              {filteredPrompts.length > 0 && (
-                <div className="pp-list-section">
-                  {showRecentSection && (
-                    <div className="pp-section-title">All Prompts</div>
-                  )}
-                  {filteredPrompts.map((prompt, index) => {
-                    const actualIndex = showRecentSection ? recentCount + index : index;
-                    return (
-                      <PromptItem
-                        key={prompt.id}
-                        prompt={prompt}
-                        isSelected={selectedIndex === actualIndex}
-                        searchQuery={localSearch}
-                        onClick={() => onPromptSelect(prompt)}
-                        onMouseEnter={() => onSelectIndex(actualIndex)}
-                        onMouseDown={handleItemMouseDown}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="pp-empty">
-              <div className="pp-empty-icon">🔍</div>
-              <div className="pp-empty-text">
-                {localSearch ? 'No prompts found' : 'No prompts available'}
-              </div>
+        {/* All Prompts */}
+        {filteredPrompts.length > 0 ? (
+          filteredPrompts.map((prompt, index) => {
+            const actualIndex = showRecentSection ? recentCount + index : index;
+            return renderPromptItem(prompt, index, actualIndex);
+          })
+        ) : (
+          !showRecentSection && (
+            <div className="empty-state">
+              {localSearch ? 'No prompts found' : 'No prompts available'}
             </div>
-          )}
+          )
+        )}
+      </div>
+      
+      {/* Footer */}
+      <div id="promptflow-footer">
+        <div className="footer-hint">
+          <span className="footer-key">↑↓</span> Navigate
+          <span className="footer-key">Enter</span> Select
+          <span className="footer-key">Esc</span> Close
         </div>
-        
-        {/* Footer */}
-        <div className="pp-footer">
-          <div className="pp-footer-hint">
-            <span className="pp-footer-key">↑↓</span> Navigate
-            <span className="pp-footer-key">Enter</span> Select
-            <span className="pp-footer-key">Esc</span> Close
-          </div>
-          <button className="pp-settings-btn" onClick={handleSettingsClick}>
-            <svg viewBox="64 64 896 896" focusable="false" width="16" height="16" fill="currentColor">
-              <path d="M924.8 625.7l-65.5-56c3.1-19 4.7-38.4 4.7-57.8s-1.6-38.8-4.7-57.8l65.5-56a32.03 32.03 0 009.3-35.2l-.9-2.6a443.74 443.74 0 00-79.7-137.9l-1.8-2.1a32.12 32.12 0 00-35.1-9.5l-81.3 28.9c-30-24.6-63.5-44-99.7-57.6l-15.7-85a32.05 32.05 0 00-25.8-25.7l-2.7-.5c-52.1-9.4-106.9-9.4-159 0l-2.7.5a32.05 32.05 0 00-25.8 25.7l-15.8 85.4a351.86 351.86 0 00-99 57.4l-81.9-29.1a32 32 0 00-35.1 9.5l-1.8 2.1a446.02 446.02 0 00-79.7 137.9l-.9 2.6c-4.5 12.5-.8 26.5 9.3 35.2l66.3 56.6c-3.1 18.8-4.6 38-4.6 57.1 0 19.2 1.5 38.4 4.6 57.1L99 625.5a32.03 32.03 0 00-9.3 35.2l.9 2.6c18.1 50.4 44.9 96.9 79.7 137.9l1.8 2.1a32.12 32.12 0 0035.1 9.5l81.9-29.1c29.8 24.5 63.1 43.9 99 57.4l15.8 85.4a32.05 32.05 0 0025.8 25.7l2.7.5a449.4 449.4 0 00159 0l2.7-.5a32.05 32.05 0 0025.8-25.7l15.7-85a350 350 0 0099.7-57.6l81.3 28.9a32 32 0 0035.1-9.5l1.8-2.1c34.8-41.1 61.6-87.5 79.7-137.9l.9-2.6c4.5-12.3.8-26.3-9.3-35z"></path>
-            </svg>
-            Settings
-          </button>
-        </div>
+        <button id="promptflow-settings-btn" onClick={handleSettingsClick}>
+          <svg viewBox="64 64 896 896" focusable="false" width="1em" height="1em" fill="currentColor">
+            <path d="M924.8 625.7l-65.5-56c3.1-19 4.7-38.4 4.7-57.8s-1.6-38.8-4.7-57.8l65.5-56a32.03 32.03 0 009.3-35.2l-.9-2.6a443.74 443.74 0 00-79.7-137.9l-1.8-2.1a32.12 32.12 0 00-35.1-9.5l-81.3 28.9c-30-24.6-63.5-44-99.7-57.6l-15.7-85a32.05 32.05 0 00-25.8-25.7l-2.7-.5c-52.1-9.4-106.9-9.4-159 0l-2.7.5a32.05 32.05 0 00-25.8 25.7l-15.8 85.4a351.86 351.86 0 00-99 57.4l-81.9-29.1a32 32 0 00-35.1 9.5l-1.8 2.1a446.02 446.02 0 00-79.7 137.9l-.9 2.6c-4.5 12.5-.8 26.5 9.3 35.2l66.3 56.6c-3.1 18.8-4.6 38-4.6 57.1 0 19.2 1.5 38.4 4.6 57.1L99 625.5a32.03 32.03 0 00-9.3 35.2l.9 2.6c18.1 50.4 44.9 96.9 79.7 137.9l1.8 2.1a32.12 32.12 0 0035.1 9.5l81.9-29.1c29.8 24.5 63.1 43.9 99 57.4l15.8 85.4a32.05 32.05 0 0025.8 25.7l2.7.5a449.4 449.4 0 00159 0l2.7-.5a32.05 32.05 0 0025.8-25.7l15.7-85a350 350 0 0099.7-57.6l81.3 28.9a32 32 0 0035.1-9.5l1.8-2.1c34.8-41.1 61.6-87.5 79.7-137.9l.9-2.6c4.5-12.3.8-26.3-9.3-35zM788.3 465.9c2.5 15.1 3.8 30.6 3.8 46.1s-1.3 31-3.8 46.1l-6.6 40.1 74.7 63.9a370.03 370.03 0 01-42.6 73.6L721 702.8l-31.4 25.8c-23.9 19.6-50.5 35-79.3 45.8l-38.1 14.3-17.9 97a377.5 377.5 0 01-85 0l-17.9-97.2-37.8-14.5c-28.5-10.8-55-26.2-78.7-45.7l-31.4-25.9-93.4 33.2c-17-22.9-31.2-47.6-42.6-73.6l75.5-64.5-6.5-40c-2.4-14.9-3.7-30.3-3.7-45.5 0-15.3 1.2-30.6 3.7-45.5l6.5-40-75.5-64.5c11.3-26.1 25.6-50.7 42.6-73.6l93.4 33.2 31.4-25.9c23.7-19.5 50.2-34.9 78.7-45.7l37.9-14.3 17.9-97.2c28.1-3.2 56.8-3.2 85 0l17.9 97 38.1 14.3c28.7 10.8 55.4 26.2 79.3 45.8l31.4 25.8 92.8-32.9c17 22.9 31.2 47.6 42.6 73.6L781.8 426l6.5 39.9zM512 326c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176zm79.2 255.2A111.6 111.6 0 01512 614c-29.9 0-58-11.7-79.2-32.8A111.6 111.6 0 01400 502c0-29.9 11.7-58 32.8-79.2C454 401.6 482.1 390 512 390c29.9 0 58 11.6 79.2 32.8A111.6 111.6 0 01624 502c0 29.9-11.7 58-32.8 79.2z"></path>
+          </svg>
+          Settings
+        </button>
       </div>
     </div>
   );
@@ -386,12 +368,18 @@ export interface PromptPanelOptions {
 export function showPromptPanel(options: PromptPanelOptions): void {
   // Create host element for Shadow DOM
   hostElement = document.createElement('div');
-  hostElement.id = 'promptflow-panel-host';
+  hostElement.id = 'promptflow-panel-container';
   hostElement.style.cssText = 'position: fixed; top: 0; left: 0; width: 0; height: 0; overflow: visible; z-index: 2147483647;';
   document.body.appendChild(hostElement);
   
   // Create Shadow DOM for style isolation
   const shadowRoot = hostElement.attachShadow({ mode: 'open' });
+  
+  // Load the original panel.css stylesheet
+  const linkEl = document.createElement('link');
+  linkEl.rel = 'stylesheet';
+  linkEl.href = chrome.runtime.getURL('panel.css');
+  shadowRoot.appendChild(linkEl);
   
   // Create container for React app inside Shadow DOM
   const container = document.createElement('div');

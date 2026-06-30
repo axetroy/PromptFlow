@@ -48,6 +48,12 @@ copyFileSync(
     path.join(distDir, 'panel.css')
 );
 
+// Copy variable-input.css
+copyFileSync(
+    path.join(__dirname, '..', 'src', 'variable-input.css'),
+    path.join(distDir, 'variable-input.css')
+);
+
 // Copy settings.html
 copyFileSync(
     path.join(__dirname, '..', 'src', 'settings.html'),

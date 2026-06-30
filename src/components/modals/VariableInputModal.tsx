@@ -21,7 +21,7 @@
 import React, { useState, useEffect, useRef, useCallback, createElement } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { Variable, interpolate, generatePreviewSegments, getUniqueVariables } from '../../utils/template-parser';
-import './VariableInputModal.css';
+// Note: CSS is loaded via link element in showVariableInput
 
 export interface VariableInputOptions {
   prompt: {
@@ -336,6 +336,12 @@ export function showVariableInput(options: VariableInputOptions): void {
   
   // Create Shadow DOM
   const shadowRoot = hostElement.attachShadow({ mode: 'open' });
+  
+  // Load the CSS stylesheet
+  const linkEl = document.createElement('link');
+  linkEl.rel = 'stylesheet';
+  linkEl.href = chrome.runtime.getURL('variable-input.css');
+  shadowRoot.appendChild(linkEl);
   
   // Create container for React app inside Shadow DOM
   const container = document.createElement('div');
