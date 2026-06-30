@@ -28,7 +28,7 @@ async function build() {
         jsxImportSource: undefined,
     });
 
-    // Bundle content script (IIFE for content scripts)
+    // Bundle content script (IIFE for content scripts) - includes React for VariableInputModal
     await esbuild.build({
         ...commonOptions,
         entryPoints: [path.join(__dirname, '..', 'src', 'content.ts')],
@@ -36,6 +36,10 @@ async function build() {
         format: 'iife',
         jsx: undefined,
         jsxImportSource: undefined,
+        // Define React and ReactDOM as globals for content script
+        define: {
+            'process.env.NODE_ENV': '"production"',
+        },
     });
 
     // Bundle settings React app with Ant Design (IIFE for popup page)

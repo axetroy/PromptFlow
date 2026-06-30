@@ -1,5 +1,5 @@
 import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
-import { showVariableInput, hideVariableInput, getUniqueVariables, interpolate, hasVariables } from './VariableInput';
+import { showVariableInput, hideVariableInput, getUniqueVariables, interpolate, hasVariables } from './components/modals/VariableInputModal';
 
 interface ContentState {
   isPanelOpen: boolean;

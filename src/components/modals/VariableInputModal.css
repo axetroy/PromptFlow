@@ -1,0 +1,450 @@
+/**
+ * VariableInputModal Styles
+ * Complete CSS for the variable input modal with light/dark mode support
+ */
+
+/* Light mode (default) */
+:host {
+  --vf-overlay-bg: rgba(0, 0, 0, 0.5);
+  --vf-content-bg: #fff;
+  --vf-content-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  --vf-border-color: #e8e8e8;
+  --vf-body-bg: #fff;
+  --vf-text-primary: #333;
+  --vf-text-muted: #999;
+  --vf-empty-bg: #fafafa;
+  --vf-item-bg: #fafafa;
+  --vf-item-border: #f0f0f0;
+  --vf-name-bg: #262626;
+  --vf-name-color: #fff;
+  --vf-badge-default-bg: #f6ffed;
+  --vf-badge-default-color: #52c41a;
+  --vf-badge-required-bg: #fff2e8;
+  --vf-badge-required-color: #fa8c16;
+  --vf-input-border: #d9d9d9;
+  --vf-input-bg: #fff;
+  --vf-preview-bg: #f8f8f8;
+  --vf-preview-border: #e8e8e8;
+  --vf-copy-btn-border: #d9d9d9;
+  --vf-copy-btn-hover-bg: #f0f0f0;
+  --vf-var-highlight-bg: #ede9fe;
+  --vf-var-highlight-color: #7c3aed;
+  --vf-var-highlight-border: #a78bfa;
+  --vf-var-placeholder-bg: #fff2e8;
+  --vf-var-placeholder-color: #fa8c16;
+  --vf-var-placeholder-border: #ffc53d;
+  --vf-footer-bg: #fafafa;
+  --vf-kbd-bg: #fff;
+  --vf-kbd-border: #d9d9d9;
+  --vf-btn-cancel-border: #d9d9d9;
+  --vf-btn-cancel-bg: #fff;
+  --vf-btn-cancel-hover: #f5f5f5;
+  --vf-btn-disabled-bg: #d9d9d9;
+  --vf-btn-primary-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --vf-btn-primary-hover: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+  --vf-header-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --vf-scrollbar-thumb: #ccc;
+  --vf-scrollbar-track: #f1f1f1;
+  --vf-divider-color: #e8e8e8;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :host {
+    --vf-overlay-bg: rgba(0, 0, 0, 0.7);
+    --vf-content-bg: #1a1a1a;
+    --vf-content-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    --vf-border-color: #404040;
+    --vf-body-bg: #1a1a1a;
+    --vf-text-primary: #e8e8e8;
+    --vf-text-muted: #888;
+    --vf-empty-bg: #252525;
+    --vf-item-bg: #252525;
+    --vf-item-border: #3a3a3a;
+    --vf-name-bg: #3a3a3a;
+    --vf-name-color: #e8e8e8;
+    --vf-badge-default-bg: #1a2e1a;
+    --vf-badge-default-color: #73d13d;
+    --vf-badge-required-bg: #2e261a;
+    --vf-badge-required-color: #fa8c16;
+    --vf-input-border: #555;
+    --vf-input-bg: #252525;
+    --vf-preview-bg: #252525;
+    --vf-preview-border: #3a3a3a;
+    --vf-copy-btn-border: #555;
+    --vf-copy-btn-hover-bg: #3a3a3a;
+    --vf-var-highlight-bg: #2e1f4a;
+    --vf-var-highlight-color: #a78bfa;
+    --vf-var-highlight-border: #7c3aed;
+    --vf-var-placeholder-bg: #2e261a;
+    --vf-var-placeholder-color: #ffc53d;
+    --vf-var-placeholder-border: #fa8c16;
+    --vf-footer-bg: #252525;
+    --vf-kbd-bg: #333;
+    --vf-kbd-border: #555;
+    --vf-btn-cancel-border: #555;
+    --vf-btn-cancel-bg: #333;
+    --vf-btn-cancel-hover: #444;
+    --vf-btn-disabled-bg: #444;
+    --vf-btn-primary-bg: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+    --vf-btn-primary-hover: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --vf-scrollbar-thumb: #555;
+    --vf-scrollbar-track: #2a2a2a;
+    --vf-divider-color: #404040;
+  }
+}
+
+/* Custom scrollbar for dark mode */
+@media (prefers-color-scheme: dark) {
+  .vf-body::-webkit-scrollbar {
+    width: 8px;
+  }
+  .vf-body::-webkit-scrollbar-track {
+    background: var(--vf-scrollbar-track);
+  }
+  .vf-body::-webkit-scrollbar-thumb {
+    background: var(--vf-scrollbar-thumb);
+    border-radius: 4px;
+  }
+  .vf-preview::-webkit-scrollbar {
+    width: 8px;
+  }
+  .vf-preview::-webkit-scrollbar-track {
+    background: var(--vf-scrollbar-track);
+  }
+  .vf-preview::-webkit-scrollbar-thumb {
+    background: var(--vf-scrollbar-thumb);
+    border-radius: 4px;
+  }
+}
+
+.vf-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--vf-overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: vf-fade-in 0.2s ease-out;
+}
+
+@keyframes vf-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vf-modal-content {
+  background-color: var(--vf-content-bg);
+  border-radius: 12px;
+  box-shadow: var(--vf-content-shadow, 0 20px 60px rgba(0, 0, 0, 0.3));
+  width: 90%;
+  max-width: 660px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: vf-slide-up 0.2s ease-out;
+}
+
+@keyframes vf-slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.vf-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--vf-border-color);
+  background: var(--vf-header-gradient);
+  color: #fff;
+}
+
+.vf-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.vf-header-subtitle {
+  font-size: 13px;
+  opacity: 0.9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vf-body {
+  flex: 1;
+  overflow: auto;
+  background-color: var(--vf-body-bg);
+}
+
+.vf-body-inner {
+  padding: 24px;
+}
+
+.vf-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.vf-section-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: var(--vf-text-primary);
+}
+
+.vf-section-header .vf-section-title {
+  margin-bottom: 0;
+}
+
+.vf-empty-state {
+  text-align: center;
+  padding: 20px;
+  color: var(--vf-text-muted);
+  background: var(--vf-empty-bg);
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.vf-variable-item {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--vf-item-bg);
+  border-radius: 8px;
+  border: 1px solid var(--vf-item-border);
+}
+
+.vf-variable-item:last-child {
+  margin-bottom: 0;
+}
+
+.vf-variable-name {
+  font-family: 'SF Mono', Monaco, monospace;
+  background: var(--vf-name-bg);
+  color: var(--vf-name-color);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.vf-variable-description {
+  font-size: 13px;
+  color: var(--vf-text-muted);
+  margin-top: 8px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.vf-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.vf-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.vf-badge-default {
+  background: var(--vf-badge-default-bg);
+  color: var(--vf-badge-default-color);
+}
+
+.vf-badge-required {
+  background: var(--vf-badge-required-bg);
+  color: var(--vf-badge-required-color);
+}
+
+.vf-variable-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--vf-input-border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  background-color: var(--vf-input-bg);
+  color: var(--vf-text-primary);
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.vf-variable-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.vf-variable-input::placeholder {
+  color: var(--vf-text-muted);
+}
+
+.vf-preview {
+  background: var(--vf-preview-bg);
+  border: 1px solid var(--vf-preview-border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 20px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--vf-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.vf-preview-text {
+  color: var(--vf-text-primary);
+}
+
+.vf-preview-variable {
+  background: var(--vf-var-highlight-bg);
+  color: var(--vf-var-highlight-color);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--vf-var-highlight-border);
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 13px;
+}
+
+.vf-preview-placeholder {
+  background: var(--vf-var-placeholder-bg);
+  color: var(--vf-var-placeholder-color);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px dashed var(--vf-var-placeholder-border);
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 13px;
+}
+
+.vf-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--vf-divider-color);
+  background: var(--vf-footer-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vf-footer-hint {
+  font-size: 12px;
+  color: var(--vf-text-muted);
+}
+
+.vf-footer-hint kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--vf-kbd-bg);
+  border: 1px solid var(--vf-kbd-border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+  margin: 0 2px;
+}
+
+.vf-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vf-tooltip {
+  font-size: 12px;
+  color: var(--vf-text-muted);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.vf-tooltip kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--vf-kbd-bg);
+  border: 1px solid var(--vf-kbd-border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+  margin: 0 2px;
+}
+
+.vf-tooltip-visible {
+  opacity: 1;
+}
+
+.vf-cancel-btn {
+  padding: 8px 16px;
+  background: var(--vf-btn-cancel-bg);
+  border: 1px solid var(--vf-btn-cancel-border);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--vf-text-primary);
+  transition: background-color 0.2s;
+}
+
+.vf-cancel-btn:hover {
+  background: var(--vf-btn-cancel-hover);
+}
+
+.vf-submit-btn {
+  padding: 8px 20px;
+  background: var(--vf-btn-primary-bg);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.vf-submit-btn:hover:not(:disabled) {
+  background: var(--vf-btn-primary-hover);
+}
+
+.vf-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vf-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--vf-copy-btn-border);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--vf-text-primary);
+  transition: background-color 0.2s;
+}
+
+.vf-copy-btn:hover {
+  background: var(--vf-copy-btn-hover-bg);
+}
+
+.vf-copy-btn.copied {
+  border-color: #52c41a;
+  color: #52c41a;
+}
+
+.vf-copy-btn svg {
+  flex-shrink: 0;
+}
