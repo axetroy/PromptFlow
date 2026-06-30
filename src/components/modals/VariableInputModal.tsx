@@ -51,16 +51,21 @@ interface VariableInputItemProps {
 function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputRefs }: VariableInputItemProps) {
   return (
     <div className="vf-variable-item">
-      <div className="vf-variable-header">
-        <span className="vf-variable-name">{variable.name}</span>
-        {variable.defaultValue !== undefined && (
-          <span className="vf-variable-default">[{variable.defaultValue}]</span>
-        )}
-      </div>
+      <span className="vf-variable-name">{`\${${variable.name}}`}</span>
       
       {variable.description && (
         <div className="vf-variable-description">{variable.description}</div>
       )}
+      
+      <div className="vf-badges">
+        {variable.defaultValue !== undefined ? (
+          <span className="vf-badge vf-badge-default">
+            Default: {variable.defaultValue}
+          </span>
+        ) : (
+          <span className="vf-badge vf-badge-required">Required</span>
+        )}
+      </div>
       
       <textarea
         ref={(el) => { 
@@ -74,9 +79,26 @@ function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputR
         onChange={(e) => onChange(variable.name, e.target.value)}
         onKeyDown={(e) => onKeyDown(e, index)}
         placeholder={variable.defaultValue ? variable.defaultValue : 'Enter value...'}
-        rows={1}
+        rows={3}
       />
     </div>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
   );
 }
 
@@ -209,7 +231,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
             {/* Variable Inputs */}
             {variables.length > 0 ? (
               <>
-                <div className="vf-section-title">Variables</div>
+                <div className="vf-section-title">📋 Variable Values</div>
                 {variables.map((variable, index) => (
                   <VariableInputItem
                     key={variable.name}
@@ -230,14 +252,15 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
             
             {/* Preview Section */}
             <div className="vf-section-header">
-              <div className="vf-section-title">Preview</div>
+              <div className="vf-section-title">👁️ Preview</div>
               <button 
                 type="button" 
                 className={`vf-copy-btn ${copied ? 'copied' : ''}`}
                 onClick={handleCopy}
                 title="Copy to clipboard"
               >
-                📋 {copied ? 'Copied!' : 'Copy'}
+                {copied ? <CheckIcon /> : <CopyIcon />}
+                {copied ? 'Copied!' : 'Copy'}
               </button>
             </div>
             
@@ -269,7 +292,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
         {/* Footer */}
         <div className="vf-footer">
           <div className="vf-footer-hint">
-            💡 <kbd>Tab</kbd>/<kbd>Enter</kbd> next · <kbd>Esc</kbd> cancel
+            <kbd>Tab</kbd> / <kbd>Enter</kbd> next &middot; <kbd>Esc</kbd> cancel
           </div>
           <div className="vf-footer-actions">
             <button type="button" className="vf-cancel-btn" onClick={handleCancel}>
@@ -281,7 +304,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
               onClick={handleSubmit}
               disabled={!canSubmit}
             >
-              Confirm
+              ✨ Insert Prompt
             </button>
           </div>
         </div>
