@@ -172,7 +172,7 @@ export function PromptPanel({
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
   
-  const position = usePanelPosition();
+  const { maxHeight } = usePanelPosition();
   
   // Filter prompts based on search query
   const filteredPrompts = useMemo(() => {
