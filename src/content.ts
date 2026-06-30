@@ -35,19 +35,6 @@ const state: ContentState = {
 
 const MAX_RECENT_PROMPTS = 5;
 
-// Detect system theme preference
-function getCurrentTheme(): 'light' | 'dark' {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return ((...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  }) as T;
-}
-
 interface StorageData {
   prompts?: Prompt[];
   settings?: {
@@ -448,31 +435,10 @@ async function createPanel(): Promise<void> {
   });
 }
 
-/**
- * Escape special regex characters
- */
-function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 function escapeHtml(text: string): string {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
-}
-
-/**
- * Find the first placeholder in the content (e.g., {variable})
- */
-function findFirstPlaceholder(content: string): { start: number; end: number } | null {
-  const match = content.match(/\{[^}]+\}/);
-  if (match && match.index !== undefined) {
-    return {
-      start: match.index,
-      end: match.index + match[0].length
-    };
-  }
-  return null;
 }
 
 /**
@@ -1070,11 +1036,12 @@ if (document.readyState === 'loading') {
 }
 
 // Listen for messages from background
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'UPDATE_PROMPTS') {
     state.prompts = message.prompts;
-    if (state.isPanelOpen && panelContainer?.shadowRoot) {
-      renderPromptList(panelContainer.shadowRoot, state.prompts);
+    // If panel is open, close it - user will need to re-open to see new prompts
+    if (state.isPanelOpen) {
+      closePanel();
     }
   }
 });

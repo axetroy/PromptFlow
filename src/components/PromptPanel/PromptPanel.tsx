@@ -12,8 +12,8 @@
  * - Smart positioning (centered horizontally, percentage from top)
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
-import { createRoot } from 'react-dom/client';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect, createElement } from 'react';
+import { createRoot, Root } from 'react-dom/client';
 import type { Prompt } from '../../types';
 import './PromptPanel.css';
 
@@ -365,7 +365,7 @@ export function PromptPanel({
 }
 
 // Global references for cleanup
-let reactRoot: { unmount: () => void } | null = null;
+let reactRoot: Root | null = null;
 let hostElement: HTMLElement | null = null;
 
 export interface PromptPanelOptions {
@@ -401,7 +401,7 @@ export function showPromptPanel(options: PromptPanelOptions): void {
   reactRoot = createRoot(container);
   
   reactRoot.render(
-    React.createElement(PromptPanel, {
+    createElement(PromptPanel, {
       ...options,
     })
   );

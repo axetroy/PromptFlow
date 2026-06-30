@@ -11,9 +11,8 @@
     "dev": "npm run clean && npm run build",
     "typecheck": "tsc --noEmit",
     "generate-icons": "node generate-icons.js",
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:unit": "node --import tsx --test tests/template-parser.test.ts"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "chrome-extension",
@@ -33,7 +32,8 @@
     "rimraf": "^5.0.7",
     "sharp": "^0.35.2",
     "tsx": "^4.22.4",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=18.0.0"

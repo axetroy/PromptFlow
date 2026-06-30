@@ -18,8 +18,9 @@
  * - <VAR name="variable_name" description="Description text"></VAR> - Variable with description
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Variable, interpolate, generatePreviewSegments } from '../../utils/template-parser';
+import React, { useState, useEffect, useRef, useCallback, createElement } from 'react';
+import { createRoot, Root } from 'react-dom/client';
+import { Variable, interpolate, generatePreviewSegments, getUniqueVariables } from '../../utils/template-parser';
 import './VariableInputModal.css';
 
 export interface VariableInputOptions {
@@ -312,7 +313,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
 }
 
 // Global references for cleanup - these are set when modal is shown
-let reactRoot: { unmount: () => void } | null = null;
+let reactRoot: Root | null = null;
 let hostElement: HTMLElement | null = null;
 
 /**
@@ -325,7 +326,6 @@ let hostElement: HTMLElement | null = null;
  */
 export function showVariableInput(options: VariableInputOptions): void {
   // Parse variables from prompt content
-  const { getUniqueVariables } = require('../../utils/template-parser');
   const variables = getUniqueVariables(options.prompt.content);
   
   // Create host element for Shadow DOM
@@ -341,19 +341,16 @@ export function showVariableInput(options: VariableInputOptions): void {
   const container = document.createElement('div');
   shadowRoot.appendChild(container);
   
-  // Create React root and render using the bundled React
-  // React and createRoot are bundled via esbuild with jsx: 'automatic'
+  // Create React root and render
   reactRoot = createRoot(container);
   
-  const ModalComponent = () => {
-    return createElement(VariableInputModal, { 
-      options, 
+  reactRoot.render(
+    createElement(VariableInputModal, {
+      options,
       variables,
       initialValues: {}
-    });
-  };
-  
-  reactRoot.render(ModalComponent());
+    })
+  );
 }
 
 /**
