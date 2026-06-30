@@ -8,7 +8,7 @@
     "build": "npm run clean && rspack build",
     "dev": "npm run clean && rspack build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "generate-icons": "node generate-icons.js",
     "test": "npm run lint && vitest run && playwright test",
     "test:install": "npx playwright install chromium",
