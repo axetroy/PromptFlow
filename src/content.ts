@@ -917,20 +917,34 @@ function clearCurrentInput(): void {
  * Global keyboard handler - handles Escape key for both PromptPanel and VariableInputModal
  */
 function handleKeyDown(e: KeyboardEvent): void {
-  // Handle Escape for VariableInputModal (React component should also handle this)
-  if (e.key === 'Escape') {
-    if (state.pendingPrompt) {
-      // ESC on modal - the modal will call onCancel which we handle
-      // Don't prevent default here, let the modal handle it
-      return;
-    }
+  // Handle Escape for VariableInputModal
+  if (e.key === 'Escape' && state.pendingPrompt) {
+    e.preventDefault();
+    e.stopPropagation();
     
-    // Handle Escape for PromptPanel
-    if (state.isPanelOpen) {
-      e.preventDefault();
-      e.stopPropagation();
-      closePanel();
+    // Simulate cancel by calling onCancel logic directly
+    const targetInput = state.currentInput;
+    const caretPos = state.caretPosition;
+    hideVariableInput();
+    
+    if (targetInput) {
+      if (targetInput instanceof HTMLInputElement || targetInput instanceof HTMLTextAreaElement) {
+        targetInput.focus();
+        setCaretPosition(targetInput, caretPos);
+      } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
+        (targetInput as HTMLElement).focus();
+        setCaretPosition(targetInput, caretPos);
+      }
     }
+    state.pendingPrompt = null;
+    return;
+  }
+  
+  // Handle Escape for PromptPanel
+  if (e.key === 'Escape' && state.isPanelOpen) {
+    e.preventDefault();
+    e.stopPropagation();
+    closePanel();
   }
   
   // Arrow keys for panel navigation are handled by the React component
