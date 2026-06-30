@@ -275,12 +275,14 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
                 } else {
                   // Variable segment
                   const isPlaceholder = !segment.variable;
+                  const uniqueVariables = getUniqueVariables(segment.content); // Ensure variable is parsed
+                  const content = isPlaceholder ? `[${uniqueVariables.at(0)?.name}]` : segment.content;
                   return (
                     <span 
                       key={index} 
                       className={isPlaceholder ? 'vf-preview-placeholder' : 'vf-preview-variable'}
                     >
-                      {segment.content}
+                      {content}
                     </span>
                   );
                 }
