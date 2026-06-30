@@ -113,26 +113,15 @@ function PromptItem({
 }
 
 function usePanelPosition() {
-  // Calculate initial position immediately
-  const calculatePosition = useCallback(() => {
+  // Calculate only maxHeight since position is handled by host element
+  const calculateMaxHeight = useCallback(() => {
     const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    
     const topPadding = viewportHeight * 0.05;
     const availableHeight = viewportHeight - topPadding - 20;
-    const maxHeight = Math.min(Math.max(200, availableHeight), PANEL_MAX_HEIGHT);
-    
-    const leftPosition = (viewportWidth - PANEL_WIDTH) / 2;
-    
-    return {
-      top: topPadding,
-      left: leftPosition,
-      maxHeight,
-    };
+    return Math.min(Math.max(200, availableHeight), PANEL_MAX_HEIGHT);
   }, []);
 
-  // Use useState with immediate calculation
-  const [position, setPosition] = useState(calculatePosition());
+  const [maxHeight, setMaxHeight] = useState(calculateMaxHeight);
   
   useEffect(() => {
     // Debounce function
@@ -140,7 +129,7 @@ function usePanelPosition() {
     const debouncedCalculate = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        setPosition(calculatePosition());
+        setMaxHeight(calculateMaxHeight());
       }, 50);
     };
     
@@ -151,9 +140,9 @@ function usePanelPosition() {
       document.removeEventListener('scroll', debouncedCalculate, true);
       window.removeEventListener('resize', debouncedCalculate);
     };
-  }, [calculatePosition]);
+  }, [calculateMaxHeight]);
   
-  return position;
+  return { maxHeight };
 }
 
 export function PromptPanel({
@@ -297,9 +286,7 @@ export function PromptPanel({
       id="promptflow-panel"
       className={isDark ? 'dark' : ''}
       style={{ 
-        top: position.top, 
-        left: position.left,
-        maxHeight: position.maxHeight 
+        maxHeight: maxHeight 
       }}
       onClick={e => e.stopPropagation()}
     >
@@ -380,10 +367,16 @@ export interface PromptPanelOptions {
  * Create and mount the PromptPanel to the page using Shadow DOM
  */
 export function showPromptPanel(options: PromptPanelOptions): void {
-  // Create host element for Shadow DOM
+  // Calculate initial position
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+  const topPadding = viewportHeight * 0.05;
+  const leftPosition = (viewportWidth - PANEL_WIDTH) / 2;
+  
+  // Create host element for Shadow DOM with position
   hostElement = document.createElement('div');
   hostElement.id = 'promptflow-panel-container';
-  hostElement.style.cssText = 'position: fixed; top: 0; left: 0; width: 0; height: 0; overflow: visible; z-index: 2147483647;';
+  hostElement.style.cssText = `position: fixed; z-index: 2147483647; top: ${topPadding}px; left: ${leftPosition}px;`;
   document.body.appendChild(hostElement);
   
   // Create Shadow DOM for style isolation
