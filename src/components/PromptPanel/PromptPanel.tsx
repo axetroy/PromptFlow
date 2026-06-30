@@ -113,8 +113,7 @@ function PromptItem({
 }
 
 function usePanelPosition() {
-  const [position, setPosition] = useState({ top: 0, left: 0, maxHeight: PANEL_MAX_HEIGHT });
-  
+  // Calculate initial position immediately
   const calculatePosition = useCallback(() => {
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
@@ -125,21 +124,24 @@ function usePanelPosition() {
     
     const leftPosition = (viewportWidth - PANEL_WIDTH) / 2;
     
-    setPosition({
+    return {
       top: topPadding,
       left: leftPosition,
       maxHeight,
-    });
+    };
   }, []);
+
+  // Use useState with immediate calculation
+  const [position, setPosition] = useState(calculatePosition());
   
-  useLayoutEffect(() => {
-    calculatePosition();
-    
+  useEffect(() => {
     // Debounce function
     let timeoutId: ReturnType<typeof setTimeout>;
     const debouncedCalculate = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(calculatePosition, 50);
+      timeoutId = setTimeout(() => {
+        setPosition(calculatePosition());
+      }, 50);
     };
     
     document.addEventListener('scroll', debouncedCalculate, true);
