@@ -60,7 +60,6 @@ import PromptPreview from './components/PromptPreview';
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { Panel } = Collapse;
 
 // Types
 interface Prompt {
@@ -282,8 +281,10 @@ const SettingsApp: React.FC = () => {
 
   // Update all prompts and usage stats when relevant data changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAllPrompts(getAllPromptsWithSync(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts));
     // Update usage stats when prompts or history changes
+     
     setUsageStats(calculateUsageStats(usageHistory, getAllPromptsWithSync(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts)));
   }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, usageHistory]);
 
@@ -505,71 +506,6 @@ const SettingsApp: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     messageApi.success(`Exported ${customPromptsOnly.length} custom prompts (${disabledDefaultIds.length} disabled defaults)`);
-  };
-
-  // Import prompts from JSON file
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const content = event.target?.result as string;
-        const importData = JSON.parse(content);
-
-        if (!importData.prompts || !Array.isArray(importData.prompts)) {
-          messageApi.error('Invalid file format: missing prompts array');
-          return;
-        }
-
-        // Filter out default prompts (they are always loaded from files)
-        // Only import custom prompts (id starts with 'custom-')
-        const validCustomPrompts = importData.prompts.filter((p: any) => 
-          p.id && p.title && p.content && p.id.startsWith('custom-')
-        );
-
-        // Get disabled default IDs from import
-        const importedDisabledDefaults = Array.isArray(importData.disabledDefaultIds) 
-          ? importData.disabledDefaultIds 
-          : [];
-
-        if (validCustomPrompts.length === 0 && importedDisabledDefaults.length === 0) {
-          messageApi.error('No valid custom prompts or disabled defaults found in file');
-          return;
-        }
-
-        Modal.confirm({
-          title: 'Import Settings',
-          content: `Found ${validCustomPrompts.length} custom prompts and ${importedDisabledDefaults.length} disabled defaults. How would you like to import?`,
-          okText: 'Import',
-          cancelText: 'Cancel',
-          onOk: async () => {
-            // Merge custom prompts (avoid duplicates by id)
-            const existingIds = new Set(customPrompts.map(p => p.id));
-            const newCustomPrompts = customPrompts.concat(
-              validCustomPrompts.filter((p: Prompt) => !existingIds.has(p.id))
-            );
-            
-            // Merge disabled defaults (avoid duplicates)
-            const newDisabledDefaults = [...new Set([...disabledDefaultIds, ...importedDisabledDefaults])];
-            
-            setCustomPrompts(newCustomPrompts);
-            setDisabledDefaultIds(newDisabledDefaults);
-            await persistData(newCustomPrompts, newDisabledDefaults, syncedRepos, syncedPrompts, settings);
-            messageApi.success(`Imported ${validCustomPrompts.length} prompts, ${newDisabledDefaults.length} disabled defaults`);
-          },
-        });
-      } catch (error) {
-        messageApi.error('Failed to parse file: ' + (error as Error).message);
-      }
-    };
-    reader.readAsText(file);
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   // Open modal for add/edit
@@ -849,7 +785,7 @@ const SettingsApp: React.FC = () => {
                     <Button 
                       type="link" 
                       size="small" 
-                      icon={!!syncingMap[repo.id] ? <LoadingOutlined /> : <SyncOutlined spin={!syncingMap[repo.id]} />}
+                      icon={syncingMap[repo.id] ? <LoadingOutlined /> : <SyncOutlined spin={!syncingMap[repo.id]} />}
                       onClick={() => handleSyncRepo(repo.id)}
                       loading={!!syncingMap[repo.id]}
                     >

@@ -10,8 +10,9 @@
     "build:bundle": "node scripts/build.js",
     "dev": "npm run clean && npm run build",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
     "generate-icons": "node generate-icons.js",
-    "test": "playwright test",
+    "test": "npm run lint && playwright test",
     "test:headed": "playwright test --headed",
     "test:unit": "node --import tsx --test tests/template-parser.test.ts"
   },
@@ -24,16 +25,23 @@
   "author": "Axetroy <axetroy.dev@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@playwright/test": "^1.61.1",
     "@types/chrome": "^0.2.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.62.1",
+    "@typescript-eslint/parser": "^8.62.1",
     "canvas": "^3.2.3",
     "esbuild": "^0.20.2",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "rimraf": "^5.0.7",
     "sharp": "^0.35.2",
     "tsx": "^4.22.4",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.62.1"
   },
   "engines": {
     "node": ">=18.0.0"

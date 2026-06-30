@@ -358,7 +358,7 @@ function findTriggerPosition(inputValue: string, caretPos: number, trigger: stri
     // Check if it's at a word boundary
     const isWordBoundary = found === 0 || 
       /\s/.test(textBeforeCaret[found - 1]) ||
-      /[\(\[\{]/.test(textBeforeCaret[found - 1]);
+      /[()[\]{}]/.test(textBeforeCaret[found - 1]);
     
     if (isWordBoundary) {
       lastIndex = found;
@@ -539,7 +539,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
         }
         break;
         
-      case 'Enter':
+      case 'Enter': {
         e.preventDefault();
         e.stopPropagation();
         // Get the prompt at the current selected index
@@ -556,6 +556,7 @@ async function loadPanelApp(container: HTMLElement, theme?: 'light' | 'dark'): P
           selectPrompt(prompt);
         }
         break;
+      }
         
       case 'Escape':
         e.preventDefault();
@@ -1286,7 +1287,7 @@ function handleKeyDown(e: KeyboardEvent): void {
       scrollToSelected(shadow);
       break;
       
-    case 'Enter':
+    case 'Enter': {
       e.preventDefault();
       e.stopPropagation();
       const prompt = getPromptAtIndex(state.selectedIndex);
@@ -1294,7 +1295,8 @@ function handleKeyDown(e: KeyboardEvent): void {
         selectPrompt(prompt);
       }
       break;
-      
+    }
+
     case 'Escape':
       e.preventDefault();
       e.stopPropagation();

@@ -297,7 +297,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
               <List.Item
                 key={repo.id}
                 actions={[
-                  <Tooltip title={isSyncing ? 'Syncing...' : 'Sync now'}>
+                  <Tooltip key="sync" title={isSyncing ? 'Syncing...' : 'Sync now'}>
                     <Button
                       type="text"
                       icon={isSyncing ? <LoadingOutlined /> : <SyncOutlined spin={!isSyncing && !isSyncingAll} />}
@@ -306,6 +306,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                     />
                   </Tooltip>,
                   <Popconfirm
+                    key="remove"
                     title="Remove this repository?"
                     description="All synced prompts from this repo will be removed."
                     onConfirm={() => onRemoveRepo(repo.id)}
