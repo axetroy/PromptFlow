@@ -45,11 +45,10 @@ interface VariableInputItemProps {
   onChange: (name: string, value: string) => void;
   onKeyDown: (e: React.KeyboardEvent, index: number) => void;
   index: number;
+  inputRefs: React.RefObject<(HTMLTextAreaElement | null)[]>;
 }
 
-function VariableInputItem({ variable, value, onChange, onKeyDown, index }: VariableInputItemProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
+function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputRefs }: VariableInputItemProps) {
   return (
     <div className="vf-variable-item">
       <span className="vf-variable-name">{`\${${variable.name}}`}</span>
@@ -69,7 +68,7 @@ function VariableInputItem({ variable, value, onChange, onKeyDown, index }: Vari
       </div>
       
       <textarea
-        ref={textareaRef}
+        ref={(el) => { inputRefs.current[index] = el; }}
         className="vf-variable-input"
         data-variable={variable.name}
         data-index={index}
@@ -113,7 +112,6 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
   });
   
   const [copied, setCopied] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
   const [mounted, setMounted] = useState(false);
   
   const inputRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
@@ -134,30 +132,43 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
     setValues(prev => ({ ...prev, [name]: value }));
   }, []);
   
-  // Handle keyboard navigation
-  const handleKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
-    if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
-      e.preventDefault();
-      // Focus next input or submit if on last input
-      const nextIndex = index + 1;
-      if (nextIndex < variables.length) {
-        inputRefs.current[nextIndex]?.focus();
-      } else if (canSubmit) {
-        handleSubmit();
-      }
-    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      if (canSubmit) {
-        handleSubmit();
-      }
-    }
-  }, [variables.length, canSubmit]);
-  
   // Handle submit
   const handleSubmit = useCallback(() => {
     const filledContent = interpolate(prompt.content, values);
     onConfirm(filledContent);
   }, [prompt.content, values, onConfirm]);
+  
+  // Always keep the latest handleSubmit accessible without recreating handleKeyDown
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const nextIndex = e.shiftKey ? index - 1 : index + 1;
+      if (nextIndex >= 0 && nextIndex < variables.length) {
+        inputRefs.current[nextIndex]?.focus();
+      } else if (nextIndex >= variables.length && canSubmit) {
+        handleSubmitRef.current();
+      } else if (nextIndex < 0) {
+        inputRefs.current[0]?.focus();
+      }
+    } else if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      const nextIndex = index + 1;
+      if (nextIndex < variables.length) {
+        inputRefs.current[nextIndex]?.focus();
+      } else if (canSubmit) {
+        handleSubmitRef.current();
+      }
+    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      if (canSubmit) {
+        handleSubmitRef.current();
+      }
+    }
+  }, [variables.length, canSubmit]);
   
   // Handle cancel
   const handleCancel = useCallback(() => {
@@ -224,6 +235,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     index={index}
+                    inputRefs={inputRefs}
                   />
                 ))}
               </>
@@ -275,12 +287,9 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
         {/* Footer */}
         <div className="vf-footer">
           <div className="vf-footer-hint">
-            Press <kbd>Esc</kbd> to cancel
+            <kbd>Tab</kbd> / <kbd>Enter</kbd> next &middot; <kbd>Esc</kbd> cancel
           </div>
           <div className="vf-footer-actions">
-            <div className={`vf-tooltip ${showTooltip ? 'vf-tooltip-visible' : ''}`}>
-              Press <kbd>Enter</kbd> to insert
-            </div>
             <button type="button" className="vf-cancel-btn" onClick={handleCancel}>
               Cancel
             </button>
@@ -288,10 +297,6 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
               type="button" 
               className="vf-submit-btn"
               onClick={handleSubmit}
-              onMouseEnter={() => setShowTooltip(true)}
-              onMouseLeave={() => setShowTooltip(false)}
-              onFocus={() => setShowTooltip(true)}
-              onBlur={() => setShowTooltip(false)}
               disabled={!canSubmit}
             >
               ✨ Insert Prompt

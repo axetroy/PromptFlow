@@ -1,9 +1,6 @@
 /**
  * PromptPanel - React Component for Prompt Selection
  * 
- * This React component matches the original DOM implementation exactly,
- * using the same class names and HTML structure for style compatibility.
- * 
  * Features:
  * - Search filtering by title, description, and tags
  * - Keyboard navigation (Arrow keys, Enter to select)
@@ -14,22 +11,15 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, createElement } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import type { Prompt } from '../../types';
-// Note: CSS is loaded via link element in showPromptPanel
 
-// Panel dimensions (matching original)
 const PANEL_WIDTH = 620;
 const PANEL_MAX_HEIGHT = 520;
-
-// Global ref to access panel instance for keyboard navigation
-let panelInstanceRef: { updateSelection: (index: number) => void } | null = null;
 
 interface PromptPanelProps {
   prompts: Prompt[];
   recentPromptIds: string[];
-  selectedIndex: number;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  onSelectIndex: (index: number) => void;
   onPromptSelect: (prompt: Prompt) => void;
   onClose: () => void;
   onOpenSettings: () => void;
@@ -151,46 +141,19 @@ function usePanelPosition() {
 export function PromptPanel({
   prompts,
   recentPromptIds,
-  selectedIndex,
   searchQuery,
   onSearchChange,
-  onSelectIndex,
   onPromptSelect,
   onClose,
   onOpenSettings,
 }: PromptPanelProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isDark, setIsDark] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  
-  // Register this instance for external keyboard navigation
-  useEffect(() => {
-    const updateSelection = (index: number) => {
-      onSelectIndex(index);
-    };
-    panelInstanceRef = { updateSelection };
-    
-    return () => {
-      panelInstanceRef = null;
-    };
-  }, [onSelectIndex]);
-  
-  // Update DOM classes when selectedIndex changes (for external keyboard navigation)
-  useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    
-    const items = list.querySelectorAll('.prompt-item');
-    items.forEach((item, i) => {
-      if (i === selectedIndex) {
-        item.classList.add('selected');
-      } else {
-        item.classList.remove('selected');
-      }
-    });
-  }, [selectedIndex]);
+  const panelRef = useRef<HTMLDivElement>(null);
   
   // Detect dark mode
   useEffect(() => {
@@ -226,20 +189,56 @@ export function PromptPanel({
       .filter((p): p is Prompt => p !== undefined);
   }, [showRecentSection, recentPromptIds, prompts]);
   
-  // Total items count
+  // Recent section items count
   const recentCount = showRecentSection ? recentPrompts.length : 0;
-  const totalItems = recentCount + filteredPrompts.length;
   
-  // Keyboard navigation is handled by content.ts
-  // This component just displays the UI based on props
-  
+  // Handle keyboard navigation within the panel
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const handlePanelKeyDown = (e: KeyboardEvent) => {
+      const list = listRef.current;
+      if (!list) return;
+      const items = Array.from(list.querySelectorAll('.prompt-item'));
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedIndex(prev => {
+          const next = Math.min(prev + 1, items.length - 1);
+          items[next]?.scrollIntoView({ block: 'nearest' });
+          return next;
+        });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedIndex(prev => {
+          const next = Math.max(prev - 1, 0);
+          items[next]?.scrollIntoView({ block: 'nearest' });
+          return next;
+        });
+      } else if (e.key === 'Enter') {
+        const item = items[selectedIndex] as HTMLElement | undefined;
+        if (item) {
+          e.preventDefault();
+          e.stopPropagation();
+          item.click();
+        }
+      }
+    };
+
+    panel.addEventListener('keydown', handlePanelKeyDown);
+    return () => panel.removeEventListener('keydown', handlePanelKeyDown);
+  }, [selectedIndex]);
+
   // Handle search input change
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setLocalSearch(value);
+    setSelectedIndex(0);
     onSearchChange(value);
-    onSelectIndex(0); // Reset selection when search changes
-  }, [onSearchChange, onSelectIndex]);
+  }, [onSearchChange]);
   
   // Focus search input on mount
   useEffect(() => {
@@ -272,13 +271,15 @@ export function PromptPanel({
   );
   
   return (
-    <div 
+    <div
+      ref={panelRef}
       id="promptflow-panel"
       className={isDark ? 'dark' : ''}
       style={{ 
         maxHeight: maxHeight 
       }}
       onClick={e => e.stopPropagation()}
+      tabIndex={-1}
     >
       {/* Search Input */}
       <div style={{ padding: '14px 16px' }}>
@@ -343,10 +344,8 @@ let hostElement: HTMLElement | null = null;
 export interface PromptPanelOptions {
   prompts: Prompt[];
   recentPromptIds: string[];
-  selectedIndex: number;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  onSelectIndex: (index: number) => void;
   onPromptSelect: (prompt: Prompt) => void;
   onClose: () => void;
   onOpenSettings: () => void;
@@ -406,11 +405,4 @@ export function hidePromptPanel(): void {
   }
 }
 
-/**
- * Update the selected index in the panel (for external keyboard navigation)
- */
-export function updatePanelSelection(index: number): void {
-  if (panelInstanceRef) {
-    panelInstanceRef.updateSelection(index);
-  }
-}
+

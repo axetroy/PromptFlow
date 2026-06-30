@@ -1,6 +1,6 @@
 import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
 import { showVariableInput, hideVariableInput, getUniqueVariables, interpolate, hasVariables } from './components/modals/VariableInputModal';
-import { showPromptPanel, hidePromptPanel, updatePanelSelection } from './components/PromptPanel';
+import { showPromptPanel, hidePromptPanel } from './components/PromptPanel';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -391,32 +391,15 @@ async function createPanel(): Promise<void> {
   // Load prompts first
   const prompts = await loadPrompts();
   state.prompts = prompts;
-  state.selectedIndex = 0;
   state.searchQuery = '';
   
   // Show the React PromptPanel
   showPromptPanel({
     prompts: state.prompts,
     recentPromptIds: state.recentPromptIds,
-    selectedIndex: state.selectedIndex,
     searchQuery: state.searchQuery,
     onSearchChange: (query: string) => {
       state.searchQuery = query;
-      // Filter prompts based on search
-      if (query) {
-        const lowerQuery = query.toLowerCase();
-        state.prompts = prompts.filter(p => 
-          p.title.toLowerCase().includes(lowerQuery) ||
-          (p.description && p.description.toLowerCase().includes(lowerQuery)) ||
-          p.tags.some(t => t.toLowerCase().includes(lowerQuery))
-        );
-      } else {
-        state.prompts = prompts;
-      }
-      state.selectedIndex = 0;
-    },
-    onSelectIndex: (index: number) => {
-      state.selectedIndex = index;
     },
     onPromptSelect: (prompt: Prompt) => {
       selectPrompt(prompt);
@@ -637,7 +620,9 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   }
   
   if (targetInput instanceof HTMLInputElement) {
-    targetInput.value = newValue;
+    // Use native setter to bypass any framework overrides
+    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    nativeSetter.call(targetInput, newValue);
     targetInput.focus();
     targetInput.setSelectionRange(cursorPosition, cursorPosition);
     targetInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -939,46 +924,12 @@ function handleKeyDown(e: KeyboardEvent): void {
     return;
   }
   
-  // Handle keyboard navigation for PromptPanel
+  // Handle Escape for PromptPanel
   if (e.key === 'Escape' && state.isPanelOpen) {
     e.preventDefault();
     e.stopPropagation();
     closePanel();
     return;
-  }
-  
-  // Arrow keys for panel navigation
-  if (state.isPanelOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')) {
-    const panelHost = document.getElementById('promptflow-panel-host');
-    if (panelHost && panelHost.shadowRoot) {
-      const list = panelHost.shadowRoot.querySelector('#promptflow-list');
-      if (list) {
-        const items = list.querySelectorAll('.prompt-item');
-        
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          e.stopPropagation();
-          const newIndex = Math.min(state.selectedIndex + 1, items.length - 1);
-          state.selectedIndex = newIndex;
-          updatePanelSelection(newIndex);
-          items[newIndex]?.scrollIntoView({ block: 'nearest' });
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          e.stopPropagation();
-          const newIndex = Math.max(state.selectedIndex - 1, 0);
-          state.selectedIndex = newIndex;
-          updatePanelSelection(newIndex);
-          items[newIndex]?.scrollIntoView({ block: 'nearest' });
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          const item = items[state.selectedIndex] as HTMLElement;
-          if (item) {
-            item.click();
-          }
-        }
-      }
-    }
   }
 }
 
