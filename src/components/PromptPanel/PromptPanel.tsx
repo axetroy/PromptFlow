@@ -289,7 +289,6 @@ export function PromptPanel({
           placeholder="Search prompts..."
           value={localSearch}
           onChange={handleSearchChange}
-          onKeyDown={handleKeyDown}
         />
       </div>
       
