@@ -300,7 +300,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                   <Tooltip key="sync" title={isSyncing ? 'Syncing...' : 'Sync now'}>
                     <Button
                       type="text"
-                      icon={isSyncing ? <LoadingOutlined /> : <SyncOutlined spin={!isSyncing && !isSyncingAll} />}
+                      icon={isSyncing ? <LoadingOutlined /> : <SyncOutlined />}
                       onClick={() => handleSyncRepo(repo.id)}
                       disabled={isSyncing || isSyncingAll}
                     />

@@ -312,10 +312,13 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   
   const inputValue = getInputValue(state.currentInput);
   
-  // Replace trigger with prompt content
+  // Replace trigger (and any trailing whitespace up to the caret) with prompt content
   // - before: text before trigger
-  // - after: text after trigger (not after caret)
-  const triggerEndPosition = state.triggerStartPosition + state.currentTrigger.length;
+  // - after: text after caret position (whitespace between trigger and caret is removed)
+  const triggerEndPosition = Math.max(
+    state.triggerStartPosition + state.currentTrigger.length,
+    state.caretPosition,
+  );
   const before = inputValue.substring(0, state.triggerStartPosition);
   const after = inputValue.substring(triggerEndPosition);
   const newValue = before + promptContent + after;
@@ -353,8 +356,9 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
     targetInput.setSelectionRange(cursorPosition, cursorPosition);
     targetInput.dispatchEvent(new Event('input', { bubbles: true }));
   } else if (targetInput.hasAttribute && targetInput.hasAttribute('contenteditable')) {
-    // For contenteditable, insert at position (pass cursorPosition directly)
-    insertContentWithNewlines(targetInput, promptContent, state.triggerStartPosition, state.currentTrigger.length);
+    // For contenteditable, insert at position - use triggerEndPosition to include trailing whitespace
+    const effectiveTriggerLength = triggerEndPosition - state.triggerStartPosition;
+    insertContentWithNewlines(targetInput, promptContent, state.triggerStartPosition, effectiveTriggerLength);
   }
 }
 
