@@ -5,11 +5,6 @@
 import { SyncedRepo, SyncedPrompt, fetchGitHubDirectory, fetchGitHubFileContent, parseFrontmatter } from '../types/sync';
 import { getStorageData, saveStorageData } from './storage';
 
-// Browser-compatible base64 encoding (no Node.js Buffer needed)
-function encodeBase64(str: string): string {
-  return btoa(str);
-}
-
 export interface SyncResult {
   success: boolean;
   syncedCount: number;
@@ -92,7 +87,7 @@ export async function syncSingleRepo(repo: SyncedRepo): Promise<SyncResult> {
         const { metadata, body } = parseFrontmatter(content);
         
         const prompt: SyncedPrompt = {
-          id: `sync-${repo.id}-${encodeBase64(file.path).slice(0, 8)}`,
+          id: `${repo.id}-${file.path.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
           repoId: repo.id,
           title: metadata.title || file.name.replace('.md', ''),
           content: body,

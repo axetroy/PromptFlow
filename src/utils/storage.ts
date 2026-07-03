@@ -64,6 +64,9 @@ export async function saveSettings(settings: PromptSettings): Promise<void> {
 
 export async function addPrompt(prompt: Prompt): Promise<void> {
   const prompts = await getPrompts();
+  if (prompts.some(p => p.id === prompt.id)) {
+    prompt = { ...prompt, id: `custom-${crypto.randomUUID()}` };
+  }
   prompts.push(prompt);
   await savePrompts(prompts);
 }

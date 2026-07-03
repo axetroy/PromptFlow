@@ -96,8 +96,8 @@ test.describe('React Settings App', () => {
     await page.goto('about:blank');
     
     const result = await page.evaluate(() => {
-      const id1 = `custom-${Date.now()}`;
-      const id2 = `custom-${Date.now() + 1}`;
+      const id1 = `custom-${crypto.randomUUID()}`;
+      const id2 = `custom-${crypto.randomUUID()}`;
       return {
         id1StartsWithCustom: id1.startsWith('custom-'),
         id2StartsWithCustom: id2.startsWith('custom-'),

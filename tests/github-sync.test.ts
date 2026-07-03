@@ -257,7 +257,7 @@ Please review the following code and provide feedback.`;
       const files = ['code-review.md', 'translate.md', 'explain.md'];
       
       const prompts = files.map(fileName => ({
-        id: `${repoId}-${fileName.replace('.md', '')}`,
+        id: `${repoId}-${(`${path}/${fileName}`).replace(/[^a-zA-Z0-9._-]/g, '_')}`,
         repoId,
         title: fileName.replace('.md', ''),
         filePath: `${path}/${fileName}`,
@@ -276,8 +276,8 @@ Please review the following code and provide feedback.`;
     
     expect(result.repoIdStartsWithSync).toBe(true);
     expect(result.allIdsUnique).toBe(true);
-    expect(result.firstId).toBe('sync-1234567890000-code-review');
-    expect(result.lastId).toBe('sync-1234567890000-explain');
+    expect(result.firstId).toBe('sync-1234567890000-.agents_promtps_code-review.md');
+    expect(result.lastId).toBe('sync-1234567890000-.agents_promtps_explain.md');
   });
 
   test('should build correct jsdelivr URLs', async ({ page }) => {

@@ -304,7 +304,7 @@ const SettingsApp: React.FC = () => {
 
   // Sync handlers
   const handleAddRepo = async (repoData: Omit<SyncedRepo, 'id' | 'lastSyncedAt'>): Promise<SyncedPrompt[]> => {
-    const repoId = `sync-${Date.now()}`;
+    const repoId = `sync-${crypto.randomUUID()}`;
     
     const newPrompts = await fetchRepoPrompts(repoData.repo, repoData.promptsPath, repoData.branch, repoId);
     
@@ -536,7 +536,7 @@ const SettingsApp: React.FC = () => {
     } else {
       // Add new custom prompt
       const newPrompt: Prompt = {
-        id: `custom-${Date.now()}`,
+        id: `custom-${crypto.randomUUID()}`,
         title: values.title,
         content: values.content,
         description: values.description,

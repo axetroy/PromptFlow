@@ -135,9 +135,9 @@ export function PromptPanel({
     onOpenSettings();
   }, [onClose, onOpenSettings]);
 
-  const renderPromptItem = (prompt: Prompt, index: number, actualIndex: number) => (
+  const renderPromptItem = (prompt: Prompt, index: number, actualIndex: number, prefix: string) => (
     <PromptItem
-      key={prompt.id}
+      key={`${prefix}-${prompt.id}`}
       prompt={prompt}
       isSelected={selectedIndex === actualIndex}
       isHovered={hoveredIndex === actualIndex}
@@ -172,7 +172,7 @@ export function PromptPanel({
         {showRecentSection && recentPrompts.length > 0 && (
           <>
             <div className="section-header">Recently Used</div>
-            {recentPrompts.map((prompt, index) => renderPromptItem(prompt, index, index))}
+            {recentPrompts.map((prompt, index) => renderPromptItem(prompt, index, index, 'recent'))}
             <div className="section-header">All Prompts</div>
           </>
         )}
@@ -180,7 +180,7 @@ export function PromptPanel({
         {filteredPrompts.length > 0 ? (
           filteredPrompts.map((prompt, index) => {
             const actualIndex = showRecentSection ? recentCount + index : index;
-            return renderPromptItem(prompt, index, actualIndex);
+            return renderPromptItem(prompt, index, actualIndex, 'all');
           })
         ) : (
           !showRecentSection && (

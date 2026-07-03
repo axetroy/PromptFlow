@@ -29,7 +29,7 @@ export async function fetchRepoPrompts(
       const { metadata, body } = parseFrontmatter(content);
 
       prompts.push({
-        id: `${repoId}-${file.name.replace('.md', '')}`,
+        id: `${repoId}-${file.path.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
         repoId,
         title: metadata.title || file.name.replace('.md', ''),
         content: body,
