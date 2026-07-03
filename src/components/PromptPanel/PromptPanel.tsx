@@ -8,9 +8,10 @@
  * - Light/dark mode support
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, createElement } from 'react';
-import { createRoot, Root } from 'react-dom/client';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Prompt } from '../../types';
+import { escapeHtml } from '../../utils/dom';
+import { mountShadowComponent, unmountShadowComponent, type ShadowMount } from '../../utils/shadow-dom';
 
 const PANEL_WIDTH = 620;
 const PANEL_MAX_HEIGHT = 520;
@@ -23,12 +24,6 @@ interface PromptPanelProps {
   onPromptSelect: (prompt: Prompt) => void;
   onClose: () => void;
   onOpenSettings: () => void;
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 function highlightText(text: string, query: string): React.ReactNode {
@@ -339,9 +334,8 @@ export function PromptPanel({
   );
 }
 
-// Global references for cleanup
-let reactRoot: Root | null = null;
-let hostElement: HTMLElement | null = null;
+// Global reference for cleanup
+let mount: ShadowMount | null = null;
 
 export interface PromptPanelOptions {
   prompts: Prompt[];
@@ -357,38 +351,17 @@ export interface PromptPanelOptions {
  * Create and mount the PromptPanel to the page using Shadow DOM
  */
 export function showPromptPanel(options: PromptPanelOptions): void {
-  // Calculate initial position
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
   const topPadding = viewportHeight * 0.05;
   const leftPosition = (viewportWidth - PANEL_WIDTH) / 2;
-  
-  // Create host element for Shadow DOM with position
-  hostElement = document.createElement('div');
-  hostElement.id = 'promptflow-panel-host';
-  hostElement.style.cssText = `position: fixed; z-index: 2147483647; top: ${topPadding}px; left: ${leftPosition}px;`;
-  document.body.appendChild(hostElement);
-  
-  // Create Shadow DOM for style isolation
-  const shadowRoot = hostElement.attachShadow({ mode: 'open' });
-  
-  // Load the original PromptPanel.css stylesheet
-  const linkEl = document.createElement('link');
-  linkEl.rel = 'stylesheet';
-  linkEl.href = chrome.runtime.getURL('PromptPanel.css');
-  shadowRoot.appendChild(linkEl);
-  
-  // Create container for React app inside Shadow DOM
-  const container = document.createElement('div');
-  shadowRoot.appendChild(container);
-  
-  // Create React root and render
-  reactRoot = createRoot(container);
-  
-  reactRoot.render(
-    createElement(PromptPanel, {
-      ...options,
-    })
+
+  mount = mountShadowComponent(
+    'promptflow-panel-host',
+    'PromptPanel.css',
+    `position: fixed; z-index: 2147483647; top: ${topPadding}px; left: ${leftPosition}px;`,
+    PromptPanel,
+    options,
   );
 }
 
@@ -396,15 +369,7 @@ export function showPromptPanel(options: PromptPanelOptions): void {
  * Hide the PromptPanel
  */
 export function hidePromptPanel(): void {
-  if (reactRoot) {
-    reactRoot.unmount();
-    reactRoot = null;
-  }
-  
-  if (hostElement) {
-    hostElement.remove();
-    hostElement = null;
-  }
+  mount = unmountShadowComponent(mount);
 }
 
 

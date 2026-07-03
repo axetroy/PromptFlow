@@ -18,10 +18,9 @@
  * - <VAR name="variable_name" description="Description text"></VAR> - Variable with description
  */
 
-import React, { useState, useEffect, useRef, useCallback, createElement } from 'react';
-import { createRoot, Root } from 'react-dom/client';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Variable, interpolate, generatePreviewSegments, getUniqueVariables } from '../../utils/template-parser';
-// Note: CSS is loaded via link element in showVariableInput
+import { mountShadowComponent, unmountShadowComponent, type ShadowMount } from '../../utils/shadow-dom';
 
 export interface VariableInputOptions {
   prompt: {
@@ -315,50 +314,21 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
   );
 }
 
-// Global references for cleanup - these are set when modal is shown
-let reactRoot: Root | null = null;
-let hostElement: HTMLElement | null = null;
+// Global reference for cleanup
+let mount: ShadowMount | null = null;
 
 /**
  * Create and mount the VariableInputModal to Shadow DOM
- * This function is the entry point for using the modal
- * 
- * Note: React is bundled with the content script, so we import it directly.
- * For Chrome extension content scripts, we use ReactDOM.createRoot
- * with Shadow DOM for style isolation.
  */
 export function showVariableInput(options: VariableInputOptions): void {
-  // Parse variables from prompt content
   const variables = getUniqueVariables(options.prompt.content);
-  
-  // Create host element for Shadow DOM
-  hostElement = document.createElement('div');
-  hostElement.id = 'promptflow-variable-input-host';
-  hostElement.style.cssText = 'position: fixed; top: 0; left: 0; width: 0; height: 0; overflow: visible; z-index: 2147483647;';
-  document.body.appendChild(hostElement);
-  
-  // Create Shadow DOM
-  const shadowRoot = hostElement.attachShadow({ mode: 'open' });
-  
-  // Load the CSS stylesheet
-  const linkEl = document.createElement('link');
-  linkEl.rel = 'stylesheet';
-  linkEl.href = chrome.runtime.getURL('VariableInputModal.css');
-  shadowRoot.appendChild(linkEl);
-  
-  // Create container for React app inside Shadow DOM
-  const container = document.createElement('div');
-  shadowRoot.appendChild(container);
-  
-  // Create React root and render
-  reactRoot = createRoot(container);
-  
-  reactRoot.render(
-    createElement(VariableInputModal, {
-      options,
-      variables,
-      initialValues: {}
-    })
+
+  mount = mountShadowComponent(
+    'promptflow-variable-input-host',
+    'VariableInputModal.css',
+    'position: fixed; top: 0; left: 0; width: 0; height: 0; overflow: visible; z-index: 2147483647;',
+    VariableInputModal,
+    { options, variables, initialValues: {} },
   );
 }
 
@@ -366,17 +336,7 @@ export function showVariableInput(options: VariableInputOptions): void {
  * Hide the VariableInputModal
  */
 export function hideVariableInput(): void {
-  // Unmount React root
-  if (reactRoot) {
-    reactRoot.unmount();
-    reactRoot = null;
-  }
-  
-  // Remove host element
-  if (hostElement) {
-    hostElement.remove();
-    hostElement = null;
-  }
+  mount = unmountShadowComponent(mount);
 }
 
 // Re-export template parser utilities

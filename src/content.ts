@@ -1,8 +1,9 @@
-import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS, PromptUsage } from './types';
-import { SyncedRepo, SyncedPrompt } from './types/sync';
+import { Prompt, DEFAULT_SETTINGS } from './types';
 import { showVariableInput, hideVariableInput, hasVariables } from './components/modals/VariableInputModal';
 import { showPromptPanel, hidePromptPanel } from './components/PromptPanel';
 import { getInputValue, getCaretPosition, setCaretPosition, insertContentWithNewlines } from './utils/dom';
+import { getStorageData, recordPromptUsage as storageRecordPromptUsage } from './utils/storage';
+import { getAllEnabledPrompts, extractRecentPromptIds } from './utils/prompt-helpers';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -13,8 +14,8 @@ interface ContentState {
   selectedIndex: number;
   prompts: Prompt[];
   searchQuery: string;
-  pendingPrompt: Prompt | null; // Prompt waiting for variable input
-  recentPromptIds: string[]; // Recently used prompt IDs
+  pendingPrompt: Prompt | null;
+  recentPromptIds: string[];
 }
 
 const state: ContentState = {
@@ -32,132 +33,33 @@ const state: ContentState = {
 
 const MAX_RECENT_PROMPTS = 5;
 
-interface StorageData {
-  prompts?: Prompt[];
-  settings?: {
-    trigger?: string;
-    theme?: 'light' | 'dark' | 'auto';
-  };
-}
-
 async function loadSettings(): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(['promptflow-data'], (result) => {
-      const data = result['promptflow-data'] as StorageData | undefined;
-      if (data?.settings) {
-        if (data.settings.trigger) {
-          state.currentTrigger = data.settings.trigger;
-        }
-      }
-      resolve();
-    });
-  });
+  const data = await getStorageData();
+  if (data.settings.trigger) {
+    state.currentTrigger = data.settings.trigger;
+  }
 }
 
 async function loadUsageHistory(): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(['promptflow-data'], (result) => {
-      const data = result['promptflow-data'] as { usageHistory?: PromptUsage[] } | undefined;
-      if (data?.usageHistory) {
-        // Extract unique prompt IDs from usage history (most recent first)
-        const seen = new Set<string>();
-        const recentIds: string[] = [];
-        for (const usage of data.usageHistory) {
-          if (!seen.has(usage.promptId)) {
-            seen.add(usage.promptId);
-            recentIds.push(usage.promptId);
-            if (recentIds.length >= MAX_RECENT_PROMPTS) break;
-          }
-        }
-        state.recentPromptIds = recentIds;
-      }
-      resolve();
-    });
-  });
+  const data = await getStorageData();
+  state.recentPromptIds = extractRecentPromptIds(data.usageHistory || [], MAX_RECENT_PROMPTS);
 }
 
 async function recordPromptUsage(promptId: string): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(['promptflow-data'], (result) => {
-      const data = (result['promptflow-data'] as { usageHistory?: PromptUsage[] } | undefined) || {};
-      const history: PromptUsage[] = data.usageHistory || [];
-      
-      // Add new usage at the beginning (no deduplication - we want to track total usage count)
-      history.unshift({ promptId, usedAt: Date.now() });
-      
-      // Trim to max size (100 entries)
-      const trimmed = history.slice(0, 100);
-      
-      chrome.storage.local.set({
-        'promptflow-data': {
-          ...data,
-          usageHistory: trimmed,
-        },
-      }, () => {
-        // Update local state for "recent prompts" (unique prompts only)
-        const seen = new Set<string>();
-        const recentIds: string[] = [];
-        for (const usage of trimmed) {
-          if (!seen.has(usage.promptId)) {
-            seen.add(usage.promptId);
-            recentIds.push(usage.promptId);
-            if (recentIds.length >= MAX_RECENT_PROMPTS) break;
-          }
-        }
-        state.recentPromptIds = recentIds;
-        resolve();
-      });
-    });
-  });
+  await storageRecordPromptUsage(promptId);
+  const data = await getStorageData();
+  state.recentPromptIds = extractRecentPromptIds(data.usageHistory || [], MAX_RECENT_PROMPTS);
 }
 
 async function loadPrompts(): Promise<Prompt[]> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(['promptflow-data'], (result) => {
-      const data = result['promptflow-data'] as { 
-        customPrompts?: Prompt[]; 
-        disabledDefaultIds?: string[];
-        syncedRepos?: SyncedRepo[];
-        syncedPrompts?: SyncedPrompt[];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        settings?: any;
-      } | undefined;
-      
-      // Get custom prompts and disabled default IDs
-      const customPrompts: Prompt[] = data?.customPrompts || [];
-      const disabledDefaultIds: string[] = data?.disabledDefaultIds || [];
-      const syncedRepos: SyncedRepo[] = data?.syncedRepos || [];
-      const syncedPrompts: SyncedPrompt[] = data?.syncedPrompts || [];
-      
-      // Merge default prompts with custom prompts
-      const allPrompts: Prompt[] = [];
-      
-      // Add default prompts (sorted by ID), excluding disabled ones
-      const sortedDefaults = [...DEFAULT_PROMPTS]
-        .sort((a, b) => a.id.localeCompare(b.id))
-        .filter(p => !disabledDefaultIds.includes(p.id));
-      
-      allPrompts.push(...sortedDefaults);
-      
-      // Add custom prompts that are enabled
-      allPrompts.push(...customPrompts.filter(p => p.enabled !== false));
-      
-      // Add synced prompts (only enabled ones from enabled repos)
-      const enabledRepoIds = new Set(
-        syncedRepos.filter(r => r.enabled).map(r => r.id)
-      );
-      
-      const enabledSyncedPrompts = syncedPrompts
-        .filter(p => 
-          enabledRepoIds.has(p.repoId) && 
-          p.enabled !== false
-        );
-      
-      allPrompts.push(...enabledSyncedPrompts);
-      
-      resolve(allPrompts);
-    });
-  });
+  const data = await getStorageData();
+
+  return getAllEnabledPrompts(
+    data.prompts || [],
+    data.disabledDefaultIds || [],
+    data.syncedRepos || [],
+    data.syncedPrompts || [],
+  );
 }
 
 function findTriggerPosition(inputValue: string, caretPos: number, trigger: string): number {
