@@ -27,20 +27,28 @@ export function getAllEnabledPrompts(
 
   allPrompts.push(...sortedDefaults);
 
-  // Custom prompts that are enabled, excluding any that duplicate default IDs
-  const defaultIds = new Set(DEFAULT_PROMPTS.map(p => p.id));
-  allPrompts.push(...customPrompts.filter(p => p.enabled !== false && !defaultIds.has(p.id)));
+  // Track all IDs to prevent duplicates across all sources
+  const usedIds = new Set(allPrompts.map(p => p.id));
+
+  // Custom prompts that are enabled, excluding any duplicate IDs
+  for (const p of customPrompts) {
+    if (p.enabled !== false && !usedIds.has(p.id)) {
+      usedIds.add(p.id);
+      allPrompts.push(p);
+    }
+  }
 
   // Synced prompts from enabled repos
   const enabledRepoIds = new Set(
     syncedRepos.filter(r => r.enabled).map(r => r.id),
   );
 
-  const enabledSynced = syncedPrompts.filter(
-    p => enabledRepoIds.has(p.repoId) && p.enabled !== false,
-  );
-
-  allPrompts.push(...enabledSynced);
+  for (const p of syncedPrompts) {
+    if (enabledRepoIds.has(p.repoId) && p.enabled !== false && !usedIds.has(p.id)) {
+      usedIds.add(p.id);
+      allPrompts.push(p);
+    }
+  }
 
   return allPrompts;
 }
