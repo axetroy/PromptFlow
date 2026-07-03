@@ -252,8 +252,8 @@ export function setSelection(input: HTMLInputElement | HTMLTextAreaElement | Ele
         }
         if (!foundEnd) {
           const lastNode = allTextNodes[allTextNodes.length - 1];
-          if (start <= lastNode.textContent!.length) {
-            range.setEnd(lastNode, start);
+          if (end <= lastNode.textContent!.length) {
+            range.setEnd(lastNode, end);
           } else {
             range.setEndAfter(lastNode);
           }

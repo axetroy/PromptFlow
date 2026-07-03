@@ -557,7 +557,7 @@ const SettingsApp: React.FC = () => {
   // Delete custom prompt only (default prompts cannot be deleted)
   const handleDelete = async (id: string) => {
     // Check if it's a default prompt
-    const isDefault = id.match(/^[1-6]$/);
+    const isDefault = defaultPromptsFromFiles.some(p => p.id === id);
     if (isDefault) {
       messageApi.warning('Default prompts cannot be deleted');
       return;
@@ -572,7 +572,7 @@ const SettingsApp: React.FC = () => {
   // Toggle prompt enabled status
   const handleToggleEnabled = async (id: string, enabled: boolean) => {
     // Check if it's a default prompt
-    const isDefault = id.match(/^[1-6]$/);
+    const isDefault = defaultPromptsFromFiles.some(p => p.id === id);
     
     if (isDefault) {
       // Update disabledDefaultIds
