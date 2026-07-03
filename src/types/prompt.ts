@@ -7,6 +7,8 @@ export interface Prompt {
   createdAt: number;
   updatedAt: number;
   enabled?: boolean;
+  isDefault?: boolean;
+  isReadOnly?: boolean;
 }
 
 export interface PromptUsage {
@@ -24,6 +26,7 @@ export interface StorageData {
   prompts: Prompt[];
   settings: PromptSettings;
   usageHistory?: PromptUsage[];
+  disabledDefaultIds?: string[];
   syncedRepos?: import('./sync').SyncedRepo[];
   syncedPrompts?: import('./sync').SyncedPrompt[];
 }

@@ -1,4 +1,5 @@
 import { StorageData, Prompt, PromptSettings, PromptUsage, DEFAULT_SETTINGS, DEFAULT_PROMPTS, MAX_USAGE_HISTORY } from '../types';
+import { extractRecentPromptIds } from './prompt-helpers';
 
 const STORAGE_KEY = 'promptflow-data';
 
@@ -11,6 +12,7 @@ export async function getStorageData(): Promise<StorageData> {
           prompts: data.customPrompts || data.prompts || [],
           settings: data.settings || DEFAULT_SETTINGS,
           usageHistory: data.usageHistory || [],
+          disabledDefaultIds: data.disabledDefaultIds || [],
           syncedRepos: data.syncedRepos || [],
           syncedPrompts: data.syncedPrompts || [],
         });
@@ -125,19 +127,15 @@ export async function getUsageStats(): Promise<Map<string, number>> {
 
 export async function getRecentPrompts(limit: number = 5): Promise<PromptUsage[]> {
   const history = await getUsageHistory();
-  // Return unique prompts by most recent usage
-  const seen = new Set<string>();
-  const recent: PromptUsage[] = [];
-  
+  const recentIds = extractRecentPromptIds(history, limit);
+  // Map IDs back to full usage records (first occurrence = most recent)
+  const idToUsage = new Map<string, PromptUsage>();
   for (const usage of history) {
-    if (!seen.has(usage.promptId)) {
-      seen.add(usage.promptId);
-      recent.push(usage);
-      if (recent.length >= limit) break;
+    if (!idToUsage.has(usage.promptId)) {
+      idToUsage.set(usage.promptId, usage);
     }
   }
-  
-  return recent;
+  return recentIds.map(id => idToUsage.get(id)!);
 }
 
 export async function clearUsageHistory(): Promise<void> {

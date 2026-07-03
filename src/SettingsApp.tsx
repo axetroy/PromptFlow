@@ -45,10 +45,8 @@ import { DEFAULT_PROMPTS as defaultPromptsFromFiles } from './prompts';
 import {
   SyncedRepo,
   SyncedPrompt,
-  fetchGitHubDirectory,
-  fetchGitHubFileContent,
-  parseFrontmatter,
 } from './types/sync';
+import { fetchRepoPrompts } from './utils/github-sync';
 
 // Import SyncManager component
 import SyncManager from './SyncManager';
@@ -56,38 +54,15 @@ import SyncManager from './SyncManager';
 // Import PromptPreview component
 import PromptPreview from './components/PromptPreview';
 
+import type { Prompt, PromptSettings, PromptUsage } from './types';
+
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-// Types
-interface Prompt {
-  id: string;
-  title: string;
-  content: string;
-  description?: string;
-  tags: string[];
-  createdAt: number;
-  updatedAt: number;
-  enabled?: boolean;
-  isDefault?: boolean; // Mark default prompts
-  isReadOnly?: boolean; // Mark prompts that cannot be edited (default or synced)
-}
-
-interface PromptSettings {
-  trigger: string;
-  insertMode: 'replace' | 'append';
-  syncInterval?: '15min' | '30min' | '1hour' | '2hours' | '1day';
-}
-
-interface PromptUsage {
-  promptId: string;
-  usedAt: number;
-}
-
-interface StorageData {
-  customPrompts: Prompt[]; // Only custom prompts stored
-  disabledDefaultIds?: string[]; // IDs of disabled default prompts
+interface SettingsStorageData {
+  customPrompts: Prompt[];
+  disabledDefaultIds?: string[];
   syncedRepos: SyncedRepo[];
   syncedPrompts: SyncedPrompt[];
   settings: PromptSettings;
@@ -149,10 +124,10 @@ const getAllPromptsWithSync = (
 };
 
 // Storage helpers - only store custom prompts and disabled default IDs
-const loadData = (): Promise<StorageData> => {
+const loadData = (): Promise<SettingsStorageData> => {
   return new Promise((resolve) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
-      const data = result['promptflow-data'] as StorageData | undefined;
+      const data = result['promptflow-data'] as SettingsStorageData | undefined;
       if (data) {
         resolve({
           customPrompts: data.customPrompts || [],
@@ -176,7 +151,7 @@ const loadData = (): Promise<StorageData> => {
   });
 };
 
-const saveData = (data: StorageData): Promise<void> => {
+const saveData = (data: SettingsStorageData): Promise<void> => {
   return new Promise((resolve) => {
     chrome.storage.local.set({ 'promptflow-data': data }, resolve);
   });
@@ -331,36 +306,11 @@ const SettingsApp: React.FC = () => {
   const handleAddRepo = async (repoData: Omit<SyncedRepo, 'id' | 'lastSyncedAt'>): Promise<SyncedPrompt[]> => {
     const repoId = `sync-${Date.now()}`;
     
-    // Fetch prompts from the repo (scraping GitHub page)
-    const mdFiles = await fetchGitHubDirectory(repoData.repo, repoData.promptsPath, repoData.branch);
+    const newPrompts = await fetchRepoPrompts(repoData.repo, repoData.promptsPath, repoData.branch, repoId);
     
-    if (mdFiles.length === 0) {
+    if (newPrompts.length === 0) {
       messageApi.warning(`No markdown files found at ${repoData.promptsPath}`);
       return [];
-    }
-    
-    const newPrompts: SyncedPrompt[] = [];
-    
-    for (const file of mdFiles) {
-      try {
-        const content = await fetchGitHubFileContent(repoData.repo, file.path, repoData.branch);
-        const { metadata, body } = parseFrontmatter(content);
-        
-        newPrompts.push({
-          id: `${repoId}-${file.name.replace('.md', '')}`,
-          repoId,
-          title: metadata.title || file.name.replace('.md', ''),
-          content: body,
-          description: metadata.description || '',
-          tags: Array.isArray(metadata.tags) ? metadata.tags : [],
-          filePath: file.path,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          enabled: true,
-        });
-      } catch (err) {
-        console.error(`Failed to fetch ${file.path}:`, err);
-      }
     }
     
     const newRepo: SyncedRepo = {
@@ -396,36 +346,11 @@ const SettingsApp: React.FC = () => {
       const repo = syncedRepos.find(r => r.id === repoId);
       if (!repo) return [];
       
-      // Fetch prompts from the repo (scraping GitHub page)
-      const mdFiles = await fetchGitHubDirectory(repo.repo, repo.promptsPath, repo.branch);
+      const newPrompts = await fetchRepoPrompts(repo.repo, repo.promptsPath, repo.branch, repoId);
       
-      if (mdFiles.length === 0) {
+      if (newPrompts.length === 0) {
         messageApi.warning(`No markdown files found at ${repo.promptsPath}`);
         return [];
-      }
-      
-      const newPrompts: SyncedPrompt[] = [];
-      
-      for (const file of mdFiles) {
-        try {
-          const content = await fetchGitHubFileContent(repo.repo, file.path, repo.branch);
-          const { metadata, body } = parseFrontmatter(content);
-          
-          newPrompts.push({
-            id: `${repoId}-${file.name.replace('.md', '')}`,
-            repoId,
-            title: metadata.title || file.name.replace('.md', ''),
-            content: body,
-            description: metadata.description || '',
-            tags: Array.isArray(metadata.tags) ? metadata.tags : [],
-            filePath: file.path,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            enabled: true,
-          });
-        } catch (err) {
-          console.error(`Failed to fetch ${file.path}:`, err);
-        }
       }
       
       // Update repo with new lastSyncedAt

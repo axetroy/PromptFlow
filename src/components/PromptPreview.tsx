@@ -2,21 +2,9 @@ import React from 'react';
 import { Modal, Tag, Space, Typography } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import { parseTemplate } from '../utils/template-parser';
+import type { Prompt } from '../types';
 
 const { Text } = Typography;
-
-export interface Prompt {
-  id: string;
-  title: string;
-  content: string;
-  description?: string;
-  tags: string[];
-  createdAt: number;
-  updatedAt: number;
-  enabled?: boolean;
-  isDefault?: boolean;
-  isReadOnly?: boolean;
-}
 
 interface PromptPreviewProps {
   prompt: Prompt | null;
