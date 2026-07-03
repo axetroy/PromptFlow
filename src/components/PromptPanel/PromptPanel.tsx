@@ -8,7 +8,7 @@
  * - Light/dark mode support
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import type { Prompt } from '../../types';
 import { escapeHtml } from '../../utils/dom';
 import { mountShadowComponent, unmountShadowComponent, type ShadowMount } from '../../utils/shadow-dom';
@@ -100,37 +100,43 @@ function PromptItem({
   );
 }
 
-function usePanelPosition() {
-  // Calculate only maxHeight since position is handled by host element
-  const calculateMaxHeight = useCallback(() => {
-    const viewportHeight = window.innerHeight;
-    const topPadding = viewportHeight * 0.05;
-    const availableHeight = viewportHeight - topPadding - 20;
-    return Math.min(Math.max(200, availableHeight), PANEL_MAX_HEIGHT);
+function usePanelPosition(panelRef: React.RefObject<HTMLDivElement | null>) {
+  const calc = useCallback(() => {
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    const top = vh * 0.05;
+    const left = (vw - PANEL_WIDTH) / 2;
+    const maxHeight = Math.min(Math.max(200, vh - top - 20), PANEL_MAX_HEIGHT);
+    return { top, left, maxHeight };
   }, []);
 
-  const [maxHeight, setMaxHeight] = useState(calculateMaxHeight);
-  
+  const [pos, setPos] = useState(calc);
+
+  // Sync host element position before paint to avoid flicker
+  useLayoutEffect(() => {
+    if (!panelRef.current) return;
+    const host = (panelRef.current.getRootNode() as ShadowRoot).host as HTMLElement;
+    if (host) {
+      host.style.top = `${pos.top}px`;
+      host.style.left = `${pos.left}px`;
+    }
+  }, [pos, panelRef]);
+
   useEffect(() => {
-    // Debounce function
-    let timeoutId: ReturnType<typeof setTimeout>;
-    const debouncedCalculate = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        setMaxHeight(calculateMaxHeight());
-      }, 50);
+    let id: ReturnType<typeof setTimeout>;
+    const debounced = () => {
+      clearTimeout(id);
+      id = setTimeout(() => setPos(calc()), 50);
     };
-    
-    document.addEventListener('scroll', debouncedCalculate, true);
-    window.addEventListener('resize', debouncedCalculate);
-    
+    document.addEventListener('scroll', debounced, true);
+    window.addEventListener('resize', debounced);
     return () => {
-      document.removeEventListener('scroll', debouncedCalculate, true);
-      window.removeEventListener('resize', debouncedCalculate);
+      document.removeEventListener('scroll', debounced, true);
+      window.removeEventListener('resize', debounced);
     };
-  }, [calculateMaxHeight]);
-  
-  return { maxHeight };
+  }, [calc]);
+
+  return pos;
 }
 
 export function PromptPanel({
@@ -161,7 +167,7 @@ export function PromptPanel({
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
   
-  const { maxHeight } = usePanelPosition();
+  const { maxHeight } = usePanelPosition(panelRef);
   
   // Filter prompts based on search query
   const filteredPrompts = useMemo(() => {
@@ -351,15 +357,10 @@ export interface PromptPanelOptions {
  * Create and mount the PromptPanel to the page using Shadow DOM
  */
 export function showPromptPanel(options: PromptPanelOptions): void {
-  const viewportHeight = window.innerHeight;
-  const viewportWidth = window.innerWidth;
-  const topPadding = viewportHeight * 0.05;
-  const leftPosition = (viewportWidth - PANEL_WIDTH) / 2;
-
   mount = mountShadowComponent(
     'promptflow-panel-host',
     'PromptPanel.css',
-    `position: fixed; z-index: 2147483647; top: ${topPadding}px; left: ${leftPosition}px;`,
+    'position: fixed; z-index: 2147483647;',
     PromptPanel,
     options,
   );
