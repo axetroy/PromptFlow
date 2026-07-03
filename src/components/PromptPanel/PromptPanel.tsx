@@ -1,20 +1,8 @@
-/**
- * PromptPanel - React Component for Prompt Selection
- * 
- * Features:
- * - Search filtering by title, description, and tags
- * - Keyboard navigation (Arrow keys, Enter to select)
- * - Recent prompts section
- * - Light/dark mode support
- */
-
-import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
+import React, { useRef, useCallback } from 'react';
 import type { Prompt } from '../../types';
 import { escapeHtml } from '../../utils/dom';
+import { useTheme, usePanelPosition, usePromptSearch, usePromptKeyboardNav } from '../../hooks';
 import { mountShadowComponent, unmountShadowComponent, type ShadowMount } from '../../utils/shadow-dom';
-
-const PANEL_WIDTH = 620;
-const PANEL_MAX_HEIGHT = 520;
 
 interface PromptPanelProps {
   prompts: Prompt[];
@@ -28,12 +16,12 @@ interface PromptPanelProps {
 
 function highlightText(text: string, query: string): React.ReactNode {
   if (!query) return escapeHtml(text);
-  
+
   const escapedText = escapeHtml(text);
   const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp(`(${escapedQuery})`, 'gi');
   const parts = escapedText.split(regex);
-  
+
   return parts.map((part, index) => {
     if (part.toLowerCase() === query.toLowerCase()) {
       return <mark key={index}>{part}</mark>;
@@ -60,19 +48,19 @@ function PromptItem({
   onMouseLeave: () => void;
 }) {
   const itemRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
+
+  React.useEffect(() => {
     if (isSelected && itemRef.current) {
       itemRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   }, [isSelected]);
-  
+
   const className = [
     'prompt-item',
     isSelected ? 'selected' : '',
     isHovered ? 'hovered' : ''
   ].filter(Boolean).join(' ');
-  
+
   return (
     <div
       ref={itemRef}
@@ -100,166 +88,51 @@ function PromptItem({
   );
 }
 
-function usePanelPosition(panelRef: React.RefObject<HTMLDivElement | null>) {
-  const calc = useCallback(() => {
-    const vh = window.innerHeight;
-    const vw = window.innerWidth;
-    const top = vh * 0.05;
-    const left = (vw - PANEL_WIDTH) / 2;
-    const maxHeight = Math.min(Math.max(200, vh - top - 20), PANEL_MAX_HEIGHT);
-    return { top, left, maxHeight };
-  }, []);
-
-  const [pos, setPos] = useState(calc);
-
-  // Sync host element position before paint to avoid flicker
-  useLayoutEffect(() => {
-    if (!panelRef.current) return;
-    const host = (panelRef.current.getRootNode() as ShadowRoot).host as HTMLElement;
-    if (host) {
-      host.style.top = `${pos.top}px`;
-      host.style.left = `${pos.left}px`;
-    }
-  }, [pos, panelRef]);
-
-  useEffect(() => {
-    let id: ReturnType<typeof setTimeout>;
-    const debounced = () => {
-      clearTimeout(id);
-      id = setTimeout(() => setPos(calc()), 50);
-    };
-    document.addEventListener('scroll', debounced, true);
-    window.addEventListener('resize', debounced);
-    return () => {
-      document.removeEventListener('scroll', debounced, true);
-      window.removeEventListener('resize', debounced);
-    };
-  }, [calc]);
-
-  return pos;
-}
-
 export function PromptPanel({
   prompts,
   recentPromptIds,
-  searchQuery,
   onSearchChange,
   onPromptSelect,
   onClose,
   onOpenSettings,
 }: PromptPanelProps) {
-  const [localSearch, setLocalSearch] = useState(searchQuery);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [isDark, setIsDark] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  
-  // Detect dark mode
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsDark(mediaQuery.matches);
-    
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, []);
-  
+
+  const isDark = useTheme();
   const { maxHeight } = usePanelPosition(panelRef);
-  
-  // Filter prompts based on search query
-  const filteredPrompts = useMemo(() => {
-    if (!localSearch) return prompts;
-    const query = localSearch.toLowerCase();
-    return prompts.filter(p => 
-      p.title.toLowerCase().includes(query) ||
-      (p.description && p.description.toLowerCase().includes(query)) ||
-      p.tags.some(t => t.toLowerCase().includes(query))
-    );
-  }, [prompts, localSearch]);
-  
-  // Recent prompts section
-  const showRecentSection = !localSearch && recentPromptIds.length > 0;
-  const recentPrompts = useMemo(() => {
-    if (!showRecentSection) return [];
-    const promptMap = new Map(prompts.map(p => [p.id, p]));
-    return recentPromptIds
-      .slice(0, 5)
-      .map(id => promptMap.get(id))
-      .filter((p): p is Prompt => p !== undefined);
-  }, [showRecentSection, recentPromptIds, prompts]);
-  
-  // Recent section items count
-  const recentCount = showRecentSection ? recentPrompts.length : 0;
-  
-  // Handle keyboard navigation within the panel
-  useEffect(() => {
-    const panel = panelRef.current;
-    if (!panel) return;
+  const {
+    localSearch,
+    handleSearchChange,
+    filteredPrompts,
+    showRecentSection,
+    recentPrompts,
+    recentCount,
+  } = usePromptSearch(prompts, recentPromptIds, onSearchChange);
 
-    const handlePanelKeyDown = (e: KeyboardEvent) => {
-      const list = listRef.current;
-      if (!list) return;
-      const items = Array.from(list.querySelectorAll('.prompt-item'));
+  const handleEnter = useCallback(() => {
+    if (!listRef.current) return;
+    const item = listRef.current.querySelector('.prompt-item.selected') as HTMLElement | undefined;
+    item?.click();
+  }, []);
 
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        e.stopPropagation();
-        setSelectedIndex(prev => {
-          const next = Math.min(prev + 1, items.length - 1);
-          items[next]?.scrollIntoView({ block: 'nearest' });
-          return next;
-        });
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        e.stopPropagation();
-        setSelectedIndex(prev => {
-          const next = Math.max(prev - 1, 0);
-          items[next]?.scrollIntoView({ block: 'nearest' });
-          return next;
-        });
-      } else if (e.key === 'Enter') {
-        const item = items[selectedIndex] as HTMLElement | undefined;
-        if (item) {
-          e.preventDefault();
-          e.stopPropagation();
-          item.click();
-        }
-      }
-    };
+  const { selectedIndex, hoveredIndex, setHoveredIndex } = usePromptKeyboardNav(panelRef, listRef, handleEnter);
 
-    panel.addEventListener('keydown', handlePanelKeyDown);
-    return () => panel.removeEventListener('keydown', handlePanelKeyDown);
-  }, [selectedIndex]);
-
-  // Handle search input change
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setLocalSearch(value);
-    setSelectedIndex(0);
-    onSearchChange(value);
-  }, [onSearchChange]);
-  
   // Focus search input on mount
-  useEffect(() => {
+  React.useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
-  
-  // Handle backdrop click
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _handleBackdropClick = useCallback(() => {
-    onClose();
-  }, [onClose]);
-  
-  // Handle settings click
+
+  const handlePromptSelect = useCallback((prompt: Prompt) => {
+    onPromptSelect(prompt);
+  }, [onPromptSelect]);
+
   const handleSettingsClick = useCallback(() => {
     onClose();
     onOpenSettings();
   }, [onClose, onOpenSettings]);
-  
-  // Render prompt item
+
   const renderPromptItem = (prompt: Prompt, index: number, actualIndex: number) => (
     <PromptItem
       key={prompt.id}
@@ -267,24 +140,21 @@ export function PromptPanel({
       isSelected={selectedIndex === actualIndex}
       isHovered={hoveredIndex === actualIndex}
       searchQuery={localSearch}
-      onClick={() => onPromptSelect(prompt)}
+      onClick={() => handlePromptSelect(prompt)}
       onMouseEnter={() => setHoveredIndex(actualIndex)}
       onMouseLeave={() => setHoveredIndex(null)}
     />
   );
-  
+
   return (
     <div
       ref={panelRef}
       id="promptflow-panel"
       className={isDark ? 'dark' : ''}
-      style={{ 
-        maxHeight: maxHeight 
-      }}
+      style={{ maxHeight }}
       onClick={e => e.stopPropagation()}
       tabIndex={-1}
     >
-      {/* Search Input */}
       <div className="search-wrapper">
         <input
           ref={searchInputRef}
@@ -295,19 +165,16 @@ export function PromptPanel({
           onChange={handleSearchChange}
         />
       </div>
-      
-      {/* Prompt List */}
+
       <div ref={listRef} id="promptflow-list">
-        {/* Recent Section */}
         {showRecentSection && recentPrompts.length > 0 && (
           <>
-            <div className="section-header">Recent</div>
+            <div className="section-header">Recently Used</div>
             {recentPrompts.map((prompt, index) => renderPromptItem(prompt, index, index))}
             <div className="section-header">All Prompts</div>
           </>
         )}
-        
-        {/* All Prompts */}
+
         {filteredPrompts.length > 0 ? (
           filteredPrompts.map((prompt, index) => {
             const actualIndex = showRecentSection ? recentCount + index : index;
@@ -321,8 +188,7 @@ export function PromptPanel({
           )
         )}
       </div>
-      
-      {/* Footer */}
+
       <div id="promptflow-footer">
         <div className="footer-hint">
           <span className="footer-key">↑↓</span> Navigate
@@ -340,7 +206,6 @@ export function PromptPanel({
   );
 }
 
-// Global reference for cleanup
 let mount: ShadowMount | null = null;
 
 export interface PromptPanelOptions {
@@ -353,9 +218,6 @@ export interface PromptPanelOptions {
   onOpenSettings: () => void;
 }
 
-/**
- * Create and mount the PromptPanel to the page using Shadow DOM
- */
 export function showPromptPanel(options: PromptPanelOptions): void {
   mount = mountShadowComponent(
     'promptflow-panel-host',
@@ -366,11 +228,6 @@ export function showPromptPanel(options: PromptPanelOptions): void {
   );
 }
 
-/**
- * Hide the PromptPanel
- */
 export function hidePromptPanel(): void {
   mount = unmountShadowComponent(mount);
 }
-
-
