@@ -80,7 +80,9 @@ function PromptItem({
       {prompt.tags.length > 0 && (
         <div className="prompt-item-tags">
           {prompt.tags.map((tag, index) => (
-            <span key={index} className="prompt-tag">{tag}</span>
+            <span key={index} className="prompt-tag">
+              {highlightText(tag, searchQuery)}
+            </span>
           ))}
         </div>
       )}
