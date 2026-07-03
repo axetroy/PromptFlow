@@ -1,4 +1,4 @@
-import { Prompt, DEFAULT_SETTINGS } from './types';
+import { Prompt, DEFAULT_SETTINGS, DEFAULT_PROMPTS } from './types';
 import { showVariableInput, hideVariableInput, hasVariables } from './components/modals/VariableInputModal';
 import { showPromptPanel, hidePromptPanel } from './components/PromptPanel';
 import { getInputValue, getCaretPosition, setCaretPosition, insertContentWithNewlines } from './utils/dom';
@@ -54,8 +54,15 @@ async function recordPromptUsage(promptId: string): Promise<void> {
 async function loadPrompts(): Promise<Prompt[]> {
   const data = await getStorageData();
 
+  // Filter out default prompts from data.prompts to avoid duplication,
+  // since getAllEnabledPrompts already adds DEFAULT_PROMPTS from the constant.
+  // getStorageData() may return DEFAULT_PROMPTS as data.prompts when
+  // initializeStorage saves them under the "prompts" key.
+  const defaultIds = new Set(DEFAULT_PROMPTS.map(p => p.id));
+  const customPrompts = (data.prompts || []).filter(p => !defaultIds.has(p.id));
+
   return getAllEnabledPrompts(
-    data.prompts || [],
+    customPrompts,
     data.disabledDefaultIds || [],
     data.syncedRepos || [],
     data.syncedPrompts || [],

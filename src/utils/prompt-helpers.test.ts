@@ -23,15 +23,6 @@ describe('getAllEnabledPrompts', () => {
     expect(result.length).toBe(DEFAULT_PROMPTS.length);
   });
 
-  it('should not duplicate when customPrompts contains default prompt IDs', () => {
-    // Simulate the bug: storage returns DEFAULT_PROMPTS as customPrompts
-    const result = getAllEnabledPrompts(DEFAULT_PROMPTS, [], [], []);
-    const ids = result.map(p => p.id);
-    const uniqueIds = new Set(ids);
-    expect(ids.length).toBe(uniqueIds.size);
-    expect(result.length).toBe(DEFAULT_PROMPTS.length);
-  });
-
   it('should include custom prompts alongside defaults', () => {
     const custom = makePrompt({ id: 'custom-1', title: 'My Custom' });
     const result = getAllEnabledPrompts([custom], [], [], []);
@@ -100,33 +91,6 @@ describe('getAllEnabledPrompts', () => {
     expect(result.length).toBe(DEFAULT_PROMPTS.length);
   });
 
-  it('should produce unique IDs even with mixed default, custom, and synced prompts', () => {
-    const custom = makePrompt({ id: 'custom-1' });
-    const repo: SyncedRepo = {
-      id: 'repo-1',
-      repo: 'owner/repo',
-      branch: 'main',
-      promptsPath: '.agents/prompts',
-      enabled: true,
-      enabledPromptIds: [],
-    };
-    const synced: SyncedPrompt = {
-      id: 'synced-1',
-      repoId: 'repo-1',
-      title: 'Synced',
-      content: 'content',
-      tags: [],
-      filePath: 'test.md',
-      createdAt: 0,
-      updatedAt: 0,
-    };
-    // Pass DEFAULT_PROMPTS as custom (simulating the storage bug) plus a real custom
-    const result = getAllEnabledPrompts([...DEFAULT_PROMPTS, custom], [], [repo], [synced]);
-    const ids = result.map(p => p.id);
-    const uniqueIds = new Set(ids);
-    expect(ids.length).toBe(uniqueIds.size);
-    expect(result.length).toBe(DEFAULT_PROMPTS.length + 2); // defaults + custom-1 + synced-1
-  });
 });
 
 describe('extractRecentPromptIds', () => {

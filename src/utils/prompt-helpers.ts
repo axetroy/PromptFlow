@@ -27,9 +27,8 @@ export function getAllEnabledPrompts(
 
   allPrompts.push(...sortedDefaults);
 
-  // Custom prompts that are enabled, excluding any that duplicate default IDs
-  const defaultIds = new Set(DEFAULT_PROMPTS.map(p => p.id));
-  allPrompts.push(...customPrompts.filter(p => p.enabled !== false && !defaultIds.has(p.id)));
+  // Custom prompts that are enabled
+  allPrompts.push(...customPrompts.filter(p => p.enabled !== false));
 
   // Synced prompts from enabled repos
   const enabledRepoIds = new Set(
