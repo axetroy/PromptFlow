@@ -23,7 +23,9 @@ Reported error in the **PROMPT_INPUT** block below:
 
 Your goal is to identify the root cause instead of only fixing the symptom.
 
-Perform the analysis in the following structure:
+Your response must be returned in the following strict Markdown format. Do not add any extra sections, commentary, or explanatory text outside this structure.
+
+---
 
 ## Error Analysis
 
