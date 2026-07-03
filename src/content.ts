@@ -41,8 +41,12 @@ interface StorageData {
 }
 
 async function loadSettings(): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Failed to load settings: ${chrome.runtime.lastError.message}`));
+        return;
+      }
       const data = result['promptflow-data'] as StorageData | undefined;
       if (data?.settings) {
         if (data.settings.trigger) {
@@ -55,8 +59,12 @@ async function loadSettings(): Promise<void> {
 }
 
 async function loadUsageHistory(): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Failed to load usage history: ${chrome.runtime.lastError.message}`));
+        return;
+      }
       const data = result['promptflow-data'] as { usageHistory?: PromptUsage[] } | undefined;
       if (data?.usageHistory) {
         // Extract unique prompt IDs from usage history (most recent first)
@@ -77,8 +85,12 @@ async function loadUsageHistory(): Promise<void> {
 }
 
 async function recordPromptUsage(promptId: string): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Failed to read usage data: ${chrome.runtime.lastError.message}`));
+        return;
+      }
       const data = (result['promptflow-data'] as { usageHistory?: PromptUsage[] } | undefined) || {};
       const history: PromptUsage[] = data.usageHistory || [];
       
@@ -94,6 +106,10 @@ async function recordPromptUsage(promptId: string): Promise<void> {
           usageHistory: trimmed,
         },
       }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(`Failed to save usage data: ${chrome.runtime.lastError.message}`));
+          return;
+        }
         // Update local state for "recent prompts" (unique prompts only)
         const seen = new Set<string>();
         const recentIds: string[] = [];
@@ -112,8 +128,12 @@ async function recordPromptUsage(promptId: string): Promise<void> {
 }
 
 async function loadPrompts(): Promise<Prompt[]> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Failed to load prompts: ${chrome.runtime.lastError.message}`));
+        return;
+      }
       const data = result['promptflow-data'] as { 
         customPrompts?: Prompt[]; 
         disabledDefaultIds?: string[];
@@ -550,6 +570,7 @@ function handleClick(e: MouseEvent): void {
 
 // Initialize
 async function init(): Promise<void> {
+  try {
   // Load settings from storage first
   await loadSettings();
 
@@ -590,6 +611,9 @@ async function init(): Promise<void> {
   
   // Attach listeners to existing inputs
   attachListeners(document.body);
+  } catch (error) {
+    console.error('[PromptFlow] Failed to initialize:', error);
+  }
 }
 
 function attachListeners(root: Element): void {

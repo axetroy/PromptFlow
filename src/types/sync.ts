@@ -141,8 +141,8 @@ export async function fetchGitHubDirectory(
     
     return files;
   } catch (error) {
-    console.error('Error fetching GitHub directory:', error);
-    return [];
+    console.error('[PromptFlow] Error fetching GitHub directory:', error);
+    throw error;
   }
 }
 

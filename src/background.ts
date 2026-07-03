@@ -66,14 +66,22 @@ chrome.action.onClicked.addListener(async () => {
 
 // Initialize on install
 chrome.runtime.onInstalled.addListener(async () => {
-  await initializeStorage();
-  console.log('[PromptFlow] Extension installed');
+  try {
+    await initializeStorage();
+    console.log('[PromptFlow] Extension installed');
+  } catch (error) {
+    console.error('[PromptFlow] Failed to initialize on install:', error);
+  }
 });
 
 // Initialize on startup
 chrome.runtime.onStartup.addListener(async () => {
-  await initializeStorage();
-  console.log('[PromptFlow] Extension started');
+  try {
+    await initializeStorage();
+    console.log('[PromptFlow] Extension started');
+  } catch (error) {
+    console.error('[PromptFlow] Failed to initialize on startup:', error);
+  }
 });
 
 // Handle messages from content scripts
@@ -86,46 +94,51 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
 async function handleMessage(message: BackgroundMessage, _sender: chrome.runtime.MessageSender): Promise<any> {
   const { type, payload } = message;
 
-  switch (type) {
-    case 'GET_PROMPTS':
-      return await getPrompts();
+  try {
+    switch (type) {
+      case 'GET_PROMPTS':
+        return await getPrompts();
 
-    case 'GET_SETTINGS':
-      return await getSettings();
+      case 'GET_SETTINGS':
+        return await getSettings();
 
-    case 'ADD_PROMPT':
-      return await addPrompt(payload as Prompt);
+      case 'ADD_PROMPT':
+        return await addPrompt(payload as Prompt);
 
-    case 'UPDATE_PROMPT':
-      return await updatePrompt(payload.id, payload.updates);
+      case 'UPDATE_PROMPT':
+        return await updatePrompt(payload.id, payload.updates);
 
-    case 'DELETE_PROMPT':
-      return await deletePrompt(payload.id);
+      case 'DELETE_PROMPT':
+        return await deletePrompt(payload.id);
 
-    case 'SAVE_SETTINGS':
-      await saveSettings(payload as PromptSettings);
-      notifyAllTabs('UPDATE_SETTINGS', payload as PromptSettings);
-      // Re-initialize auto-sync with new interval
-      if (payload.syncInterval) {
-        await initializeAutoSync();
-      }
-      return null;
+      case 'SAVE_SETTINGS':
+        await saveSettings(payload as PromptSettings);
+        notifyAllTabs('UPDATE_SETTINGS', payload as PromptSettings);
+        // Re-initialize auto-sync with new interval
+        if (payload.syncInterval) {
+          await initializeAutoSync();
+        }
+        return null;
 
-    case 'GET_STORAGE_DATA':
-      return await getStorageData();
+      case 'GET_STORAGE_DATA':
+        return await getStorageData();
 
-    case 'OPEN_SETTINGS':
-      return await openSettings();
+      case 'OPEN_SETTINGS':
+        return await openSettings();
 
-    case 'SYNC_NOW':
-      return await syncAllEnabledRepos();
+      case 'SYNC_NOW':
+        return await syncAllEnabledRepos();
 
-    case 'GET_SYNC_STATUS':
-      return await getSyncStatusWithNextSync();
+      case 'GET_SYNC_STATUS':
+        return await getSyncStatusWithNextSync();
 
-    default:
-      console.warn('[PromptFlow] Unknown message type:', type);
-      return null;
+      default:
+        console.warn('[PromptFlow] Unknown message type:', type);
+        return null;
+    }
+  } catch (error) {
+    console.error(`[PromptFlow] Error handling message '${type}':`, error);
+    throw error;
   }
 }
 
@@ -186,12 +199,17 @@ async function notifyAllTabs(type: string, payload: unknown): Promise<void> {
   const tabs = await chrome.tabs.query({});
   tabs.forEach(tab => {
     if (tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type, payload }).catch(() => {
-        // Tab might not have content script loaded
+      chrome.tabs.sendMessage(tab.id, { type, payload }).catch((error: Error) => {
+        // Ignore expected errors for tabs without content scripts
+        if (!error.message?.includes('Receiving end does not exist')) {
+          console.warn(`[PromptFlow] Failed to notify tab ${tab.id}:`, error.message);
+        }
       });
     }
   });
 }
 
 // Initialize on script load
-initializeStorage();
+initializeStorage().catch((error) => {
+  console.error('[PromptFlow] Failed to initialize on script load:', error);
+});

@@ -3,8 +3,12 @@ import { StorageData, Prompt, PromptSettings, PromptUsage, DEFAULT_SETTINGS, DEF
 const STORAGE_KEY = 'promptflow-data';
 
 export async function getStorageData(): Promise<StorageData> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.get([STORAGE_KEY], (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Failed to read storage: ${chrome.runtime.lastError.message}`));
+        return;
+      }
       const data = result[STORAGE_KEY] as (StorageData & { customPrompts?: Prompt[]; disabledDefaultIds?: string[] }) | undefined;
       if (data) {
         resolve({
@@ -27,14 +31,24 @@ export async function getStorageData(): Promise<StorageData> {
 }
 
 export async function saveStorageData(data: StorageData): Promise<void> {
-  const raw = await new Promise<Record<string, unknown>>((resolve) => {
+  const raw = await new Promise<Record<string, unknown>>((resolve, reject) => {
     chrome.storage.local.get([STORAGE_KEY], (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Failed to read storage: ${chrome.runtime.lastError.message}`));
+        return;
+      }
       resolve((result[STORAGE_KEY] as Record<string, unknown>) || {});
     });
   });
   const merged = { ...raw, ...data };
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [STORAGE_KEY]: merged }, resolve);
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set({ [STORAGE_KEY]: merged }, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Failed to write storage: ${chrome.runtime.lastError.message}`));
+        return;
+      }
+      resolve();
+    });
   });
 }
 
@@ -72,6 +86,8 @@ export async function updatePrompt(id: string, updates: Partial<Prompt>): Promis
   if (index !== -1) {
     prompts[index] = { ...prompts[index], ...updates, updatedAt: Date.now() };
     await savePrompts(prompts);
+  } else {
+    console.warn(`[PromptFlow] updatePrompt: prompt with id "${id}" not found`);
   }
 }
 

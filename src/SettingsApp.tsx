@@ -150,8 +150,12 @@ const getAllPromptsWithSync = (
 
 // Storage helpers - only store custom prompts and disabled default IDs
 const loadData = (): Promise<StorageData> => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.get(['promptflow-data'], (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Failed to load data: ${chrome.runtime.lastError.message}`));
+        return;
+      }
       const data = result['promptflow-data'] as StorageData | undefined;
       if (data) {
         resolve({
@@ -177,8 +181,14 @@ const loadData = (): Promise<StorageData> => {
 };
 
 const saveData = (data: StorageData): Promise<void> => {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ 'promptflow-data': data }, resolve);
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set({ 'promptflow-data': data }, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Failed to save data: ${chrome.runtime.lastError.message}`));
+        return;
+      }
+      resolve();
+    });
   });
 };
 
@@ -263,12 +273,17 @@ const SettingsApp: React.FC = () => {
       setSettings(data.settings);
       setUsageHistory(data.usageHistory || []);
       setLoading(false);
+    }).catch((error) => {
+      console.error('[PromptFlow] Failed to load data:', error);
+      setLoading(false);
     });
 
     // Listen for storage changes from other sources (e.g., content script)
     const handleStorageChange = () => {
       loadData().then((data) => {
         setUsageHistory(data.usageHistory || []);
+      }).catch((error) => {
+        console.error('[PromptFlow] Failed to reload usage history:', error);
       });
     };
     
@@ -310,21 +325,31 @@ const SettingsApp: React.FC = () => {
   const handleSettingsChange = async (key: keyof PromptSettings, value: string) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
-    await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, newSettings);
-    
-    // Update background script's auto-sync alarm when interval changes
-    if (key === 'syncInterval') {
-      await chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', payload: newSettings });
+    try {
+      await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, newSettings);
+      
+      // Update background script's auto-sync alarm when interval changes
+      if (key === 'syncInterval') {
+        await chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', payload: newSettings });
+      }
+      
+      messageApi.success('Settings saved');
+    } catch (error) {
+      console.error('[PromptFlow] Failed to save settings:', error);
+      messageApi.error('Failed to save settings');
     }
-    
-    messageApi.success('Settings saved');
   };
 
   // Handle clearing usage history
   const handleClearUsageHistory = async () => {
-    await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings, []);
-    setUsageHistory([]);
-    messageApi.success('Usage history cleared');
+    try {
+      await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings, []);
+      setUsageHistory([]);
+      messageApi.success('Usage history cleared');
+    } catch (error) {
+      console.error('[PromptFlow] Failed to clear usage history:', error);
+      messageApi.error('Failed to clear usage history');
+    }
   };
 
   // Sync handlers
@@ -341,6 +366,7 @@ const SettingsApp: React.FC = () => {
     
     const newPrompts: SyncedPrompt[] = [];
     
+    const fetchErrors: string[] = [];
     for (const file of mdFiles) {
       try {
         const content = await fetchGitHubFileContent(repoData.repo, file.path, repoData.branch);
@@ -359,8 +385,13 @@ const SettingsApp: React.FC = () => {
           enabled: true,
         });
       } catch (err) {
-        console.error(`Failed to fetch ${file.path}:`, err);
+        console.error(`[PromptFlow] Failed to fetch ${file.path}:`, err);
+        fetchErrors.push(file.path);
       }
+    }
+    
+    if (fetchErrors.length > 0) {
+      messageApi.warning(`Failed to fetch ${fetchErrors.length} file(s): ${fetchErrors.join(', ')}`);
     }
     
     const newRepo: SyncedRepo = {
@@ -380,13 +411,18 @@ const SettingsApp: React.FC = () => {
     return newPrompts;
   };
 
-  const handleRemoveRepo = (repoId: string) => {
+  const handleRemoveRepo = async (repoId: string) => {
     const newRepos = syncedRepos.filter(r => r.id !== repoId);
     const newPrompts = syncedPrompts.filter(p => p.repoId !== repoId);
     
     setSyncedRepos(newRepos);
     setSyncedPrompts(newPrompts);
-    persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings);
+    try {
+      await persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings);
+    } catch (error) {
+      console.error('[PromptFlow] Failed to persist after removing repo:', error);
+      messageApi.error('Failed to save changes');
+    }
   };
 
   const handleSyncRepo = async (repoId: string): Promise<SyncedPrompt[]> => {
@@ -406,6 +442,7 @@ const SettingsApp: React.FC = () => {
       
       const newPrompts: SyncedPrompt[] = [];
       
+      const syncErrors: string[] = [];
       for (const file of mdFiles) {
         try {
           const content = await fetchGitHubFileContent(repo.repo, file.path, repo.branch);
@@ -424,8 +461,13 @@ const SettingsApp: React.FC = () => {
             enabled: true,
           });
         } catch (err) {
-          console.error(`Failed to fetch ${file.path}:`, err);
+          console.error(`[PromptFlow] Failed to fetch ${file.path}:`, err);
+          syncErrors.push(file.path);
         }
+      }
+      
+      if (syncErrors.length > 0) {
+        messageApi.warning(`Failed to fetch ${syncErrors.length} file(s): ${syncErrors.join(', ')}`);
       }
       
       // Update repo with new lastSyncedAt
@@ -450,37 +492,47 @@ const SettingsApp: React.FC = () => {
     }
   };
 
-  const handleToggleRepo = (repoId: string, enabled: boolean) => {
+  const handleToggleRepo = async (repoId: string, enabled: boolean) => {
     const newRepos = syncedRepos.map(r => 
       r.id === repoId ? { ...r, enabled } : r
     );
     setSyncedRepos(newRepos);
-    persistData(customPrompts, disabledDefaultIds, newRepos, syncedPrompts, settings);
+    try {
+      await persistData(customPrompts, disabledDefaultIds, newRepos, syncedPrompts, settings);
+    } catch (error) {
+      console.error('[PromptFlow] Failed to persist after toggling repo:', error);
+      messageApi.error('Failed to save changes');
+    }
   };
 
-  const handleToggleSyncedPrompt = (promptId: string, enabled: boolean) => {
+  const handleToggleSyncedPrompt = async (promptId: string, enabled: boolean) => {
     const newPrompts = syncedPrompts.map(p => 
       p.id === promptId ? { ...p, enabled } : p
     );
     
-    // Update enabledPromptIds in the repo
-    const prompt = syncedPrompts.find(p => p.id === promptId);
-    if (prompt) {
-      const newRepos = syncedRepos.map(r => {
-        if (r.id === prompt.repoId) {
-          if (enabled) {
-            return { ...r, enabledPromptIds: [...r.enabledPromptIds, promptId] };
-          } else {
-            return { ...r, enabledPromptIds: r.enabledPromptIds.filter(id => id !== promptId) };
+    try {
+      // Update enabledPromptIds in the repo
+      const prompt = syncedPrompts.find(p => p.id === promptId);
+      if (prompt) {
+        const newRepos = syncedRepos.map(r => {
+          if (r.id === prompt.repoId) {
+            if (enabled) {
+              return { ...r, enabledPromptIds: [...r.enabledPromptIds, promptId] };
+            } else {
+              return { ...r, enabledPromptIds: r.enabledPromptIds.filter(id => id !== promptId) };
+            }
           }
-        }
-        return r;
-      });
-      setSyncedRepos(newRepos);
-      persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings);
-    } else {
-      setSyncedPrompts(newPrompts);
-      persistData(customPrompts, disabledDefaultIds, syncedRepos, newPrompts, settings);
+          return r;
+        });
+        setSyncedRepos(newRepos);
+        await persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings);
+      } else {
+        setSyncedPrompts(newPrompts);
+        await persistData(customPrompts, disabledDefaultIds, syncedRepos, newPrompts, settings);
+      }
+    } catch (error) {
+      console.error('[PromptFlow] Failed to persist after toggling synced prompt:', error);
+      messageApi.error('Failed to save changes');
     }
   };
 
@@ -607,7 +659,6 @@ const SettingsApp: React.FC = () => {
           ? { ...p, title: values.title, content: values.content, description: values.description, tags, updatedAt: Date.now() }
           : p
       );
-      messageApi.success('Prompt updated');
     } else {
       // Add new custom prompt
       const newPrompt: Prompt = {
@@ -620,13 +671,18 @@ const SettingsApp: React.FC = () => {
         updatedAt: Date.now()
       };
       newCustomPrompts = [...customPrompts, newPrompt];
-      messageApi.success('Prompt added');
     }
 
-    setCustomPrompts(newCustomPrompts);
-    await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
-    setModalVisible(false);
-    form.resetFields();
+    try {
+      setCustomPrompts(newCustomPrompts);
+      await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
+      messageApi.success(editingPrompt ? 'Prompt updated' : 'Prompt added');
+      setModalVisible(false);
+      form.resetFields();
+    } catch (error) {
+      console.error('[PromptFlow] Failed to save prompt:', error);
+      messageApi.error('Failed to save prompt');
+    }
   };
 
   // Delete custom prompt only (default prompts cannot be deleted)
@@ -639,46 +695,61 @@ const SettingsApp: React.FC = () => {
     }
     
     const newCustomPrompts = customPrompts.filter((p) => p.id !== id);
-    setCustomPrompts(newCustomPrompts);
-    await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
-    messageApi.success('Prompt deleted');
+    try {
+      setCustomPrompts(newCustomPrompts);
+      await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
+      messageApi.success('Prompt deleted');
+    } catch (error) {
+      console.error('[PromptFlow] Failed to delete prompt:', error);
+      messageApi.error('Failed to delete prompt');
+    }
   };
 
   // Toggle prompt enabled status
   const handleToggleEnabled = async (id: string, enabled: boolean) => {
-    // Check if it's a default prompt
-    const isDefault = id.match(/^[1-6]$/);
-    
-    if (isDefault) {
-      // Update disabledDefaultIds
-      let newDisabledDefaultIds: string[];
-      if (enabled) {
-        newDisabledDefaultIds = disabledDefaultIds.filter(did => did !== id);
+    try {
+      // Check if it's a default prompt
+      const isDefault = id.match(/^[1-6]$/);
+      
+      if (isDefault) {
+        // Update disabledDefaultIds
+        let newDisabledDefaultIds: string[];
+        if (enabled) {
+          newDisabledDefaultIds = disabledDefaultIds.filter(did => did !== id);
+        } else {
+          newDisabledDefaultIds = [...disabledDefaultIds, id];
+        }
+        setDisabledDefaultIds(newDisabledDefaultIds);
+        await persistData(customPrompts, newDisabledDefaultIds, syncedRepos, syncedPrompts, settings);
+      } else if (id.startsWith('sync-')) {
+        // Synced prompt - delegate to handleToggleSyncedPrompt
+        await handleToggleSyncedPrompt(id, enabled);
       } else {
-        newDisabledDefaultIds = [...disabledDefaultIds, id];
+        // Update custom prompts
+        const newCustomPrompts = customPrompts.map((p) =>
+          p.id === id ? { ...p, enabled } : p
+        );
+        setCustomPrompts(newCustomPrompts);
+        await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
       }
-      setDisabledDefaultIds(newDisabledDefaultIds);
-      await persistData(customPrompts, newDisabledDefaultIds, syncedRepos, syncedPrompts, settings);
-    } else if (id.startsWith('sync-')) {
-      // Synced prompt - delegate to handleToggleSyncedPrompt
-      handleToggleSyncedPrompt(id, enabled);
-    } else {
-      // Update custom prompts
-      const newCustomPrompts = customPrompts.map((p) =>
-        p.id === id ? { ...p, enabled } : p
-      );
-      setCustomPrompts(newCustomPrompts);
-      await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
+      messageApi.success(enabled ? 'Prompt enabled' : 'Prompt disabled');
+    } catch (error) {
+      console.error('[PromptFlow] Failed to toggle prompt:', error);
+      messageApi.error('Failed to update prompt status');
     }
-    messageApi.success(enabled ? 'Prompt enabled' : 'Prompt disabled');
   };
 
   // Reset prompts
   const handleReset = async () => {
-    setCustomPrompts([]);
-    setDisabledDefaultIds([]);
-    await persistData([], [], syncedRepos, syncedPrompts, settings);
-    messageApi.success('Prompts reset to defaults');
+    try {
+      setCustomPrompts([]);
+      setDisabledDefaultIds([]);
+      await persistData([], [], syncedRepos, syncedPrompts, settings);
+      messageApi.success('Prompts reset to defaults');
+    } catch (error) {
+      console.error('[PromptFlow] Failed to reset prompts:', error);
+      messageApi.error('Failed to reset prompts');
+    }
   };
 
   // Table columns
