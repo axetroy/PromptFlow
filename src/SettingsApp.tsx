@@ -526,14 +526,18 @@ const SettingsApp: React.FC = () => {
 
         // Filter out default prompts (they are always loaded from files)
         // Only import custom prompts (id starts with 'custom-')
+        // Validate each field type for safety
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const validCustomPrompts = importData.prompts.filter((p: any) => 
-          p.id && p.title && p.content && p.id.startsWith('custom-')
+          p.id && typeof p.id === 'string' && p.id.startsWith('custom-') &&
+          p.title && typeof p.title === 'string' &&
+          p.content && typeof p.content === 'string' &&
+          (p.tags === undefined || Array.isArray(p.tags))
         );
 
-        // Get disabled default IDs from import
-        const importedDisabledDefaults = Array.isArray(importData.disabledDefaultIds) 
-          ? importData.disabledDefaultIds 
+        // Get disabled default IDs from import (only allow known default ID strings)
+        const importedDisabledDefaults = Array.isArray(importData.disabledDefaultIds)
+          ? importData.disabledDefaultIds.filter((id: unknown) => typeof id === 'string')
           : [];
 
         if (validCustomPrompts.length === 0 && importedDisabledDefaults.length === 0) {

@@ -77,13 +77,17 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 
 // Handle messages from content scripts
-chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
-  handleMessage(message, _sender).then(sendResponse);
+chrome.runtime.onMessage.addListener((message: BackgroundMessage, sender, sendResponse) => {
+  // Only accept messages from this extension's own content scripts or pages
+  if (sender.id !== chrome.runtime.id) {
+    return false;
+  }
+  handleMessage(message).then(sendResponse);
   return true; // Keep channel open for async response
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handleMessage(message: BackgroundMessage, _sender: chrome.runtime.MessageSender): Promise<any> {
+async function handleMessage(message: BackgroundMessage): Promise<any> {
   const { type, payload } = message;
 
   switch (type) {

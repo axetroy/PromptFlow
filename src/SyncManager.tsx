@@ -26,6 +26,7 @@ import {
   SyncedRepo,
   SyncedPrompt,
   fetchGitHubDirectory,
+  isValidRepoFormat,
 } from './types/sync';
 
 const { Text } = Typography;
@@ -72,7 +73,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
     
     try {
       // Validate repo format
-      if (!values.repo.match(/^[\w-]+\/[\w-]+$/)) {
+      if (!isValidRepoFormat(values.repo)) {
         messageApi.error('Invalid repo format. Use format: owner/repo');
         return;
       }

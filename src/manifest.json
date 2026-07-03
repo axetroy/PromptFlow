@@ -13,6 +13,9 @@
   "host_permissions": [
     "<all_urls>"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",
@@ -34,7 +37,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["PromptPanel.css", "VariableInputModal.css", "settings.html", "settings.js", "settings.css", "icons/*"],
+      "resources": ["PromptPanel.css", "VariableInputModal.css"],
       "matches": ["<all_urls>"]
     }
   ]

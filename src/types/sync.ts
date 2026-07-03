@@ -49,9 +49,41 @@ export interface GitHubContent {
 }
 
 /**
+ * Validate that a GitHub parameter segment is safe for URL construction.
+ * Rejects path traversal, URL-encoded sequences, and control characters.
+ */
+function validateGitHubParam(value: string, paramName: string): void {
+  if (!value || value.trim() === '') {
+    throw new Error(`${paramName} must not be empty`);
+  }
+  if (/\.\.\/|\.\.\\/.test(value)) {
+    throw new Error(`${paramName} must not contain path traversal sequences`);
+  }
+  if (/%[0-9a-fA-F]{2}/.test(value)) {
+    throw new Error(`${paramName} must not contain URL-encoded sequences`);
+  }
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(value)) {
+    throw new Error(`${paramName} must not contain control characters`);
+  }
+}
+
+/**
+ * Validate the repo format: owner/repo where each segment is alphanumeric, hyphens, underscores, or dots.
+ */
+export function isValidRepoFormat(repo: string): boolean {
+  return /^[\w.-]+\/[\w.-]+$/.test(repo);
+}
+
+/**
  * Fetch file content from GitHub raw content
  */
 export async function fetchGitHubFileContent(repo: string, filePath: string, branch: string = 'main'): Promise<string> {
+  if (!isValidRepoFormat(repo)) {
+    throw new Error(`Invalid repo format: ${repo}. Use format: owner/repo`);
+  }
+  validateGitHubParam(branch, 'branch');
+  validateGitHubParam(filePath, 'filePath');
   const url = `https://raw.githubusercontent.com/${repo}/${branch}/${filePath}`;
   const response = await fetch(url);
   
@@ -74,6 +106,11 @@ export async function fetchGitHubDirectory(
   path: string,
   branch: string = 'main'
 ): Promise<GitHubContent[]> {
+  if (!isValidRepoFormat(repo)) {
+    throw new Error(`Invalid repo format: ${repo}. Use format: owner/repo`);
+  }
+  validateGitHubParam(branch, 'branch');
+  validateGitHubParam(path, 'path');
   try {
     // GitHub tree page URL
     const url = `https://github.com/${repo}/tree/${branch}/${path}`;
@@ -150,7 +187,11 @@ export async function fetchGitHubDirectory(
  * Check if a repository exists and is accessible
  */
 export async function checkRepoExists(repo: string, branch: string = 'main'): Promise<{ exists: boolean; error?: string }> {
+  if (!isValidRepoFormat(repo)) {
+    return { exists: false, error: `Invalid repo format: ${repo}` };
+  }
   try {
+    validateGitHubParam(branch, 'branch');
     const url = `https://github.com/${repo}/tree/${branch}`;
     const response = await fetch(url);
     
