@@ -151,9 +151,19 @@ const loadData = (): Promise<SettingsStorageData> => {
   });
 };
 
-const saveData = (data: SettingsStorageData): Promise<void> => {
+const saveData = async (data: SettingsStorageData): Promise<void> => {
+  const existing = await new Promise<Record<string, unknown>>((resolve) => {
+    chrome.storage.local.get(['promptflow-data'], (result) => {
+      resolve((result['promptflow-data'] as Record<string, unknown>) || {});
+    });
+  });
+  const merged = {
+    ...existing,
+    ...data,
+    prompts: data.customPrompts,
+  };
   return new Promise((resolve) => {
-    chrome.storage.local.set({ 'promptflow-data': data }, resolve);
+    chrome.storage.local.set({ 'promptflow-data': merged }, resolve);
   });
 };
 
@@ -240,9 +250,14 @@ const SettingsApp: React.FC = () => {
       setLoading(false);
     });
 
-    // Listen for storage changes from other sources (e.g., content script)
+    // Listen for storage changes from other sources (e.g., background auto-sync)
     const handleStorageChange = () => {
       loadData().then((data) => {
+        setCustomPrompts(data.customPrompts);
+        setDisabledDefaultIds(data.disabledDefaultIds || []);
+        setSyncedRepos(data.syncedRepos);
+        setSyncedPrompts(data.syncedPrompts);
+        setSettings(data.settings);
         setUsageHistory(data.usageHistory || []);
       });
     };
@@ -269,7 +284,7 @@ const SettingsApp: React.FC = () => {
     newSyncedRepos: SyncedRepo[],
     newSyncedPrompts: SyncedPrompt[],
     newSettings: PromptSettings,
-    newUsageHistory?: PromptUsage[]
+    newUsageHistory: PromptUsage[],
   ) => {
     await saveData({ 
       customPrompts: newCustomPrompts, 
@@ -277,15 +292,15 @@ const SettingsApp: React.FC = () => {
       syncedRepos: newSyncedRepos,
       syncedPrompts: newSyncedPrompts,
       settings: newSettings,
-      usageHistory: newUsageHistory || usageHistory,
+      usageHistory: newUsageHistory,
     });
-  }, [usageHistory]);
+  }, []);
 
   // Handle settings change
   const handleSettingsChange = async (key: keyof PromptSettings, value: string) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
-    await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, newSettings);
+    await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, newSettings, usageHistory);
     
     // Update background script's auto-sync alarm when interval changes
     if (key === 'syncInterval') {
@@ -325,7 +340,7 @@ const SettingsApp: React.FC = () => {
     
     setSyncedRepos(newRepos);
     setSyncedPrompts(newPromptsAll);
-    await persistData(customPrompts, disabledDefaultIds, newRepos, newPromptsAll, settings);
+    await persistData(customPrompts, disabledDefaultIds, newRepos, newPromptsAll, settings, usageHistory);
     
     return newPrompts;
   };
@@ -336,7 +351,7 @@ const SettingsApp: React.FC = () => {
     
     setSyncedRepos(newRepos);
     setSyncedPrompts(newPrompts);
-    persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings);
+    persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings, usageHistory);
   };
 
   const handleSyncRepo = async (repoId: string): Promise<SyncedPrompt[]> => {
@@ -363,7 +378,7 @@ const SettingsApp: React.FC = () => {
       
       setSyncedRepos(newRepos);
       setSyncedPrompts(newPromptsAll);
-      await persistData(customPrompts, disabledDefaultIds, newRepos, newPromptsAll, settings);
+      await persistData(customPrompts, disabledDefaultIds, newRepos, newPromptsAll, settings, usageHistory);
       
       return newPrompts;
     } finally {
@@ -380,7 +395,7 @@ const SettingsApp: React.FC = () => {
       r.id === repoId ? { ...r, enabled } : r
     );
     setSyncedRepos(newRepos);
-    persistData(customPrompts, disabledDefaultIds, newRepos, syncedPrompts, settings);
+    persistData(customPrompts, disabledDefaultIds, newRepos, syncedPrompts, settings, usageHistory);
   };
 
   const handleToggleSyncedPrompt = (promptId: string, enabled: boolean) => {
@@ -402,10 +417,10 @@ const SettingsApp: React.FC = () => {
         return r;
       });
       setSyncedRepos(newRepos);
-      persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings);
+      persistData(customPrompts, disabledDefaultIds, newRepos, newPrompts, settings, usageHistory);
     } else {
       setSyncedPrompts(newPrompts);
-      persistData(customPrompts, disabledDefaultIds, syncedRepos, newPrompts, settings);
+      persistData(customPrompts, disabledDefaultIds, syncedRepos, newPrompts, settings, usageHistory);
     }
   };
 
@@ -483,7 +498,7 @@ const SettingsApp: React.FC = () => {
             
             setCustomPrompts(newCustomPrompts);
             setDisabledDefaultIds(newDisabledDefaults);
-            await persistData(newCustomPrompts, newDisabledDefaults, syncedRepos, syncedPrompts, settings);
+            await persistData(newCustomPrompts, newDisabledDefaults, syncedRepos, syncedPrompts, settings, usageHistory);
             messageApi.success(`Imported ${validCustomPrompts.length} prompts, ${newDisabledDefaults.length} disabled defaults`);
           },
         });
@@ -549,7 +564,7 @@ const SettingsApp: React.FC = () => {
     }
 
     setCustomPrompts(newCustomPrompts);
-    await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
+    await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings, usageHistory);
     setModalVisible(false);
     form.resetFields();
   };
@@ -565,7 +580,7 @@ const SettingsApp: React.FC = () => {
     
     const newCustomPrompts = customPrompts.filter((p) => p.id !== id);
     setCustomPrompts(newCustomPrompts);
-    await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
+    await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings, usageHistory);
     messageApi.success('Prompt deleted');
   };
 
@@ -583,7 +598,7 @@ const SettingsApp: React.FC = () => {
         newDisabledDefaultIds = [...disabledDefaultIds, id];
       }
       setDisabledDefaultIds(newDisabledDefaultIds);
-      await persistData(customPrompts, newDisabledDefaultIds, syncedRepos, syncedPrompts, settings);
+      await persistData(customPrompts, newDisabledDefaultIds, syncedRepos, syncedPrompts, settings, usageHistory);
     } else if (id.startsWith('sync-')) {
       // Synced prompt - delegate to handleToggleSyncedPrompt
       handleToggleSyncedPrompt(id, enabled);
@@ -593,7 +608,7 @@ const SettingsApp: React.FC = () => {
         p.id === id ? { ...p, enabled } : p
       );
       setCustomPrompts(newCustomPrompts);
-      await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings);
+      await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings, usageHistory);
     }
     messageApi.success(enabled ? 'Prompt enabled' : 'Prompt disabled');
   };
@@ -602,7 +617,7 @@ const SettingsApp: React.FC = () => {
   const handleReset = async () => {
     setCustomPrompts([]);
     setDisabledDefaultIds([]);
-    await persistData([], [], syncedRepos, syncedPrompts, settings);
+    await persistData([], [], syncedRepos, syncedPrompts, settings, usageHistory);
     messageApi.success('Prompts reset to defaults');
   };
 

@@ -34,11 +34,12 @@ export async function fetchRepoPrompts(
         title: metadata.title || file.name.replace('.md', ''),
         content: body,
         description: metadata.description || '',
-        tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+        tags: Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag] : []),
         filePath: file.path,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         enabled: true,
+        isSynced: true,
       });
     } catch (err) {
       console.error(`Failed to fetch ${file.path}:`, err);
