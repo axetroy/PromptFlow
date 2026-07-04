@@ -31,10 +31,10 @@ export async function fetchRepoPrompts(
       prompts.push({
         id: `${repoId}-${file.path.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
         repoId,
-        title: metadata.title || file.name.replace('.md', ''),
+        title: (metadata.title as string) || file.name.replace('.md', ''),
         content: body,
-        description: metadata.description || '',
-        tags: Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag] : []),
+        description: (metadata.description as string) || '',
+        tags: Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag as string] : []),
         filePath: file.path,
         createdAt: Date.now(),
         updatedAt: Date.now(),

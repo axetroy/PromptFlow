@@ -89,10 +89,10 @@ export async function syncSingleRepo(repo: SyncedRepo): Promise<SyncResult> {
         const prompt: SyncedPrompt = {
           id: `${repo.id}-${file.path.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
           repoId: repo.id,
-          title: metadata.title || file.name.replace('.md', ''),
+          title: (metadata.title as string) || file.name.replace('.md', ''),
           content: body,
-          description: metadata.description || '',
-          tags: Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag] : []),
+          description: (metadata.description as string) || '',
+          tags: Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag as string] : []),
           filePath: file.path,
           createdAt: Date.now(),
           updatedAt: Date.now(),

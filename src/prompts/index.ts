@@ -34,9 +34,9 @@ export function loadDefaultPrompts(): Prompt[] {
     
     return {
       id,
-      title: metadata.title || 'Untitled',
+      title: (metadata.title as string) || 'Untitled',
       content: body, // Keep raw markdown content unchanged
-      description: metadata.description || '',
+      description: (metadata.description as string) || '',
       tags: Array.isArray(metadata.tags) ? metadata.tags : [],
       createdAt: now,
       updatedAt: now,
