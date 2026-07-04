@@ -11,7 +11,6 @@ import {
   deletePrompt,
   getUsageHistory,
   recordPromptUsage,
-  getUsageStats,
   getRecentPrompts,
   clearUsageHistory,
 } from './storage';
@@ -327,32 +326,6 @@ describe('recordPromptUsage', () => {
     const history = await getUsageHistory();
     expect(history.length).toBeLessThanOrEqual(100);
     expect(history[0].promptId).toBe('overflow');
-  });
-});
-
-describe('getUsageStats', () => {
-  beforeEach(clearMockStorage);
-
-  it('should return empty map when no history', async () => {
-    const stats = await getUsageStats();
-    expect(stats.size).toBe(0);
-  });
-
-  it('should count usage per prompt', async () => {
-    mockStorage['promptflow-data'] = {
-      prompts: [],
-      settings: DEFAULT_SETTINGS,
-      usageHistory: [
-        { promptId: 'p1', usedAt: 1000 },
-        { promptId: 'p2', usedAt: 2000 },
-        { promptId: 'p1', usedAt: 3000 },
-        { promptId: 'p1', usedAt: 4000 },
-      ],
-    };
-
-    const stats = await getUsageStats();
-    expect(stats.get('p1')).toBe(3);
-    expect(stats.get('p2')).toBe(1);
   });
 });
 

@@ -117,17 +117,6 @@ export async function recordPromptUsage(promptId: string): Promise<void> {
   await saveStorageData(data);
 }
 
-export async function getUsageStats(): Promise<Map<string, number>> {
-  const history = await getUsageHistory();
-  const stats = new Map<string, number>();
-  
-  for (const usage of history) {
-    stats.set(usage.promptId, (stats.get(usage.promptId) || 0) + 1);
-  }
-  
-  return stats;
-}
-
 export async function getRecentPrompts(limit: number = 5): Promise<PromptUsage[]> {
   const history = await getUsageHistory();
   const recentIds = extractRecentPromptIds(history, limit);

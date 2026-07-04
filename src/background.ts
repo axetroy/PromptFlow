@@ -6,8 +6,7 @@ const STORAGE_KEY = 'promptflow-data';
 
 interface BackgroundMessage {
   type: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload?: any;
+  payload?: unknown;
 }
 
 async function initializeStorage(): Promise<void> {
@@ -97,19 +96,21 @@ async function handleMessage(message: BackgroundMessage, _sender: chrome.runtime
       return await addPrompt(payload as Prompt);
 
     case 'UPDATE_PROMPT':
-      return await updatePrompt(payload.id, payload.updates);
+      return await updatePrompt((payload as { id: string }).id, (payload as { updates: Partial<Prompt> }).updates);
 
     case 'DELETE_PROMPT':
-      return await deletePrompt(payload.id);
+      return await deletePrompt((payload as { id: string }).id);
 
-    case 'SAVE_SETTINGS':
-      await saveSettings(payload as PromptSettings);
-      notifyAllTabs('UPDATE_SETTINGS', payload as PromptSettings);
+    case 'SAVE_SETTINGS': {
+      const settings = payload as PromptSettings;
+      await saveSettings(settings);
+      notifyAllTabs('UPDATE_SETTINGS', settings);
       // Re-initialize auto-sync with new interval
-      if (payload.syncInterval) {
+      if (settings.syncInterval) {
         await initializeAutoSync();
       }
       return null;
+    }
 
     case 'GET_STORAGE_DATA':
       return await getStorageData();

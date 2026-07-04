@@ -24,11 +24,6 @@ export interface SyncedRepo {
   enabledPromptIds: string[]; // IDs of enabled prompts within this repo
 }
 
-export interface SyncedPromptsData {
-  repos: SyncedRepo[];
-  prompts: SyncedPrompt[];
-}
-
 export interface GitHubFile {
   name: string;
   path: string;
