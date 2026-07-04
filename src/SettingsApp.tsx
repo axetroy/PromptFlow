@@ -767,6 +767,7 @@ const SettingsApp: React.FC = () => {
                 </Button>
                 <Button icon={<UploadOutlined />} onClick={handleExport}>Export</Button>
                 <Button icon={<DownloadOutlined />} onClick={() => fileInputRef.current?.click()}>Import</Button>
+                <input type="file" ref={fileInputRef} onChange={handleImport} style={{ display: 'none' }} accept=".json" />
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>Add Prompt</Button>
               </Space>
             }
