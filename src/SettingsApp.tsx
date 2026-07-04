@@ -448,7 +448,6 @@ const SettingsApp: React.FC = () => {
   };
 
   // Import prompts from JSON file
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
