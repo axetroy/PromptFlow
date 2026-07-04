@@ -779,7 +779,7 @@ const SettingsApp: React.FC = () => {
           {/* Synced repos info */}
           {syncedRepos.length > 0 && (
             <Card style={{ marginBottom: 24, background: '#f8f5ff' }}>
-              <Space direction="vertical" style={{ width: '100%' }}>
+              <Space orientation="vertical" style={{ width: '100%' }}>
                 <Text strong><GithubOutlined /> Synced from GitHub</Text>
                 {syncedRepos.map(repo => (
                   <Space key={repo.id}>

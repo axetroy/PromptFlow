@@ -345,7 +345,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                     </Space>
                   }
                   description={
-                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         Path: <code>{repo.promptsPath}</code> • Last synced: {formatLastSynced(repo.lastSyncedAt)}
                       </Text>
