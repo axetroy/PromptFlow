@@ -17,6 +17,7 @@ import {
   Popconfirm,
   Select,
   Tooltip,
+  theme
 } from 'antd';
 import {
   SettingOutlined,
@@ -726,18 +727,7 @@ const SettingsApp: React.FC = () => {
 
   return (
     <ConfigProvider theme={{ 
-      token: { 
-        colorPrimary: '#1890ff', 
-        borderRadius: 8,
-        colorBgContainer: themeMode === 'dark' ? '#1f1f1f' : '#ffffff',
-        colorBgElevated: themeMode === 'dark' ? '#2a2a2a' : '#ffffff',
-        colorText: themeMode === 'dark' ? '#ffffff' : '#1a1a1a',
-        colorTextSecondary: themeMode === 'dark' ? '#bababa' : '#666666',
-        colorBorder: themeMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-        colorLink: themeMode === 'dark' ? '#69b1ff' : '#1890ff',
-        colorLinkHover: themeMode === 'dark' ? '#40a9ff' : '#40a9ff',
-      },
-      algorithm: themeMode === 'dark' ? undefined : undefined,
+      algorithm: themeMode === 'dark' ? theme.darkAlgorithm : undefined,
     }}>
       {contextHolder}
       <Layout style={{ minHeight: '100vh', background: themeMode === 'dark' ? '#141414' : '#f0f2f5' }}>
@@ -815,7 +805,7 @@ const SettingsApp: React.FC = () => {
 
           {/* Synced repos info */}
           {syncedRepos.length > 0 && (
-            <Card style={{ marginBottom: 24, background: '#f8f5ff' }}>
+            <Card style={{ marginBottom: 24 }}>
               <Space orientation="vertical" style={{ width: '100%' }}>
                 <Text strong><GithubOutlined /> Synced from GitHub</Text>
                 {syncedRepos.map(repo => (
