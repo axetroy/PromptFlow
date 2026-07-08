@@ -5,22 +5,23 @@ import type { ThemeMode } from '../types';
 const STORAGE_KEY = 'promptflow-data';
 
 /**
- * Get the effective theme based on user's theme setting and system preference.
+ * Compute the effective theme based on user's theme setting and system preference.
+ * This is a pure function that can be used in any context.
  * 
  * @param themeSetting - The user's theme setting: 'light', 'dark', or 'system'
- * @param prefersDarkMode - Whether the system prefers dark mode
+ * @param prefersDark - Whether the system prefers dark mode
  */
-function getEffectiveTheme(themeSetting: ThemeMode, prefersDarkMode: boolean): 'light' | 'dark' {
+export function computeEffectiveTheme(themeSetting: ThemeMode | 'system', prefersDark: boolean): 'light' | 'dark' {
   if (themeSetting === 'system') {
-    return prefersDarkMode ? 'dark' : 'light';
+    return prefersDark ? 'dark' : 'light';
   }
   return themeSetting;
 }
 
 /**
- * Get stored theme setting from chrome storage.
+ * Get stored theme setting from chrome storage (async).
  */
-async function getStoredThemeSetting(): Promise<ThemeMode> {
+export async function getStoredThemeSetting(): Promise<ThemeMode> {
   return new Promise((resolve) => {
     chrome.storage.local.get([STORAGE_KEY], (result) => {
       const data = result[STORAGE_KEY] as { settings?: { theme?: ThemeMode } } | undefined;
@@ -28,6 +29,34 @@ async function getStoredThemeSetting(): Promise<ThemeMode> {
       resolve(theme || 'system');
     });
   });
+}
+
+/**
+ * Get the effective theme synchronously from storage.
+ * Falls back to system preference if storage read fails.
+ */
+export function getEffectiveThemeSync(): 'light' | 'dark' {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const storage = chrome.storage.local as any;
+    const getSync = storage.getSync;
+    if (typeof getSync === 'function') {
+      const result = getSync(STORAGE_KEY);
+      if (result && typeof result === 'object') {
+        const settings = result.settings;
+        if (settings && typeof settings === 'object') {
+          const themeSetting = settings.theme as ThemeMode | undefined;
+          return computeEffectiveTheme(themeSetting || 'system', prefersDark);
+        }
+      }
+    }
+  } catch {
+    // Fallback to system preference
+  }
+  
+  return prefersDark ? 'dark' : 'light';
 }
 
 /**
@@ -66,7 +95,7 @@ export function useThemeMode(): 'light' | 'dark' {
     return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, []);
   
-  return getEffectiveTheme(themeSetting, prefersDarkMode);
+  return computeEffectiveTheme(themeSetting, prefersDarkMode);
 }
 
 /**

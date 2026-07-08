@@ -14,39 +14,11 @@
 
 import { createElement, type ComponentType } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { getEffectiveThemeSync } from '../hooks';
 
 export interface ShadowMount {
   root: Root;
   host: HTMLElement;
-}
-
-/**
- * Get the effective theme based on user's theme setting and system preference.
- */
-export function getEffectiveTheme(): 'light' | 'dark' {
-  const STORAGE_KEY = 'promptflow-data';
-  
-  // Default to system preference
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  let themeSetting = 'system';
-  
-  // Read from storage synchronously using a sync getter if available
-  try {
-    const result = (chrome.storage.local as unknown as { getSync: (key: string) => Record<string, unknown> | undefined }).getSync?.(STORAGE_KEY);
-    if (result && typeof result === 'object') {
-      const settings = (result as Record<string, unknown>).settings as Record<string, unknown> | undefined;
-      if (settings) {
-        themeSetting = (settings.theme as string) || 'system';
-      }
-    }
-  } catch {
-    // Fallback to system preference
-  }
-  
-  if (themeSetting === 'system') {
-    return prefersDark ? 'dark' : 'light';
-  }
-  return themeSetting as 'light' | 'dark';
 }
 
 /**
@@ -82,7 +54,7 @@ export function mountShadowComponent<P extends Record<string, any>>(
   shadowRoot.appendChild(linkEl);
 
   // Apply theme class to the container inside shadow DOM
-  const effectiveTheme = theme || getEffectiveTheme();
+  const effectiveTheme = theme || getEffectiveThemeSync();
   const container = document.createElement('div');
   container.classList.add(effectiveTheme);
   shadowRoot.appendChild(container);

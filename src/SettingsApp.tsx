@@ -56,20 +56,11 @@ import SyncManager from './SyncManager';
 import PromptPreview from './components/PromptPreview';
 
 import type { Prompt, PromptSettings, PromptUsage } from './types';
+import { computeEffectiveTheme } from './hooks';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-
-/**
- * Get the effective theme based on user's theme setting and system preference.
- */
-function getEffectiveTheme(themeSetting?: string): 'light' | 'dark' {
-  if (themeSetting === 'system' || !themeSetting) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return themeSetting as 'light' | 'dark';
-}
 
 interface SettingsStorageData {
   customPrompts: Prompt[];
@@ -244,7 +235,10 @@ const SettingsApp: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Compute effective theme from settings
-  const effectiveTheme = useMemo(() => getEffectiveTheme(settings.theme), [settings.theme]);
+  const effectiveTheme = useMemo(() => {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return computeEffectiveTheme(settings.theme || 'system', prefersDark);
+  }, [settings.theme]);
 
   // Load data on mount
   useEffect(() => {
