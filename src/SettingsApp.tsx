@@ -61,6 +61,16 @@ const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+/**
+ * Get the effective theme based on user's theme setting and system preference.
+ */
+function getEffectiveTheme(themeSetting?: string): 'light' | 'dark' {
+  if (themeSetting === 'system' || !themeSetting) {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return themeSetting as 'light' | 'dark';
+}
+
 interface SettingsStorageData {
   customPrompts: Prompt[];
   disabledDefaultIds?: string[];
@@ -232,7 +242,9 @@ const SettingsApp: React.FC = () => {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
+
+  // Compute effective theme from settings
+  const effectiveTheme = useMemo(() => getEffectiveTheme(settings.theme), [settings.theme]);
 
   // Load data on mount
   useEffect(() => {
@@ -279,19 +291,13 @@ const SettingsApp: React.FC = () => {
     setUsageStats(calculateUsageStats(usageHistory, mergedPrompts));
   }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, usageHistory]);
 
-  // Update theme mode when settings change
+  // Update body class for CSS variable-based styling when theme changes
   useEffect(() => {
-    const themeSetting = settings.theme || 'system';
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const effectiveTheme = themeSetting === 'system' ? (prefersDark ? 'dark' : 'light') : themeSetting;
-    setThemeMode(effectiveTheme);
-    
-    // Update body class for CSS variable-based styling
     document.body.classList.remove('light', 'dark');
     document.body.classList.add(effectiveTheme);
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(effectiveTheme);
-  }, [settings.theme]);
+  }, [effectiveTheme]);
 
   // Save data whenever custom prompts, disabled defaults, synced data or settings change
   const persistData = useCallback(async (
@@ -727,10 +733,10 @@ const SettingsApp: React.FC = () => {
 
   return (
     <ConfigProvider theme={{ 
-      algorithm: themeMode === 'dark' ? theme.darkAlgorithm : undefined,
+      algorithm: effectiveTheme === 'dark' ? theme.darkAlgorithm : undefined,
     }}>
       {contextHolder}
-      <Layout style={{ minHeight: '100vh', background: themeMode === 'dark' ? '#141414' : '#f0f2f5' }}>
+      <Layout style={{ minHeight: '100vh', background: effectiveTheme === 'dark' ? '#141414' : '#f0f2f5' }}>
         <Header style={{ 
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
           padding: '24px 32px', 

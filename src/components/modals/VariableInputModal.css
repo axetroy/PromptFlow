@@ -1,9 +1,11 @@
 /**
  * VariableInputModal Styles
  * Complete CSS for the variable input modal with light/dark mode support
+ * Theme switching is controlled via .light and .dark classes
  */
 
 :host {
+  /* Light theme (default) */
   --vf-overlay-bg: rgba(0, 0, 0, 0.5);
   --vf-content-bg: #fff;
   --vf-content-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -51,51 +53,50 @@
   --vf-divider-color: #e8e8e8;
 }
 
-@media (prefers-color-scheme: dark) {
-  :host {
-    --vf-overlay-bg: rgba(0, 0, 0, 0.7);
-    --vf-content-bg: #1a1a1a;
-    --vf-content-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    --vf-border-color: #404040;
-    --vf-body-bg: #1a1a1a;
-    --vf-text-primary: #e8e8e8;
-    --vf-text-muted: #888;
-    --vf-empty-bg: #252525;
-    --vf-item-bg: #252525;
-    --vf-item-border: #3a3a3a;
-    --vf-name-bg: #3a3a3a;
-    --vf-name-color: #e8e8e8;
-    --vf-badge-default-bg: #1a2e1a;
-    --vf-badge-default-color: #73d13d;
-    --vf-badge-required-bg: #2e261a;
-    --vf-badge-required-color: #fa8c16;
-    --vf-input-border: #555;
-    --vf-input-bg: #252525;
-    --vf-preview-bg: #252525;
-    --vf-preview-border: #3a3a3a;
-    --vf-copy-btn-border: #555;
-    --vf-copy-btn-hover-bg: #3a3a3a;
-    --vf-copy-success-color: #73d13d;
-    --vf-var-highlight-bg: #2e1f4a;
-    --vf-var-highlight-color: #a78bfa;
-    --vf-var-highlight-border: #7c3aed;
-    --vf-var-placeholder-bg: #2e261a;
-    --vf-var-placeholder-color: #ffc53d;
-    --vf-var-placeholder-border: #fa8c16;
-    --vf-footer-bg: #252525;
-    --vf-kbd-bg: #333;
-    --vf-kbd-border: #555;
-    --vf-btn-cancel-border: #555;
-    --vf-btn-cancel-bg: #333;
-    --vf-btn-cancel-hover: #444;
-    --vf-btn-disabled-bg: #444;
-    --vf-btn-primary-color: #fff;
-    --vf-btn-primary-bg: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
-    --vf-btn-primary-hover: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --vf-scrollbar-thumb: #555;
-    --vf-scrollbar-track: #2a2a2a;
-    --vf-divider-color: #404040;
-  }
+/* Dark theme class */
+:host(.dark) {
+  --vf-overlay-bg: rgba(0, 0, 0, 0.7);
+  --vf-content-bg: #1a1a1a;
+  --vf-content-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --vf-border-color: #404040;
+  --vf-body-bg: #1a1a1a;
+  --vf-text-primary: #e8e8e8;
+  --vf-text-muted: #888;
+  --vf-empty-bg: #252525;
+  --vf-item-bg: #252525;
+  --vf-item-border: #3a3a3a;
+  --vf-name-bg: #3a3a3a;
+  --vf-name-color: #e8e8e8;
+  --vf-badge-default-bg: #1a2e1a;
+  --vf-badge-default-color: #73d13d;
+  --vf-badge-required-bg: #2e261a;
+  --vf-badge-required-color: #fa8c16;
+  --vf-input-border: #555;
+  --vf-input-bg: #252525;
+  --vf-preview-bg: #252525;
+  --vf-preview-border: #3a3a3a;
+  --vf-copy-btn-border: #555;
+  --vf-copy-btn-hover-bg: #3a3a3a;
+  --vf-copy-success-color: #73d13d;
+  --vf-var-highlight-bg: #2e1f4a;
+  --vf-var-highlight-color: #a78bfa;
+  --vf-var-highlight-border: #7c3aed;
+  --vf-var-placeholder-bg: #2e261a;
+  --vf-var-placeholder-color: #ffc53d;
+  --vf-var-placeholder-border: #fa8c16;
+  --vf-footer-bg: #252525;
+  --vf-kbd-bg: #333;
+  --vf-kbd-border: #555;
+  --vf-btn-cancel-border: #555;
+  --vf-btn-cancel-bg: #333;
+  --vf-btn-cancel-hover: #444;
+  --vf-btn-disabled-bg: #444;
+  --vf-btn-primary-color: #fff;
+  --vf-btn-primary-bg: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+  --vf-btn-primary-hover: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --vf-scrollbar-thumb: #555;
+  --vf-scrollbar-track: #2a2a2a;
+  --vf-divider-color: #404040;
 }
 
 .vf-modal-overlay {

@@ -2,7 +2,7 @@ import React, { useRef, useCallback } from 'react';
 import type { Prompt } from '../../types';
 import { escapeHtml } from '../../utils/dom';
 import { useThemeMode, usePanelPosition, usePromptSearch, usePromptKeyboardNav } from '../../hooks';
-import { mountShadowComponent, unmountShadowComponent, type ShadowMount } from '../../utils/shadow-dom';
+import { mountShadowComponent, unmountShadowComponent, type ShadowMount, getEffectiveTheme } from '../../utils/shadow-dom';
 
 interface PromptPanelProps {
   prompts: Prompt[];
@@ -221,12 +221,14 @@ export interface PromptPanelOptions {
 }
 
 export function showPromptPanel(options: PromptPanelOptions): void {
+  const theme = getEffectiveTheme();
   mount = mountShadowComponent(
     'promptflow-panel-host',
     'PromptPanel.css',
     'position: fixed; z-index: 2147483647;',
     PromptPanel,
     options,
+    theme,
   );
 }
 

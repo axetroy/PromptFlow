@@ -20,7 +20,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Variable, interpolate, generatePreviewSegments, getUniqueVariables } from '../../utils/template-parser';
-import { mountShadowComponent, unmountShadowComponent, type ShadowMount } from '../../utils/shadow-dom';
+import { mountShadowComponent, unmountShadowComponent, type ShadowMount, getEffectiveTheme } from '../../utils/shadow-dom';
 
 export interface VariableInputOptions {
   prompt: {
@@ -322,6 +322,7 @@ let mount: ShadowMount | null = null;
  */
 export function showVariableInput(options: VariableInputOptions): void {
   const variables = getUniqueVariables(options.prompt.content);
+  const theme = getEffectiveTheme();
 
   mount = mountShadowComponent(
     'promptflow-variable-input-host',
@@ -329,6 +330,7 @@ export function showVariableInput(options: VariableInputOptions): void {
     'position: fixed; top: 0; left: 0; width: 0; height: 0; overflow: visible; z-index: 2147483647;',
     VariableInputModal,
     { options, variables, initialValues: {} },
+    theme,
   );
 }
 
