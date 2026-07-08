@@ -72,10 +72,6 @@ export function mountShadowComponent<P extends Record<string, any>>(
   host.id = id;
   host.style.cssText = hostStyle;
   
-  // Apply theme class to host element
-  const effectiveTheme = theme || getEffectiveTheme();
-  host.classList.add(effectiveTheme);
-  
   document.body.appendChild(host);
 
   const shadowRoot = host.attachShadow({ mode: 'open' });
@@ -85,7 +81,10 @@ export function mountShadowComponent<P extends Record<string, any>>(
   linkEl.href = chrome.runtime.getURL(cssFileName);
   shadowRoot.appendChild(linkEl);
 
+  // Apply theme class to the container inside shadow DOM
+  const effectiveTheme = theme || getEffectiveTheme();
   const container = document.createElement('div');
+  container.classList.add(effectiveTheme);
   shadowRoot.appendChild(container);
 
   const root = createRoot(container);

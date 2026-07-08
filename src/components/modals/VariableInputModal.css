@@ -54,7 +54,7 @@
 }
 
 /* Dark theme class */
-:host(.dark) {
+.dark {
   --vf-overlay-bg: rgba(0, 0, 0, 0.7);
   --vf-content-bg: #1a1a1a;
   --vf-content-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
