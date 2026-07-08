@@ -4,6 +4,7 @@ import { showPromptPanel, hidePromptPanel } from './components/PromptPanel';
 import { getInputValue, getCaretPosition, setCaretPosition, insertContentWithNewlines } from './utils/dom';
 import { getStorageData, recordPromptUsage as storageRecordPromptUsage } from './utils/storage';
 import { getAllEnabledPrompts, extractRecentPromptIds } from './utils/prompt-helpers';
+import { initializeThemeCache } from './hooks';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -456,6 +457,9 @@ function handleClick(e: MouseEvent): void {
 
 // Initialize
 async function init(): Promise<void> {
+  // Initialize theme cache early for synchronous reads
+  initializeThemeCache();
+
   // Load settings from storage first
   await loadSettings();
 

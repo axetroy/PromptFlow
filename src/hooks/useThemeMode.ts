@@ -4,6 +4,10 @@ import type { ThemeMode } from '../types';
 
 const STORAGE_KEY = 'promptflow-data';
 
+// Cache for theme setting to enable synchronous reads
+let cachedThemeSetting: ThemeMode | null = null;
+let cacheInitialized = false;
+
 /**
  * Compute the effective theme based on user's theme setting and system preference.
  * This is a pure function that can be used in any context.
@@ -32,31 +36,25 @@ export async function getStoredThemeSetting(): Promise<ThemeMode> {
 }
 
 /**
- * Get the effective theme synchronously from storage.
- * Falls back to system preference if storage read fails.
+ * Initialize the theme cache. Call this early in the content script.
+ */
+export async function initializeThemeCache(): Promise<void> {
+  if (cacheInitialized) return;
+  
+  const theme = await getStoredThemeSetting();
+  cachedThemeSetting = theme;
+  cacheInitialized = true;
+}
+
+/**
+ * Get the effective theme synchronously.
+ * Uses cached value if available, otherwise falls back to system preference.
+ * Call initializeThemeCache() early for accurate results.
  */
 export function getEffectiveThemeSync(): 'light' | 'dark' {
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const storage = chrome.storage.local as any;
-    const getSync = storage.getSync;
-    if (typeof getSync === 'function') {
-      const result = getSync(STORAGE_KEY);
-      if (result && typeof result === 'object') {
-        const settings = result.settings;
-        if (settings && typeof settings === 'object') {
-          const themeSetting = settings.theme as ThemeMode | undefined;
-          return computeEffectiveTheme(themeSetting || 'system', prefersDark);
-        }
-      }
-    }
-  } catch {
-    // Fallback to system preference
-  }
-  
-  return prefersDark ? 'dark' : 'light';
+  const themeSetting = cachedThemeSetting || 'system';
+  return computeEffectiveTheme(themeSetting, prefersDark);
 }
 
 /**
@@ -77,7 +75,11 @@ export function useThemeMode(): 'light' | 'dark' {
   
   // Load theme setting from storage on mount
   useEffect(() => {
-    getStoredThemeSetting().then(setThemeSetting);
+    getStoredThemeSetting().then((theme) => {
+      setThemeSetting(theme);
+      cachedThemeSetting = theme;
+      cacheInitialized = true;
+    });
   }, []);
   
   // Listen for storage changes to update theme setting
@@ -87,6 +89,7 @@ export function useThemeMode(): 'light' | 'dark' {
         const newSettings = changes[STORAGE_KEY].newValue as { settings?: { theme?: ThemeMode } } | undefined;
         if (newSettings?.settings?.theme) {
           setThemeSetting(newSettings.settings.theme);
+          cachedThemeSetting = newSettings.settings.theme;
         }
       }
     };
@@ -110,6 +113,8 @@ export async function getThemeSetting(): Promise<ThemeMode> {
  * Save theme setting to storage.
  */
 export async function saveThemeSetting(theme: ThemeMode): Promise<void> {
+  cachedThemeSetting = theme; // Update cache immediately
+  
   return new Promise((resolve) => {
     chrome.storage.local.get([STORAGE_KEY], (result) => {
       const data = result[STORAGE_KEY] as Record<string, unknown> || {};
