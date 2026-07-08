@@ -134,7 +134,7 @@ const loadData = (): Promise<SettingsStorageData> => {
           disabledDefaultIds: data.disabledDefaultIds || [],
           syncedRepos: data.syncedRepos || [],
           syncedPrompts: data.syncedPrompts || [],
-          settings: data.settings || { trigger: '/prompts', insertMode: 'replace' },
+          settings: data.settings || { trigger: '/prompts', insertMode: 'replace', theme: 'system' },
           usageHistory: data.usageHistory || [],
         });
       } else {
@@ -143,7 +143,7 @@ const loadData = (): Promise<SettingsStorageData> => {
           disabledDefaultIds: [],
           syncedRepos: [],
           syncedPrompts: [],
-          settings: { trigger: '/prompts', insertMode: 'replace' },
+          settings: { trigger: '/prompts', insertMode: 'replace', theme: 'system' },
           usageHistory: [],
         });
       }
@@ -231,6 +231,7 @@ const SettingsApp: React.FC = () => {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
 
   // Load data on mount
   useEffect(() => {
@@ -276,6 +277,20 @@ const SettingsApp: React.FC = () => {
     // Update usage stats when prompts or history changes
     setUsageStats(calculateUsageStats(usageHistory, mergedPrompts));
   }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, usageHistory]);
+
+  // Update theme mode when settings change
+  useEffect(() => {
+    const themeSetting = settings.theme || 'system';
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const effectiveTheme = themeSetting === 'system' ? (prefersDark ? 'dark' : 'light') : themeSetting;
+    setThemeMode(effectiveTheme);
+    
+    // Update body class for CSS variable-based styling
+    document.body.classList.remove('light', 'dark');
+    document.body.classList.add(effectiveTheme);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(effectiveTheme);
+  }, [settings.theme]);
 
   // Save data whenever custom prompts, disabled defaults, synced data or settings change
   const persistData = useCallback(async (
@@ -710,9 +725,22 @@ const SettingsApp: React.FC = () => {
   ];
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#1890ff', borderRadius: 8 } }}>
+    <ConfigProvider theme={{ 
+      token: { 
+        colorPrimary: '#1890ff', 
+        borderRadius: 8,
+        colorBgContainer: themeMode === 'dark' ? '#1f1f1f' : '#ffffff',
+        colorBgElevated: themeMode === 'dark' ? '#2a2a2a' : '#ffffff',
+        colorText: themeMode === 'dark' ? '#ffffff' : '#1a1a1a',
+        colorTextSecondary: themeMode === 'dark' ? '#bababa' : '#666666',
+        colorBorder: themeMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+        colorLink: themeMode === 'dark' ? '#69b1ff' : '#1890ff',
+        colorLinkHover: themeMode === 'dark' ? '#40a9ff' : '#40a9ff',
+      },
+      algorithm: themeMode === 'dark' ? undefined : undefined,
+    }}>
       {contextHolder}
-      <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+      <Layout style={{ minHeight: '100vh', background: themeMode === 'dark' ? '#141414' : '#f0f2f5' }}>
         <Header style={{ 
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
           padding: '24px 32px', 
@@ -739,6 +767,17 @@ const SettingsApp: React.FC = () => {
                   placeholder="/prompts" 
                   style={{ maxWidth: 300 }}
                 />
+              </Form.Item>
+              <Form.Item label="Theme" tooltip="Choose your preferred theme for the prompt panel" style={{ marginBottom: 16 }}>
+                <Select
+                  value={settings.theme || 'system'}
+                  onChange={(value) => handleSettingsChange('theme', value)}
+                  style={{ maxWidth: 200 }}
+                >
+                  <Select.Option value="system">Follow System</Select.Option>
+                  <Select.Option value="light">Light</Select.Option>
+                  <Select.Option value="dark">Dark</Select.Option>
+                </Select>
               </Form.Item>
               <Form.Item label="Auto Sync Interval" tooltip="How often to automatically sync prompts from GitHub repositories" style={{ marginBottom: 0 }}>
                 <Select

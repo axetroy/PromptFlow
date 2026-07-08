@@ -13,7 +13,59 @@
       background: #f0f2f5;
       min-height: 100vh;
     }
+    body.dark {
+      background: #141414;
+    }
   </style>
+  <script>
+    // Apply theme before page renders to prevent flash
+    (function() {
+      const STORAGE_KEY = 'promptflow-data';
+      
+      function getSystemTheme() {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      
+      function applyTheme(theme) {
+        var effectiveTheme = theme === 'system' ? getSystemTheme() : theme;
+        document.body.classList.remove('light', 'dark');
+        document.body.classList.add(effectiveTheme);
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(effectiveTheme);
+      }
+      
+      // Apply system theme initially
+      applyTheme(getSystemTheme());
+      
+      // Load saved theme setting
+      chrome.storage.local.get([STORAGE_KEY], function(result) {
+        var data = result[STORAGE_KEY];
+        var theme = data && data.settings && data.settings.theme;
+        applyTheme(theme || 'system');
+      });
+      
+      // Listen for storage changes
+      chrome.storage.onChanged.addListener(function(changes) {
+        if (changes[STORAGE_KEY]) {
+          var newSettings = changes[STORAGE_KEY].newValue;
+          if (newSettings && newSettings.settings && newSettings.settings.theme !== undefined) {
+            applyTheme(newSettings.settings.theme);
+          }
+        }
+      });
+      
+      // Listen for system theme changes
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+        chrome.storage.local.get([STORAGE_KEY], function(result) {
+          var data = result[STORAGE_KEY];
+          var theme = data && data.settings && data.settings.theme;
+          if (!theme || theme === 'system') {
+            applyTheme('system');
+          }
+        });
+      });
+    })();
+  </script>
 </head>
 <body>
   <div id="root"></div>

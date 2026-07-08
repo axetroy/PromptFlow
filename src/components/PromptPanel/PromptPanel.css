@@ -5,6 +5,7 @@
 }
 
 #promptflow-panel {
+  /* Light theme (default) */
   --pf-bg: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
   --pf-border: rgba(0, 0, 0, 0.1);
   --pf-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
@@ -47,6 +48,38 @@
   animation: pf-fade-in 0.2s ease-out;
 }
 
+/* Light theme class */
+#promptflow-panel.light {
+  --pf-bg: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+  --pf-border: rgba(0, 0, 0, 0.1);
+  --pf-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --pf-shadow-inset: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --pf-text-primary: #1a1a1a;
+  --pf-text-secondary: #666;
+  --pf-text-muted: #888;
+  --pf-text-placeholder: rgba(0, 0, 0, 0.35);
+  --pf-search-bg: rgba(0, 0, 0, 0.03);
+  --pf-search-border: rgba(0, 0, 0, 0.15);
+  --pf-search-focus-bg: rgba(0, 0, 0, 0.05);
+  --pf-item-hover-bg: rgba(0, 0, 0, 0.04);
+  --pf-item-selected-bg: rgba(99, 102, 241, 0.1);
+  --pf-item-selected-border: rgba(99, 102, 241, 0.3);
+  --pf-tag-bg: rgba(0, 0, 0, 0.06);
+  --pf-divider: rgba(0, 0, 0, 0.08);
+  --pf-footer-text: rgba(0, 0, 0, 0.4);
+  --pf-kbd-bg: rgba(0, 0, 0, 0.08);
+  --pf-kbd-text: rgba(0, 0, 0, 0.6);
+  --pf-settings-btn-text: rgba(0, 0, 0, 0.5);
+  --pf-settings-btn-hover-bg: rgba(0, 0, 0, 0.06);
+  --pf-settings-btn-hover-text: rgba(0, 0, 0, 0.8);
+  --pf-scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --pf-scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
+  --pf-section-header: #888;
+  --pf-empty-text: #999;
+  --pf-mark-bg: rgba(255, 193, 7, 0.4);
+}
+
+/* Dark theme class */
 #promptflow-panel.dark {
   --pf-bg: linear-gradient(180deg, #212122 0%, #151517 100%);
   --pf-border: rgba(255, 255, 255, 0.1);
