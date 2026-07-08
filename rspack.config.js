@@ -48,6 +48,7 @@ const resolveConfig = {
 
 const copyPatterns = [
   { from: 'src/settings.html', to: 'settings.html' },
+  { from: 'src/settings.css', to: 'settings.css' },
   { from: 'src/components/PromptPanel/PromptPanel.css', to: 'PromptPanel.css' },
   { from: 'src/components/modals/VariableInputModal.css', to: 'VariableInputModal.css' },
   { from: 'src/icons', to: 'icons' },

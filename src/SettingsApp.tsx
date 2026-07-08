@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ConfigProvider,
@@ -17,6 +17,7 @@ import {
   Popconfirm,
   Select,
   Tooltip,
+  theme
 } from 'antd';
 import {
   SettingOutlined,
@@ -55,6 +56,7 @@ import SyncManager from './SyncManager';
 import PromptPreview from './components/PromptPreview';
 
 import type { Prompt, PromptSettings, PromptUsage } from './types';
+import { computeEffectiveTheme } from './hooks';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -134,7 +136,7 @@ const loadData = (): Promise<SettingsStorageData> => {
           disabledDefaultIds: data.disabledDefaultIds || [],
           syncedRepos: data.syncedRepos || [],
           syncedPrompts: data.syncedPrompts || [],
-          settings: data.settings || { trigger: '/prompts', insertMode: 'replace' },
+          settings: data.settings || { trigger: '/prompts', insertMode: 'replace', theme: 'system' },
           usageHistory: data.usageHistory || [],
         });
       } else {
@@ -143,7 +145,7 @@ const loadData = (): Promise<SettingsStorageData> => {
           disabledDefaultIds: [],
           syncedRepos: [],
           syncedPrompts: [],
-          settings: { trigger: '/prompts', insertMode: 'replace' },
+          settings: { trigger: '/prompts', insertMode: 'replace', theme: 'system' },
           usageHistory: [],
         });
       }
@@ -232,6 +234,12 @@ const SettingsApp: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Compute effective theme from settings
+  const effectiveTheme = useMemo(() => {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return computeEffectiveTheme(settings.theme || 'system', prefersDark);
+  }, [settings.theme]);
+
   // Load data on mount
   useEffect(() => {
     loadData().then((data) => {
@@ -276,6 +284,14 @@ const SettingsApp: React.FC = () => {
     // Update usage stats when prompts or history changes
     setUsageStats(calculateUsageStats(usageHistory, mergedPrompts));
   }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, usageHistory]);
+
+  // Update body class for CSS variable-based styling when theme changes
+  useEffect(() => {
+    document.body.classList.remove('light', 'dark');
+    document.body.classList.add(effectiveTheme);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(effectiveTheme);
+  }, [effectiveTheme]);
 
   // Save data whenever custom prompts, disabled defaults, synced data or settings change
   const persistData = useCallback(async (
@@ -710,9 +726,11 @@ const SettingsApp: React.FC = () => {
   ];
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#1890ff', borderRadius: 8 } }}>
+    <ConfigProvider theme={{ 
+      algorithm: effectiveTheme === 'dark' ? theme.darkAlgorithm : undefined,
+    }}>
       {contextHolder}
-      <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+      <Layout style={{ minHeight: '100vh', background: effectiveTheme === 'dark' ? '#141414' : '#f0f2f5' }}>
         <Header style={{ 
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
           padding: '24px 32px', 
@@ -739,6 +757,17 @@ const SettingsApp: React.FC = () => {
                   placeholder="/prompts" 
                   style={{ maxWidth: 300 }}
                 />
+              </Form.Item>
+              <Form.Item label="Theme" tooltip="Choose your preferred theme for the prompt panel" style={{ marginBottom: 16 }}>
+                <Select
+                  value={settings.theme || 'system'}
+                  onChange={(value) => handleSettingsChange('theme', value)}
+                  style={{ maxWidth: 200 }}
+                >
+                  <Select.Option value="system">Follow System</Select.Option>
+                  <Select.Option value="light">Light</Select.Option>
+                  <Select.Option value="dark">Dark</Select.Option>
+                </Select>
               </Form.Item>
               <Form.Item label="Auto Sync Interval" tooltip="How often to automatically sync prompts from GitHub repositories" style={{ marginBottom: 0 }}>
                 <Select
@@ -776,7 +805,7 @@ const SettingsApp: React.FC = () => {
 
           {/* Synced repos info */}
           {syncedRepos.length > 0 && (
-            <Card style={{ marginBottom: 24, background: '#f8f5ff' }}>
+            <Card style={{ marginBottom: 24 }}>
               <Space orientation="vertical" style={{ width: '100%' }}>
                 <Text strong><GithubOutlined /> Synced from GitHub</Text>
                 {syncedRepos.map(repo => (

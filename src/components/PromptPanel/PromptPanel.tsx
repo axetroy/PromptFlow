@@ -1,7 +1,7 @@
 import React, { useRef, useCallback } from 'react';
 import type { Prompt } from '../../types';
 import { escapeHtml } from '../../utils/dom';
-import { useTheme, usePanelPosition, usePromptSearch, usePromptKeyboardNav } from '../../hooks';
+import { useThemeMode, usePanelPosition, usePromptSearch, usePromptKeyboardNav, getEffectiveThemeSync } from '../../hooks';
 import { mountShadowComponent, unmountShadowComponent, type ShadowMount } from '../../utils/shadow-dom';
 
 interface PromptPanelProps {
@@ -102,7 +102,7 @@ export function PromptPanel({
   const listRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const isDark = useTheme();
+  const effectiveTheme = useThemeMode();
   const { maxHeight } = usePanelPosition(panelRef);
   const {
     localSearch,
@@ -152,7 +152,7 @@ export function PromptPanel({
     <div
       ref={panelRef}
       id="promptflow-panel"
-      className={isDark ? 'dark' : ''}
+      className={effectiveTheme}
       style={{ maxHeight }}
       onClick={e => e.stopPropagation()}
       tabIndex={-1}
@@ -221,12 +221,14 @@ export interface PromptPanelOptions {
 }
 
 export function showPromptPanel(options: PromptPanelOptions): void {
+  const theme = getEffectiveThemeSync();
   mount = mountShadowComponent(
     'promptflow-panel-host',
     'PromptPanel.css',
     'position: fixed; z-index: 2147483647;',
     PromptPanel,
     options,
+    theme,
   );
 }
 

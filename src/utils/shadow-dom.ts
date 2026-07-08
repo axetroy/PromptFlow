@@ -14,6 +14,7 @@
 
 import { createElement, type ComponentType } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { getEffectiveThemeSync } from '../hooks';
 
 export interface ShadowMount {
   root: Root;
@@ -28,6 +29,7 @@ export interface ShadowMount {
  * @param hostStyle   - Inline CSS for the host element
  * @param Component   - React component to render
  * @param props       - Props to pass to the component
+ * @param theme       - Theme class to apply ('light' or 'dark'), defaults to system preference
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mountShadowComponent<P extends Record<string, any>>(
@@ -36,10 +38,12 @@ export function mountShadowComponent<P extends Record<string, any>>(
   hostStyle: string,
   Component: ComponentType<P>,
   props: P,
+  theme?: 'light' | 'dark',
 ): ShadowMount {
   const host = document.createElement('div');
   host.id = id;
   host.style.cssText = hostStyle;
+  
   document.body.appendChild(host);
 
   const shadowRoot = host.attachShadow({ mode: 'open' });
@@ -49,7 +53,10 @@ export function mountShadowComponent<P extends Record<string, any>>(
   linkEl.href = chrome.runtime.getURL(cssFileName);
   shadowRoot.appendChild(linkEl);
 
+  // Apply theme class to the container inside shadow DOM
+  const effectiveTheme = theme || getEffectiveThemeSync();
   const container = document.createElement('div');
+  container.classList.add(effectiveTheme);
   shadowRoot.appendChild(container);
 
   const root = createRoot(container);

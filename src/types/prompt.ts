@@ -16,10 +16,13 @@ export interface PromptUsage {
   usedAt: number;
 }
 
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 export interface PromptSettings {
   trigger: string;
   insertMode: 'replace' | 'append';
   syncInterval?: '15min' | '30min' | '1hour' | '2hours' | '1day';
+  theme?: ThemeMode;
 }
 
 export interface StorageData {
@@ -35,6 +38,7 @@ export const DEFAULT_SETTINGS: PromptSettings = {
   trigger: '/prompts',
   insertMode: 'replace',
   syncInterval: '1hour',
+  theme: 'system',
 };
 
 export const MAX_USAGE_HISTORY = 100;

@@ -1,0 +1,163 @@
+/* PromptFlow Settings Page Theme Variables */
+
+:root {
+  /* Light theme (default) */
+  --settings-bg: #f0f2f5;
+  --settings-card-bg: #ffffff;
+  --settings-text-primary: #1a1a1a;
+  --settings-text-secondary: #666;
+  --settings-border: rgba(0, 0, 0, 0.1);
+  --settings-header-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Dark theme */
+body.dark {
+  --settings-bg: #141414;
+  --settings-card-bg: #1f1f1f;
+  --settings-text-primary: #fff;
+  --settings-text-secondary: #bababa;
+  --settings-border: rgba(255, 255, 255, 0.1);
+  --settings-header-bg: linear-gradient(135deg, #3a3a5a 0%, #2a2a4a 100%);
+}
+
+/* Apply theme to body */
+body {
+  background: var(--settings-bg);
+  color: var(--settings-text-primary);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Ant Design dark theme overrides */
+body.dark .ant-layout {
+  background: #141414;
+}
+
+body.dark .ant-card {
+  background: #1f1f1f;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark .ant-card-head {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark .ant-card-head-title {
+  color: #fff;
+}
+
+body.dark .ant-table {
+  background: #1f1f1f;
+}
+
+body.dark .ant-table-thead > tr > th {
+  background: #262626;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark .ant-table-tbody > tr > td {
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+body.dark .ant-table-tbody > tr:hover > td {
+  background: #262626;
+}
+
+body.dark .ant-form-item-label > label {
+  color: #fff;
+}
+
+body.dark .ant-input,
+body.dark .ant-select-selector,
+body.dark .ant-input-number {
+  background: #262626 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+body.dark .ant-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+body.dark .ant-select-dropdown {
+  background: #1f1f1f;
+}
+
+body.dark .ant-select-item {
+  color: #fff;
+}
+
+body.dark .ant-select-item-option-selected {
+  background: #262626;
+}
+
+body.dark .ant-select-item-option-active {
+  background: #262626;
+}
+
+body.dark .ant-modal-content {
+  background: #1f1f1f;
+}
+
+body.dark .ant-modal-header {
+  background: #1f1f1f;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark .ant-modal-title {
+  color: #fff;
+}
+
+body.dark .ant-modal-close-x {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+body.dark .ant-popconfirm {
+  color: #fff;
+}
+
+body.dark .ant-popover {
+  background: #1f1f1f;
+}
+
+body.dark .ant-popover-inner {
+  background: #1f1f1f;
+}
+
+body.dark .ant-empty-description {
+  color: #bababa;
+}
+
+body.dark .ant-tag {
+  color: #fff;
+}
+
+body.dark .ant-pagination-item {
+  background: #262626;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark .ant-pagination-item a {
+  color: #fff;
+}
+
+body.dark .ant-pagination-prev .ant-pagination-item-link,
+body.dark .ant-pagination-next .ant-pagination-item-link {
+  background: #262626;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+body.dark .ant-spin-dot-item {
+  background-color: #1890ff;
+}
+
+/* Theme class applied to html element for Ant Design ConfigProvider */
+html.light body {
+  --ant-theme-light: light;
+}
+
+html.dark body {
+  --ant-theme-dark: dark;
+}

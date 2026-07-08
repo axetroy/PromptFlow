@@ -38,6 +38,7 @@ export { useToggle } from './useToggle';
 export { useClickOutside } from './useClickOutside';
 export { useMediaQuery } from './useMediaQuery';
 export { useTheme } from './useTheme';
+export { useThemeMode, computeEffectiveTheme, getEffectiveThemeSync, initializeThemeCache, getThemeSetting, saveThemeSetting } from './useThemeMode';
 export { useIntersectionObserver } from './useIntersectionObserver';
 export { usePanelPosition } from './usePanelPosition';
 export { usePromptSearch } from './usePromptSearch';
