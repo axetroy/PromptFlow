@@ -284,7 +284,7 @@ const SettingsApp: React.FC = () => {
     const themeSetting = settings.theme || 'system';
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const effectiveTheme = themeSetting === 'system' ? (prefersDark ? 'dark' : 'light') : themeSetting;
-    setThemeMode(effectiveTheme);
+    // setThemeMode(effectiveTheme);
     
     // Update body class for CSS variable-based styling
     document.body.classList.remove('light', 'dark');
