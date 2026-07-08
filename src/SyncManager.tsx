@@ -373,7 +373,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       )}
 
       {/* Help text */}
-      <div style={{ marginTop: 16, padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
+      <div style={{ marginTop: 16, padding: 16, borderRadius: 8, border: '1px solid var(--ant-color-border)' }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           <strong>How it works:</strong> Add a GitHub repository to sync prompts from a specific directory.
           Scrapes GitHub page for file list, fetches content via raw.githubusercontent.com.
@@ -388,7 +388,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
         </div>
         <div style={{ marginTop: 12 }}>
           <Text strong style={{ fontSize: 12 }}>Example file structure:</Text>
-          <pre style={{ margin: '8px 0 0 0', padding: 8, background: '#fff', borderRadius: 4, fontSize: 11, overflow: 'auto' }}>
+          <pre style={{ margin: '8px 0 0 0', padding: 8, borderRadius: 4, fontSize: 11, overflow: 'auto' }}>
 {`---
 title: My Prompt
 description: A useful prompt
