@@ -358,7 +358,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                               style={{ cursor: 'pointer' }}
                               onClick={() => !isSyncing && !isSyncingAll && onTogglePrompt(prompt.id, !prompt.enabled)}
                             >
-                              {prompt.title}
+                              {prompt.name}
                             </Tag>
                           ))}
                         </Space>

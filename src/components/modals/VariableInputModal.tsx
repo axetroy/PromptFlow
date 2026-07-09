@@ -26,7 +26,7 @@ import { getEffectiveThemeSync } from '../../hooks';
 export interface VariableInputOptions {
   prompt: {
     id: string;
-    title: string;
+    name: string;
     content: string;
   };
   onConfirm: (filledContent: string) => void;

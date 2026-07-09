@@ -31,7 +31,7 @@ export function usePromptSearch(
     if (!localSearch) return prompts;
     const query = localSearch.toLowerCase();
     return prompts.filter(p =>
-      p.title.toLowerCase().includes(query) ||
+      p.name.toLowerCase().includes(query) ||
       (p.description && p.description.toLowerCase().includes(query)) ||
       p.tags.some(t => t.toLowerCase().includes(query))
     );
