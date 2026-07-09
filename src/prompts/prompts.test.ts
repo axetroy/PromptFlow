@@ -8,8 +8,8 @@ import { loadDefaultPrompts, DEFAULT_PROMPTS } from './index';
 
 function frontmatterParsed(): boolean {
   const prompts = loadDefaultPrompts();
-  // If parseFrontmatter works, the first prompt's title will not be 'Untitled'
-  return prompts[0].title !== 'Untitled';
+  // If parseFrontmatter works, the first prompt's name will not be 'Untitled'
+  return prompts[0].name !== 'Untitled';
 }
 
 describe('loadDefaultPrompts', () => {
@@ -23,7 +23,7 @@ describe('loadDefaultPrompts', () => {
     const prompts = loadDefaultPrompts();
     for (const prompt of prompts) {
       expect(prompt).toHaveProperty('id');
-      expect(prompt).toHaveProperty('title');
+      expect(prompt).toHaveProperty('name');
       expect(prompt).toHaveProperty('content');
       expect(prompt).toHaveProperty('tags');
       expect(prompt).toHaveProperty('createdAt');
@@ -39,20 +39,20 @@ describe('loadDefaultPrompts', () => {
     expect(ids).toContain('3');
   });
 
-  it('should have string title for each prompt', () => {
+  it('should have string name for each prompt', () => {
     const prompts = loadDefaultPrompts();
     for (const prompt of prompts) {
-      expect(typeof prompt.title).toBe('string');
-      expect(prompt.title.length).toBeGreaterThan(0);
+      expect(typeof prompt.name).toBe('string');
+      expect(prompt.name.length).toBeGreaterThan(0);
     }
   });
 
-  it('should parse title from markdown frontmatter', () => {
+  it('should parse name from markdown frontmatter', () => {
     if (!frontmatterParsed()) return; // CRLF line endings on Windows
     const prompts = loadDefaultPrompts();
     const codeReview = prompts.find(p => p.id === '1');
     expect(codeReview).toBeDefined();
-    expect(codeReview!.title).toBe('Code Review');
+    expect(codeReview!.name).toBe('Code Review');
   });
 
   it('should parse tags as arrays from frontmatter', () => {
@@ -105,15 +105,15 @@ describe('DEFAULT_PROMPTS', () => {
     expect(DEFAULT_PROMPTS.length).toBe(8);
   });
 
-  it('should contain known prompt titles when frontmatter is parsed', () => {
+  it('should contain known prompt names when frontmatter is parsed', () => {
     if (!frontmatterParsed()) return; // CRLF line endings on Windows
-    const titles = DEFAULT_PROMPTS.map(p => p.title);
-    expect(titles).toContain('Code Review');
-    expect(titles).toContain('Explain Code');
-    expect(titles).toContain('Bug Fix');
-    expect(titles).toContain('Write Tests');
-    expect(titles).toContain('Refactor Code');
-    expect(titles).toContain('Analyze Error');
-    expect(titles).toContain('Prompt Optimizer');
+    const names = DEFAULT_PROMPTS.map(p => p.name);
+    expect(names).toContain('Code Review');
+    expect(names).toContain('Explain Code');
+    expect(names).toContain('Bug Fix');
+    expect(names).toContain('Write Tests');
+    expect(names).toContain('Refactor Code');
+    expect(names).toContain('Analyze Error');
+    expect(names).toContain('Prompt Optimizer');
   });
 });

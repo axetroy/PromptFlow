@@ -5,7 +5,7 @@ import { SyncedRepo, SyncedPrompt } from '../types/sync';
 
 function makePrompt(overrides: Partial<Prompt> & { id: string }): Prompt {
   return {
-    title: 'Test',
+    name: 'Test',
     content: 'content',
     tags: [],
     createdAt: 0,
@@ -33,7 +33,7 @@ describe('getAllEnabledPrompts', () => {
   });
 
   it('should include custom prompts alongside defaults', () => {
-    const custom = makePrompt({ id: 'custom-1', title: 'My Custom' });
+    const custom = makePrompt({ id: 'custom-1', name: 'My Custom' });
     const result = getAllEnabledPrompts([custom], [], [], []);
     expect(result.length).toBe(DEFAULT_PROMPTS.length + 1);
     expect(result.find(p => p.id === 'custom-1')).toBeDefined();
@@ -65,7 +65,7 @@ describe('getAllEnabledPrompts', () => {
     const synced: SyncedPrompt = {
       id: 'synced-1',
       repoId: 'repo-1',
-      title: 'Synced Prompt',
+      name: 'Synced Prompt',
       content: 'synced content',
       tags: [],
       filePath: 'test.md',
@@ -89,7 +89,7 @@ describe('getAllEnabledPrompts', () => {
     const synced: SyncedPrompt = {
       id: 'synced-1',
       repoId: 'repo-1',
-      title: 'Synced Prompt',
+      name: 'Synced Prompt',
       content: 'synced content',
       tags: [],
       filePath: 'test.md',
@@ -113,7 +113,7 @@ describe('getAllEnabledPrompts', () => {
     const synced: SyncedPrompt = {
       id: 'synced-1',
       repoId: 'repo-1',
-      title: 'Synced',
+      name: 'Synced',
       content: 'content',
       tags: [],
       filePath: 'test.md',

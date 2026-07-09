@@ -1,5 +1,5 @@
 ---
-title: Bug Fix
+name: Bug Fix
 description: Debug and fix code issues
 tags:
   - dev

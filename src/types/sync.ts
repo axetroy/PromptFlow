@@ -3,7 +3,7 @@
 export interface SyncedPrompt {
   id: string;
   repoId: string; // Links to SyncedRepo
-  title: string;
+  name: string;
   content: string;
   description?: string;
   tags: string[];

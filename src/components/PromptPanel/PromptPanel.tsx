@@ -70,7 +70,7 @@ function PromptItem({
       onMouseLeave={onMouseLeave}
     >
       <div className="prompt-item-title">
-        {highlightText(prompt.title, searchQuery)}
+        {highlightText(prompt.name, searchQuery)}
       </div>
       {prompt.description && (
         <div className="prompt-item-description">

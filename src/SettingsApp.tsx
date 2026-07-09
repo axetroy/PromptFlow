@@ -183,7 +183,7 @@ const calculatePopularityScore = (count: number, lastUsedAt: number): number => 
 };
 
 // Calculate usage statistics from history
-const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]): { promptId: string; count: number; lastUsed: number; title: string; score: number }[] => {
+const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]): { promptId: string; count: number; lastUsed: number; name: string; score: number }[] => {
   const statsMap = new Map<string, { count: number; lastUsed: number }>();
   
   for (const usage of usageHistory) {
@@ -196,7 +196,7 @@ const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]):
     }
   }
   
-  const stats: { promptId: string; count: number; lastUsed: number; title: string; score: number }[] = [];
+  const stats: { promptId: string; count: number; lastUsed: number; name: string; score: number }[] = [];
   for (const [promptId, data] of statsMap) {
     const prompt = allPrompts.find(p => p.id === promptId);
     const score = calculatePopularityScore(data.count, data.lastUsed);
@@ -204,7 +204,7 @@ const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]):
       promptId,
       count: data.count,
       lastUsed: data.lastUsed,
-      title: prompt?.title || 'Unknown Prompt',
+      name: prompt?.name || 'Unknown Prompt',
       score,
     });
   }
@@ -223,7 +223,7 @@ const SettingsApp: React.FC = () => {
   const [allPrompts, setAllPrompts] = useState<Prompt[]>([]);
   const [settings, setSettings] = useState<PromptSettings>({ trigger: '/prompts', insertMode: 'replace', syncInterval: '1hour' });
   const [usageHistory, setUsageHistory] = useState<PromptUsage[]>([]);
-  const [usageStats, setUsageStats] = useState<{ promptId: string; count: number; lastUsed: number; title: string; score: number }[]>([]);
+  const [usageStats, setUsageStats] = useState<{ promptId: string; count: number; lastUsed: number; name: string; score: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
@@ -482,7 +482,7 @@ const SettingsApp: React.FC = () => {
         // Filter out default prompts (they are always loaded from files)
         // Only import custom prompts (id starts with 'custom-')
         const validCustomPrompts = importData.prompts.filter((p: Record<string, unknown>) => 
-          p.id && p.title && p.content && typeof p.id === 'string' && p.id.startsWith('custom-')
+          p.id && p.name && p.content && typeof p.id === 'string' && p.id.startsWith('custom-')
         );
 
         // Get disabled default IDs from import
@@ -538,7 +538,7 @@ const SettingsApp: React.FC = () => {
     setEditingPrompt(prompt || null);
     if (prompt) {
       form.setFieldsValue({
-        title: prompt.title,
+        name: prompt.name,
         content: prompt.content,
         description: prompt.description || '',
         tags: prompt.tags,
@@ -550,7 +550,7 @@ const SettingsApp: React.FC = () => {
   };
 
   // Handle form submit
-  const handleSubmit = async (values: { title: string; content: string; description?: string; tags?: string[] }) => {
+  const handleSubmit = async (values: { name: string; content: string; description?: string; tags?: string[] }) => {
     const tags = values.tags || [];
     let newCustomPrompts: Prompt[];
 
@@ -558,7 +558,7 @@ const SettingsApp: React.FC = () => {
       // Update existing custom prompt
       newCustomPrompts = customPrompts.map((p) =>
         p.id === editingPrompt.id
-          ? { ...p, title: values.title, content: values.content, description: values.description, tags, updatedAt: Date.now() }
+          ? { ...p, name: values.name, content: values.content, description: values.description, tags, updatedAt: Date.now() }
           : p
       );
       messageApi.success('Prompt updated');
@@ -566,7 +566,7 @@ const SettingsApp: React.FC = () => {
       // Add new custom prompt
       const newPrompt: Prompt = {
         id: `custom-${crypto.randomUUID()}`,
-        title: values.title,
+        name: values.name,
         content: values.content,
         description: values.description,
         tags,
@@ -638,15 +638,15 @@ const SettingsApp: React.FC = () => {
   // Table columns
   const columns: ColumnsType<Prompt> = [
     {
-      title: 'Title',
-      dataIndex: 'title',
-      key: 'title',
-      render: (title: string, record) => (
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string, record) => (
         <Space>
           {
             record.id.startsWith('sync-') ? <Tag color="purple">Synced</Tag> : record.isDefault ? <Tag color="blue">Default</Tag> : <Tag color="green">Custom</Tag>
           }
-          <Text strong>{title}</Text>
+          <Text strong>{name}</Text>
         </Space>
       ),
     },
@@ -867,8 +867,8 @@ const SettingsApp: React.FC = () => {
                   columns={[
                       {
                         title: 'Prompt',
-                        dataIndex: 'title',
-                        key: 'title',
+                        dataIndex: 'name',
+                        key: 'name',
                         render: (text: string) => <Text ellipsis style={{ maxWidth: 300 }}>{text}</Text>,
                       },
                       {
@@ -920,7 +920,7 @@ const SettingsApp: React.FC = () => {
           width={600}
         >
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
-            <Form.Item name="title" label="Title" rules={[{ required: true, message: 'Please enter a title' }]}>
+            <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Please enter a name' }]}>
               <Input placeholder="My Custom Prompt" />
             </Form.Item>
             <Form.Item name="content" label="Content" rules={[{ required: true, message: 'Please enter content' }]}>

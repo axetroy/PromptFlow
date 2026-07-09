@@ -1,6 +1,6 @@
 export interface Prompt {
   id: string;
-  title: string;
+  name: string;
   content: string;
   description?: string;
   tags: string[];

@@ -76,7 +76,7 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({ prompt, visible, o
       title={
         <Space>
           <FileTextOutlined />
-          <span>{prompt.title}</span>
+          <span>{prompt.name}</span>
           {prompt.isDefault && <Tag color="blue">Default</Tag>}
           {prompt.id.startsWith('sync-') && <Tag color="purple">Synced</Tag>}
           {!prompt.isDefault && !prompt.id.startsWith('sync-') && <Tag color="green">Custom</Tag>}

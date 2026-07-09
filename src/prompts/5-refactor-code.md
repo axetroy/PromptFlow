@@ -1,5 +1,5 @@
 ---
-title: Refactor Code
+name: Refactor Code
 description: Improve code structure and quality
 tags:
   - dev

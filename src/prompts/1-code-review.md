@@ -1,5 +1,5 @@
 ---
-title: Code Review
+name: Code Review
 description: Review code and provide improvement suggestions
 tags:
   - dev
