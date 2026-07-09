@@ -1,5 +1,5 @@
 ---
-title: Analyze Error
+name: Analyze Error
 description: Analyze and understand error messages
 tags:
   - dev

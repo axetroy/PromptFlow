@@ -222,7 +222,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
         {/* Header */}
         <div className="vf-header">
           <div className="vf-header-title">💬 Fill Variables</div>
-          <div className="vf-header-subtitle">{prompt.title}</div>
+          <div className="vf-header-subtitle">{prompt.name}</div>
         </div>
         
         {/* Body */}

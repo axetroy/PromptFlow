@@ -1,5 +1,5 @@
 ---
-title: Prompt Optimizer
+name: Prompt Optimizer
 description: Optimize and enhance prompts for large language models
 tags:
   - prompt

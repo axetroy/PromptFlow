@@ -31,7 +31,7 @@ export async function fetchRepoPrompts(
       prompts.push({
         id: `${repoId}-${file.path.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
         repoId,
-        title: (metadata.title as string) || file.name.replace('.md', ''),
+        name: (metadata.name as string) || file.name.replace('.md', ''),
         content: body,
         description: (metadata.description as string) || '',
         tags: Array.isArray(metadata.tags) ? metadata.tags : (metadata.tag ? [metadata.tag as string] : []),

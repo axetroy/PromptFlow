@@ -1,5 +1,5 @@
 ---
-title: Custom Prompt Template
+name: Custom Prompt Template
 description: A template prompt with customizable variables
 tags:
   - template

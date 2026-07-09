@@ -53,7 +53,7 @@ function clearMockStorage() {
 function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
   return {
     id: 'test-1',
-    title: 'Test Prompt',
+    name: 'Test Prompt',
     content: 'Test content',
     description: 'Test description',
     tags: ['test'],
@@ -211,15 +211,15 @@ describe('updatePrompt', () => {
 
   it('should update an existing prompt', async () => {
     mockStorage['promptflow-data'] = {
-      prompts: [createTestPrompt({ id: 'update-1', title: 'Old Title' })],
+      prompts: [createTestPrompt({ id: 'update-1', name: 'Old Name' })],
       settings: DEFAULT_SETTINGS,
     };
 
-    await updatePrompt('update-1', { title: 'New Title' });
+    await updatePrompt('update-1', { name: 'New Name' });
 
     const prompts = await getPrompts();
     const updated = prompts.find(p => p.id === 'update-1');
-    expect(updated!.title).toBe('New Title');
+    expect(updated!.name).toBe('New Name');
     expect(updated!.updatedAt).toBeGreaterThan(0);
   });
 
@@ -229,11 +229,11 @@ describe('updatePrompt', () => {
       settings: DEFAULT_SETTINGS,
     };
 
-    await updatePrompt('nonexistent', { title: 'Updated' });
+    await updatePrompt('nonexistent', { name: 'Updated' });
 
     const prompts = await getPrompts();
     expect(prompts).toHaveLength(1);
-    expect(prompts[0].title).toBe('Test Prompt');
+    expect(prompts[0].name).toBe('Test Prompt');
   });
 });
 

@@ -271,7 +271,7 @@ async function selectPrompt(prompt: Prompt): Promise<void> {
     showVariableInput({
       prompt: {
         id: prompt.id,
-        title: prompt.title,
+        name: prompt.name,
         content: prompt.content,
       },
       onConfirm: (filledContent: string) => {

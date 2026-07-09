@@ -1,5 +1,5 @@
 ---
-title: Explain Code
+name: Explain Code
 description: Get detailed explanation of any code
 tags:
   - dev

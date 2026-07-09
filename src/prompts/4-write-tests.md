@@ -1,5 +1,5 @@
 ---
-title: Write Tests
+name: Write Tests
 description: Generate test cases for code
 tags:
   - dev
