@@ -56,7 +56,7 @@ import SyncManager from './SyncManager';
 import PromptPreview from './components/PromptPreview';
 
 // Import i18n
-import { LANGUAGE_NAMES, SUPPORTED_LOCALES } from './i18n';
+import { LANGUAGE_NAMES, SUPPORTED_LOCALES, t } from './i18n';
 import { useI18n } from './i18n/useI18n';
 
 import type { Prompt, PromptSettings, PromptUsage } from './types';
@@ -208,7 +208,7 @@ const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]):
       promptId,
       count: data.count,
       lastUsed: data.lastUsed,
-      name: prompt?.name || 'Unknown Prompt',
+      name: prompt?.name || t('settings.usage.unknownPrompt', 'Unknown Prompt'),
       score,
     });
   }
@@ -294,7 +294,7 @@ const SettingsApp: React.FC = () => {
     setAllPrompts(mergedPrompts);
     // Update usage stats when prompts or history changes
     setUsageStats(calculateUsageStats(usageHistory, mergedPrompts));
-  }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, usageHistory]);
+  }, [customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, usageHistory, locale]);
 
   // Update body class for CSS variable-based styling when theme changes
   useEffect(() => {
@@ -303,6 +303,11 @@ const SettingsApp: React.FC = () => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(effectiveTheme);
   }, [effectiveTheme]);
+
+  // Update page title when locale changes
+  useEffect(() => {
+    document.title = t('settings.title', 'PromptFlow Settings');
+  }, [locale, t]);
 
   // Save data whenever custom prompts, disabled defaults, synced data or settings change
   const persistData = useCallback(async (

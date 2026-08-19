@@ -11,7 +11,9 @@ class ManifestPlugin {
       const manifestSrc = fs.readFileSync(path.resolve(__dirname, 'src', 'manifest.json'), 'utf8');
       const manifest = JSON.parse(manifestSrc);
       manifest.name = pkg.name;
-      manifest.description = pkg.description;
+      if (!String(manifest.description).startsWith('__MSG_')) {
+        manifest.description = pkg.description;
+      }
       manifest.version = pkg.version;
       compilation.emitAsset('manifest.json', new compiler.webpack.sources.RawSource(JSON.stringify(manifest, null, 2)));
     });
@@ -55,6 +57,7 @@ const copyPatterns = [
   { from: 'src/components/PromptPanel/PromptPanel.css', to: 'PromptPanel.css' },
   { from: 'src/components/modals/VariableInputModal.css', to: 'VariableInputModal.css' },
   { from: 'src/icons', to: 'icons' },
+  { from: 'src/_locales', to: '_locales' },
 ];
 
 module.exports = [

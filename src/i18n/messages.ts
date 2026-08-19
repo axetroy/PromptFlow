@@ -82,6 +82,7 @@ export const messages: Record<string, MessageCatalog> = {
     'settings.usage.colPrompt': '提示词',
     'settings.usage.colUses': '使用次数',
     'settings.usage.colLastUsed': '上次使用',
+    'settings.usage.unknownPrompt': '未知提示词',
 
     // Danger zone
     'settings.danger.title': '危险区域',
@@ -175,6 +176,14 @@ export const messages: Record<string, MessageCatalog> = {
     'sync.requirements.optional': '可选 frontmatter：',
     'sync.requirements.optionalSeparator': '、',
     'sync.example.title': '示例文件结构：',
+
+    // Sync errors
+    'sync.error.fileNotFound': '文件未找到：{path}',
+    'sync.error.fetchFileFailed': '获取文件失败 {path}：{status}',
+    'sync.error.fetchDirectoryFailed': '获取目录失败：{status}',
+
+    // Insert language instruction
+    'insert.languageInstruction': '如果对话中没有指定语言，请优先使用{langName}回复。',
 
     // Prompt preview
     'preview.lastUpdated': '上次更新：{time}',

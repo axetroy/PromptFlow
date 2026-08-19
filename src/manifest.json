@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "PromptFlow",
+  "default_locale": "en",
   "version": "0.1.0",
-  "description": "Browser-level Prompt Command System - Quick Prompt invocation in any input field",
+  "description": "__MSG_extDescription__",
   "homepage_url": "https://github.com/axetroy/PromptFlow",
   "permissions": [
     "storage",
@@ -19,7 +20,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "Click to open PromptFlow settings"
+    "default_title": "__MSG_extActionTitle__"
   },
   "background": {
     "service_worker": "background.js",

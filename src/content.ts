@@ -5,7 +5,7 @@ import { getInputValue, getCaretPosition, setCaretPosition, insertContentWithNew
 import { getStorageData, recordPromptUsage as storageRecordPromptUsage } from './utils/storage';
 import { getAllEnabledPrompts, extractRecentPromptIds } from './utils/prompt-helpers';
 import { initializeThemeCache } from './hooks';
-import { setLocale } from './i18n';
+import { setLocale, t } from './i18n';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -170,31 +170,31 @@ function insertPromptWithContent(prompt: Prompt, filledContent: string): void {
   const browserLang = navigator.language || 'en';
   const langCode = browserLang.split('-')[0];
   const langNames: Record<string, string> = {
-    'zh': 'Chinese',
+    'zh': '中文',
     'en': 'English',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'es': 'Spanish',
-    'fr': 'French',
-    'de': 'German',
-    'pt': 'Portuguese',
-    'ru': 'Russian',
-    'ar': 'Arabic',
-    'hi': 'Hindi',
-    'th': 'Thai',
-    'vi': 'Vietnamese',
-    'id': 'Indonesian',
-    'ms': 'Malay',
-    'tr': 'Turkish',
-    'pl': 'Polish',
-    'nl': 'Dutch',
-    'it': 'Italian',
-    'uk': 'Ukrainian',
+    'ja': '日本語',
+    'ko': '한국어',
+    'es': 'Español',
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'pt': 'Português',
+    'ru': 'Русский',
+    'ar': 'العربية',
+    'hi': 'हिन्दी',
+    'th': 'ไทย',
+    'vi': 'Tiếng Việt',
+    'id': 'Bahasa Indonesia',
+    'ms': 'Bahasa Melayu',
+    'tr': 'Türkçe',
+    'pl': 'Polski',
+    'nl': 'Nederlands',
+    'it': 'Italiano',
+    'uk': 'Українська',
   };
   const langName = langNames[langCode] || 'English';
   
   // Append language instruction to prompt
-  const languageInstruction = `\n\n---\n\nPlease prioritize responding in ${langName} if no language has been specified earlier in the conversation.`;
+  const languageInstruction = `\n\n---\n\n${t('insert.languageInstruction', 'Please prioritize responding in {langName} if no language has been specified earlier in the conversation.', { langName })}`;
   const promptContent = filledContent + languageInstruction;
   
   const inputValue = getInputValue(state.currentInput);

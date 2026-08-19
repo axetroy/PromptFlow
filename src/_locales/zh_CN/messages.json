@@ -1,0 +1,8 @@
+{
+  "extDescription": {
+    "message": "浏览器级提示词命令系统 - 在任意输入框中快速调用提示词"
+  },
+  "extActionTitle": {
+    "message": "点击打开 PromptFlow 设置"
+  }
+}

@@ -1,5 +1,7 @@
 // Types for synced prompts from GitHub repositories
 
+import { t } from '../i18n';
+
 export interface SyncedPrompt {
   id: string;
   repoId: string; // Links to SyncedRepo
@@ -52,9 +54,9 @@ export async function fetchGitHubFileContent(repo: string, filePath: string, bra
   
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error(`File not found: ${filePath}`);
+      throw new Error(t('sync.error.fileNotFound', 'File not found: {path}', { path: filePath }));
     }
-    throw new Error(`Failed to fetch file ${filePath}: ${response.statusText}`);
+    throw new Error(t('sync.error.fetchFileFailed', 'Failed to fetch file {path}: {status}', { path: filePath, status: response.statusText }));
   }
   
   return response.text();
@@ -79,7 +81,7 @@ export async function fetchGitHubDirectory(
     }
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch directory: ${response.statusText}`);
+      throw new Error(t('sync.error.fetchDirectoryFailed', 'Failed to fetch directory: {status}', { status: response.statusText }));
     }
     
     const html = await response.text();
