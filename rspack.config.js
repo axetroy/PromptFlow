@@ -29,6 +29,9 @@ const moduleRules = [
           syntax: 'typescript',
           tsx: true,
         },
+        transform: {
+          reactCompiler: true,
+        },
       },
     },
   },

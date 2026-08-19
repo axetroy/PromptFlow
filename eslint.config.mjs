@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
+import reactCompilerPlugin from 'eslint-plugin-react-compiler';
 
 export default [
   {
@@ -20,6 +21,7 @@ export default [
     plugins: {
       'react': reactPlugin,
       'react-hooks': reactHooksPlugin,
+      'react-compiler': reactCompilerPlugin,
     },
     languageOptions: {
       parserOptions: {
@@ -51,6 +53,7 @@ export default [
       ...reactHooksPlugin.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
+      'react-compiler/react-compiler': 'error',
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/immutability': 'warn',
       'react-hooks/refs': 'warn',

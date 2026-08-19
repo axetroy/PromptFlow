@@ -45,10 +45,10 @@ interface VariableInputItemProps {
   onChange: (name: string, value: string) => void;
   onKeyDown: (e: React.KeyboardEvent, index: number) => void;
   index: number;
-  inputRefs: React.RefObject<(HTMLTextAreaElement | null)[]>;
+  inputRef: (el: HTMLTextAreaElement | null) => void | (() => void);
 }
 
-function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputRefs }: VariableInputItemProps) {
+function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputRef }: VariableInputItemProps) {
   return (
     <div className="vf-variable-item">
       <span className="vf-variable-name">{`\${${variable.name}}`}</span>
@@ -68,10 +68,7 @@ function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputR
       </div>
       
       <textarea
-        ref={(el) => { 
-          // eslint-disable-next-line react-hooks/immutability
-          inputRefs.current[index] = el; 
-        }}
+        ref={inputRef}
         className="vf-variable-input"
         data-variable={variable.name}
         data-index={index}
@@ -240,7 +237,12 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     index={index}
-                    inputRefs={inputRefs}
+                    inputRef={(el) => {
+                      inputRefs.current[index] = el;
+                      return () => {
+                        inputRefs.current[index] = null;
+                      };
+                    }}
                   />
                 ))}
               </>
