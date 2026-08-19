@@ -1,7 +1,23 @@
 import { StorageData, Prompt, PromptSettings, PromptUsage, DEFAULT_SETTINGS, DEFAULT_PROMPTS, MAX_USAGE_HISTORY } from '../types';
+import { SyncedPrompt } from '../types/sync';
 import { extractRecentPromptIds } from './prompt-helpers';
 
 const STORAGE_KEY = 'promptflow-data';
+
+// Legacy data (saved before the title→name rename) may use `title` instead of `name`.
+type LegacyPrompt = Omit<Prompt, 'name'> & { name?: string; title?: string };
+
+function normalizePrompt(prompt: LegacyPrompt): Prompt {
+  if (prompt.name) return prompt as Prompt;
+  return { ...prompt, name: prompt.title || '' };
+}
+
+type LegacySyncedPrompt = Omit<SyncedPrompt, 'name'> & { name?: string; title?: string };
+
+function normalizeSyncedPrompt(prompt: LegacySyncedPrompt): SyncedPrompt {
+  if (prompt.name) return prompt as SyncedPrompt;
+  return { ...prompt, name: prompt.title || '' };
+}
 
 export async function getStorageData(): Promise<StorageData> {
   return new Promise((resolve) => {
@@ -9,12 +25,12 @@ export async function getStorageData(): Promise<StorageData> {
       const data = result[STORAGE_KEY] as (StorageData & { customPrompts?: Prompt[]; disabledDefaultIds?: string[] }) | undefined;
       if (data) {
         resolve({
-          prompts: data.customPrompts || data.prompts || [],
+          prompts: (data.customPrompts || data.prompts || []).map(normalizePrompt),
           settings: data.settings || DEFAULT_SETTINGS,
           usageHistory: data.usageHistory || [],
           disabledDefaultIds: data.disabledDefaultIds || [],
           syncedRepos: data.syncedRepos || [],
-          syncedPrompts: data.syncedPrompts || [],
+          syncedPrompts: (data.syncedPrompts || []).map(normalizeSyncedPrompt),
         });
       } else {
         const defaultData: StorageData = {

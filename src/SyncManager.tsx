@@ -390,7 +390,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
           <Text strong style={{ fontSize: 12 }}>Example file structure:</Text>
           <pre style={{ margin: '8px 0 0 0', padding: 8, borderRadius: 4, fontSize: 11, overflow: 'auto' }}>
 {`---
-title: My Prompt
+name: My Prompt
 description: A useful prompt
 tags: [chat, helpful]
 ---

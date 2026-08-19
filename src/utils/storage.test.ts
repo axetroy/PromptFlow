@@ -108,6 +108,52 @@ describe('getStorageData', () => {
     expect(data.syncedRepos).toEqual([]);
     expect(data.syncedPrompts).toEqual([]);
   });
+
+  it('should normalize legacy custom prompts that use title instead of name', async () => {
+    mockStorage['promptflow-data'] = {
+      prompts: [{ ...createTestPrompt(), name: undefined, title: 'Legacy Custom' }],
+      settings: DEFAULT_SETTINGS,
+    };
+
+    const data = await getStorageData();
+    expect(data.prompts[0].name).toBe('Legacy Custom');
+    expect(data.prompts[0].id).toBe('test-1');
+  });
+
+  it('should normalize legacy synced prompts that use title instead of name', async () => {
+    mockStorage['promptflow-data'] = {
+      prompts: [],
+      syncedPrompts: [{
+        id: 'repo-1-a',
+        repoId: 'repo-1',
+        name: undefined,
+        title: 'Legacy Synced',
+        content: 'Body',
+        description: 'Desc',
+        tags: [],
+        filePath: '.agents/prompts/a.md',
+        createdAt: 1000,
+        updatedAt: 1000,
+        enabled: true,
+        isSynced: true,
+      }],
+      settings: DEFAULT_SETTINGS,
+    };
+
+    const data = await getStorageData();
+    expect(data.syncedPrompts[0].name).toBe('Legacy Synced');
+    expect(data.syncedPrompts[0].repoId).toBe('repo-1');
+  });
+
+  it('should keep name when legacy prompt already has it', async () => {
+    mockStorage['promptflow-data'] = {
+      prompts: [{ ...createTestPrompt(), title: 'Ignored Title' }],
+      settings: DEFAULT_SETTINGS,
+    };
+
+    const data = await getStorageData();
+    expect(data.prompts[0].name).toBe('Test Prompt');
+  });
 });
 
 describe('saveStorageData', () => {
