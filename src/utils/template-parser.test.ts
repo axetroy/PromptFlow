@@ -78,6 +78,37 @@ describe('parseTemplate', () => {
     expect(result.variables).toHaveLength(0);
   });
 
+  it('should parse a single variable', () => {
+    const result = parseTemplate('<VAR name="test"></VAR>');
+    expect(result.variables).toHaveLength(1);
+    expect(result.variables[0].name).toBe('test');
+  });
+
+  it('should not parse VAR tags inside code blocks', () => {
+    const template = '```\n<VAR name="hidden"></VAR>\n```';
+    const result = parseTemplate(template);
+    expect(result.variables).toHaveLength(0);
+  });
+
+  it('should not parse VAR tags inside markdown code blocks', () => {
+    const template = '```md\n<VAR name="hidden"></VAR>\n```';
+    const result = parseTemplate(template);
+    expect(result.variables).toHaveLength(0);
+  });
+
+  it('should not parse VAR tags inside xml code blocks', () => {
+    const template = '```xml\n<VAR name="hidden"></VAR>\n```';
+    const result = parseTemplate(template);
+    expect(result.variables).toHaveLength(0);
+  });
+
+  it('should parse VAR tags outside code blocks', () => {
+    const template = '<VAR name="visible"></VAR>';
+    const result = parseTemplate(template);
+    expect(result.variables).toHaveLength(1);
+    expect(result.variables[0].name).toBe('visible');
+  });
+
   it('should return correct start and end indices', () => {
     const template = 'Hello <VAR name="test"></VAR> World';
     const result = parseTemplate(template);

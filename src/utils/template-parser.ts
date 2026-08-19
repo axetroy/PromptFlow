@@ -41,13 +41,46 @@ export interface ParseResult {
  * - Nested quotes in attribute values
  * - Self-closing tags vs closing tags
  * - Content between opening and closing tags
+ * - Skips VAR tags inside code blocks (```...```), including fenced code blocks with language specifiers
  */
 export function parseTemplate(template: string): ParseResult {
   const variables: Variable[] = [];
   let i = 0;
+  let inCodeBlock = false;
   
   while (i < template.length) {
-    if (template[i] === '<') {
+    // Check for code block markers (```)
+    if (template[i] === '`' && i + 2 < template.length && 
+        template[i + 1] === '`' && template[i + 2] === '`') {
+      // Toggle code block state
+      inCodeBlock = !inCodeBlock;
+      
+      // Find the end of the opening fence to skip language specifier if present
+      let fenceEnd = i + 3;
+      // Skip any characters after the opening triple backticks until newline or end
+      while (fenceEnd < template.length && template[fenceEnd] !== '\n') {
+        fenceEnd++;
+      }
+      
+      // Look for the closing fence (three backticks) to determine block end
+      if (!inCodeBlock) {
+        // When exiting code block, find the next triple backticks sequence
+        const closeIndex = template.indexOf('```', i + 3);
+        if (closeIndex === -1) {
+          // Unclosed code block - treat rest as code content
+          i = template.length;
+          continue;
+        }
+        i = closeIndex + 3; // Skip past closing fence
+      } else {
+        // Still in code block, just move past the opening fence
+        i = fenceEnd;
+      }
+      continue;
+    }
+    
+    // Only try to parse VAR tags when not in a code block
+    if (!inCodeBlock && template[i] === '<') {
       // Try to parse a VAR tag starting at position i
       const result = parseVarTag(template, i);
       if (result) {
