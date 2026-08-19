@@ -108,10 +108,11 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({ prompt, visible, o
 
       <div
         style={{
-          background: '#f5f5f5',
-          border: '1px solid #d9d9d9',
+          background: 'var(--settings-code-bg)',
+          border: '1px solid var(--settings-border)',
           borderRadius: 6,
           padding: 16,
+          color: 'var(--settings-text-primary)',
           fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
           fontSize: 13,
           whiteSpace: 'pre-wrap',
