@@ -753,26 +753,25 @@ title: t('settings.table.name', 'Name'),
         <Header style={{ 
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
           padding: '24px 32px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 16,
           height: 'auto',
           lineHeight: 'normal',
         }}>
-          <CodeOutlined style={{ fontSize: 32, color: '#fff' }} />
-          <div>
-            <Title level={3} style={{ color: '#fff', margin: '0 0 4px 0', fontWeight: 600 }}>{t('settings.title', 'PromptFlow Settings')}</Title>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>{t('settings.subtitle', 'Manage your prompts and customize your experience')}</Text>
+          <div style={{ maxWidth: 1080, margin: '0 auto', width: '100%', display: 'flex', alignItems: 'center', gap: 16 }}>
+            <CodeOutlined style={{ fontSize: 32, color: '#fff' }} />
+            <div>
+              <Title level={3} style={{ color: '#fff', margin: '0 0 4px 0', fontWeight: 600 }}>{t('settings.title', 'PromptFlow Settings')}</Title>
+              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>{t('settings.subtitle', 'Manage your prompts and customize your experience')}</Text>
+            </div>
+            <a
+              href={chrome.runtime.getManifest().homepage_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ marginLeft: 'auto', color: '#fff', fontSize: 28, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}
+              title={t('settings.githubLink', 'View project on GitHub')}
+            >
+              <GithubOutlined />
+            </a>
           </div>
-          <a
-            href={chrome.runtime.getManifest().homepage_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ marginLeft: 'auto', color: '#fff', fontSize: 28, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}
-            title={t('settings.githubLink', 'View project on GitHub')}
-          >
-            <GithubOutlined />
-          </a>
         </Header>
 
         <Content style={{ padding: 24, maxWidth: 1080, margin: '0 auto', width: '100%' }}>
