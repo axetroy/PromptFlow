@@ -27,6 +27,7 @@ import {
   SyncedPrompt,
   fetchGitHubDirectory,
 } from './types/sync';
+import { useI18n } from './i18n/useI18n';
 
 const { Text } = Typography;
 
@@ -65,6 +66,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const { t, locale } = useI18n();
 
   const handleAddRepo = async (values: { repo: string; branch?: string; promptsPath?: string }) => {
     const branch = values.branch || 'main';
@@ -73,7 +75,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
     try {
       // Validate repo format
       if (!values.repo.match(/^[\w-]+\/[\w-]+$/)) {
-        messageApi.error('Invalid repo format. Use format: owner/repo');
+        messageApi.error(t('sync.invalidFormat', 'Invalid repo format. Use format: owner/repo'));
         return;
       }
       
@@ -84,7 +86,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       
       if (existingRepo) {
         // Repo already exists, just sync it
-        messageApi.info(`Syncing existing repo ${values.repo}...`);
+        messageApi.info(t('sync.syncingExisting', 'Syncing existing repo {repo}...', { repo: values.repo }));
         await handleSyncRepo(existingRepo.id);
         form.resetFields();
         return;
@@ -93,7 +95,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       // Test fetch to validate repo exists
       const files = await fetchGitHubDirectory(values.repo, promptsPath, branch);
       if (files.length === 0) {
-        messageApi.warning(`No markdown files found at ${promptsPath}. Make sure the path is correct.`);
+        messageApi.warning(t('sync.noMarkdown', 'No markdown files found at {path}. Make sure the path is correct.', { path: promptsPath }));
         return;
       }
       
@@ -105,10 +107,10 @@ const SyncManager: React.FC<SyncManagerProps> = ({
         enabledPromptIds: [],
       });
       
-      messageApi.success(`Added repo ${values.repo} with ${newPrompts.length} prompts`);
+      messageApi.success(t('sync.addSuccess', 'Added repo {repo} with {count} prompts', { repo: values.repo, count: newPrompts.length }));
       form.resetFields();
     } catch (error) {
-      messageApi.error(`Failed to add repo: ${(error as Error).message}`);
+      messageApi.error(t('sync.addFailed', 'Failed to add repo: {message}', { message: (error as Error).message }));
     } finally {
       setIsAddingRepo(false);
     }
@@ -123,9 +125,9 @@ const SyncManager: React.FC<SyncManagerProps> = ({
     
     try {
       const newPrompts = await onSyncRepo(repoId);
-      messageApi.success(`Synced ${newPrompts.length} prompts from ${repo.repo}`);
+      messageApi.success(t('sync.syncSuccess', 'Synced {count} prompts from {repo}', { count: newPrompts.length, repo: repo.repo }));
     } catch (error) {
-      messageApi.error(`Sync failed: ${(error as Error).message}`);
+      messageApi.error(t('sync.syncFailed', 'Sync failed: {message}', { message: (error as Error).message }));
     } finally {
       setSyncingRepos(prev => {
         const next = new Set(prev);
@@ -134,11 +136,11 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       });
       setSyncProgress(null);
     }
-  }, [repos, onSyncRepo, messageApi]);
+  }, [repos, onSyncRepo, messageApi, t]);
 
   const handleSyncAll = useCallback(async () => {
     if (repos.length === 0) {
-      messageApi.warning('No repositories to sync');
+      messageApi.warning(t('sync.noRepos', 'No repositories to sync'));
       return;
     }
     
@@ -147,7 +149,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
     const total = enabledRepos.length;
     
     if (total === 0) {
-      messageApi.warning('No enabled repositories to sync');
+      messageApi.warning(t('sync.noEnabledRepos', 'No enabled repositories to sync'));
       setIsSyncingAll(false);
       return;
     }
@@ -179,18 +181,18 @@ const SyncManager: React.FC<SyncManagerProps> = ({
     setIsSyncingAll(false);
     
     if (failCount === 0) {
-      messageApi.success(`Synced ${successCount} repository(s) successfully`);
+      messageApi.success(t('sync.syncAllSuccess', 'Synced {count} repositories successfully', { count: successCount }));
     } else {
-      messageApi.warning(`Synced ${successCount}, failed ${failCount} repository(s)`);
+      messageApi.warning(t('sync.syncAllPartial', 'Synced {count}, failed {failed} repositories', { count: successCount, failed: failCount }));
     }
-  }, [repos, onSyncRepo, messageApi]);
+  }, [repos, onSyncRepo, messageApi, t]);
 
   const getRepoPrompts = (repoId: string) => prompts.filter(p => p.repoId === repoId);
 
   const formatLastSynced = (timestamp?: number) => {
-    if (!timestamp) return 'Never synced';
+    if (!timestamp) return t('sync.neverSynced', 'Never synced');
     const date = new Date(timestamp);
-    return date.toLocaleString();
+    return date.toLocaleString(locale);
   };
 
   const enabledRepos = repos.filter(r => r.enabled);
@@ -202,7 +204,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       title={
         <Space>
           <GithubOutlined />
-          <span>Sync Prompts from GitHub</span>
+          <span>{t('sync.title', 'Sync Prompts from GitHub')}</span>
         </Space>
       }
       open={open}
@@ -221,20 +223,20 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       >
         <Form.Item
           name="repo"
-          rules={[{ required: true, message: 'Enter repo (owner/repo)' }]}
+          rules={[{ required: true, message: t('sync.repo.required', 'Enter repo (owner/repo)') }]}
           style={{ flex: 2 }}
         >
-          <Input placeholder="owner/repo" disabled={isAddingRepo || isSyncingAll} />
+          <Input placeholder={t('sync.repo.placeholder', 'owner/repo')} disabled={isAddingRepo || isSyncingAll} />
         </Form.Item>
         <Form.Item name="branch" style={{ flex: 1 }}>
-          <Input placeholder="branch (default: main)" defaultValue="main" disabled={isAddingRepo || isSyncingAll} />
+          <Input placeholder={t('sync.branch.placeholder', 'branch (default: main)')} defaultValue="main" disabled={isAddingRepo || isSyncingAll} />
         </Form.Item>
         <Form.Item name="promptsPath" style={{ flex: 2 }}>
           <Input 
-            placeholder=".agents/prompts" 
+            placeholder={t('sync.path.placeholder', '.agents/prompts')} 
             defaultValue=".agents/prompts" 
             disabled={isAddingRepo || isSyncingAll}
-            addonBefore="Path:"
+            addonBefore={t('sync.path.label', 'Path:')}
           />
         </Form.Item>
         <Form.Item>
@@ -244,7 +246,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
             loading={isAddingRepo}
             disabled={isSyncingAll}
           >
-            {isAddingRepo ? 'Adding...' : 'Add Repo'}
+            {isAddingRepo ? t('sync.adding', 'Adding...') : t('sync.addRepo', 'Add Repo')}
           </Button>
         </Form.Item>
       </Form>
@@ -255,7 +257,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <LoadingOutlined />
             <Text type="secondary">
-              Syncing {syncProgress.currentRepo} ({syncProgress.current}/{syncProgress.total})
+              {t('sync.progress', 'Syncing {repo} ({current}/{total})', { repo: syncProgress.currentRepo, current: syncProgress.current, total: syncProgress.total })}
             </Text>
           </div>
           <Progress 
@@ -275,7 +277,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
             loading={isSyncingAll}
             disabled={isAnySyncing || !hasEnabledRepos}
           >
-            {isSyncingAll ? 'Syncing...' : `Sync All (${enabledRepos.length} repo${enabledRepos.length !== 1 ? 's' : ''})`}
+            {isSyncingAll ? t('sync.syncingAll', 'Syncing...') : t('sync.syncAll', 'Sync All ({count})', { count: enabledRepos.length })}
           </Button>
         </div>
       )}
@@ -284,7 +286,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       {repos.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
           <GithubOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-          <Text type="secondary">No repositories configured</Text>
+          <Text type="secondary">{t('sync.empty', 'No repositories configured')}</Text>
         </div>
       ) : (
         <List
@@ -297,7 +299,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
               <List.Item
                 key={repo.id}
                 actions={[
-                  <Tooltip key="sync" title={isSyncing ? 'Syncing...' : 'Sync now'}>
+                  <Tooltip key="sync" title={isSyncing ? t('sync.syncingAll', 'Syncing...') : t('sync.now', 'Sync now')}>
                     <Button
                       type="text"
                       icon={isSyncing ? <LoadingOutlined /> : <SyncOutlined />}
@@ -306,13 +308,13 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                     />
                   </Tooltip>,
                   <Popconfirm key="remove"
-                    title="Remove this repository?"
-                    description="All synced prompts from this repo will be removed."
+                    title={t('sync.removeTitle', 'Remove this repository?')}
+                    description={t('sync.removeDesc', 'All synced prompts from this repo will be removed.')}
                     onConfirm={() => onRemoveRepo(repo.id)}
-                    okText="Remove"
+                    okText={t('sync.removeOk', 'Remove')}
                     okButtonProps={{ danger: true, disabled: isSyncing || isSyncingAll }}
                   >
-                    <Tooltip title="Remove repo">
+                    <Tooltip title={t('sync.removeTooltip', 'Remove repo')}>
                       <Button 
                         type="text" 
                         danger 
@@ -336,7 +338,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                       <Text strong={repo.enabled}>{repo.repo}</Text>
                       <Tag>{repo.branch}</Tag>
                       {isSyncing ? (
-                        <Tag color="processing" icon={<LoadingOutlined />}>Syncing</Tag>
+                        <Tag color="processing" icon={<LoadingOutlined />}>{t('sync.syncingTag', 'Syncing')}</Tag>
                       ) : repo.enabled ? (
                         <CheckCircleOutlined style={{ color: '#52c41a' }} />
                       ) : (
@@ -347,7 +349,7 @@ const SyncManager: React.FC<SyncManagerProps> = ({
                   description={
                     <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        Path: <code>{repo.promptsPath}</code> • Last synced: {formatLastSynced(repo.lastSyncedAt)}
+                        {t('sync.path.label', 'Path:')} <code>{repo.promptsPath}</code> • {t('sync.lastSynced', 'Last synced:')} {formatLastSynced(repo.lastSyncedAt)}
                       </Text>
                       {repoPrompts.length > 0 && (
                         <Space wrap>
@@ -375,19 +377,18 @@ const SyncManager: React.FC<SyncManagerProps> = ({
       {/* Help text */}
       <div style={{ marginTop: 16, padding: 16, borderRadius: 8, border: '1px solid var(--ant-color-border)' }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          <strong>How it works:</strong> Add a GitHub repository to sync prompts from a specific directory.
-          Scrapes GitHub page for file list, fetches content via raw.githubusercontent.com.
+          <strong>{t('sync.howItWorks', 'How it works:')}</strong> {t('sync.howItWorksDesc', 'Add a GitHub repository to sync prompts from a specific directory. Scrapes GitHub page for file list, fetches content via raw.githubusercontent.com.')}
         </Text>
         <div style={{ marginTop: 12 }}>
-          <Text strong style={{ fontSize: 12 }}>Repository structure requirements:</Text>
+          <Text strong style={{ fontSize: 12 }}>{t('sync.requirements.title', 'Repository structure requirements:')}</Text>
           <ul style={{ margin: '8px 0 0 0', paddingLeft: 16, fontSize: 12 }}>
-            <li>Prompt files must be <code>.md</code> files</li>
-            <li>Each file must have YAML frontmatter with <code>title</code> field</li>
-            <li>Optional frontmatter: <code>description</code>, <code>tags</code></li>
+            <li>{t('sync.requirements.md', 'Prompt files must be')} <code>.md</code> {t('sync.requirements.mdSuffix', 'files')}</li>
+            <li>{t('sync.requirements.frontmatter', 'Each file must have YAML frontmatter with')} <code>title</code> {t('sync.requirements.frontmatterSuffix', 'field')}</li>
+            <li>{t('sync.requirements.optional', 'Optional frontmatter:')} <code>description</code>{t('sync.requirements.optionalSeparator', ',')} <code>tags</code></li>
           </ul>
         </div>
         <div style={{ marginTop: 12 }}>
-          <Text strong style={{ fontSize: 12 }}>Example file structure:</Text>
+<Text strong style={{ fontSize: 12 }}>{t('sync.example.title', 'Example file structure:')}</Text>
           <pre style={{ margin: '8px 0 0 0', padding: 8, borderRadius: 4, fontSize: 11, overflow: 'auto' }}>
 {`---
 name: My Prompt

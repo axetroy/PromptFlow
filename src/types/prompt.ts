@@ -23,6 +23,7 @@ export interface PromptSettings {
   insertMode: 'replace' | 'append';
   syncInterval?: '15min' | '30min' | '1hour' | '2hours' | '1day';
   theme?: ThemeMode;
+  language?: string;
 }
 
 export interface StorageData {

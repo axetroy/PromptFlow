@@ -164,17 +164,3 @@ export async function getSyncStatus(): Promise<SyncStatus> {
     reposCount: enabledRepos.length,
   };
 }
-
-/**
- * Format sync interval for display
- */
-export function formatSyncInterval(interval: string): string {
-  const labels: Record<string, string> = {
-    '15min': 'Every 15 minutes',
-    '30min': 'Every 30 minutes',
-    '1hour': 'Every hour',
-    '2hours': 'Every 2 hours',
-    '1day': 'Every day',
-  };
-  return labels[interval] || interval;
-}

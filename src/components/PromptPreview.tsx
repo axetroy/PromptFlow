@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, Tag, Space, Typography } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import { parseTemplate } from '../utils/template-parser';
+import { useI18n } from '../i18n/useI18n';
 import type { Prompt } from '../types';
 
 const { Text } = Typography;
@@ -69,6 +70,7 @@ function renderContentWithHighlights(content: string): React.ReactNode {
 }
 
 export const PromptPreview: React.FC<PromptPreviewProps> = ({ prompt, visible, onClose }) => {
+  const { t, locale } = useI18n();
   if (!prompt) return null;
 
   return (
@@ -76,10 +78,10 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({ prompt, visible, o
       title={
         <Space>
           <FileTextOutlined />
-          <span>{prompt.name}</span>
-          {prompt.isDefault && <Tag color="blue">Default</Tag>}
-          {prompt.id.startsWith('sync-') && <Tag color="purple">Synced</Tag>}
-          {!prompt.isDefault && !prompt.id.startsWith('sync-') && <Tag color="green">Custom</Tag>}
+<span>{prompt.name}</span>
+          {prompt.isDefault && <Tag color="blue">{t('settings.tag.default', 'Default')}</Tag>}
+          {prompt.id.startsWith('sync-') && <Tag color="purple">{t('settings.tag.synced', 'Synced')}</Tag>}
+          {!prompt.isDefault && !prompt.id.startsWith('sync-') && <Tag color="green">{t('settings.tag.custom', 'Custom')}</Tag>}
         </Space>
       }
       open={visible}
@@ -124,7 +126,7 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({ prompt, visible, o
 
       <div style={{ marginTop: 16, color: '#999', fontSize: 12 }}>
         <Text type="secondary">
-          Last updated: {new Date(prompt.updatedAt).toLocaleString()}
+          {t('preview.lastUpdated', 'Last updated: {time}', { time: new Date(prompt.updatedAt).toLocaleString(locale) })}
         </Text>
       </div>
     </Modal>

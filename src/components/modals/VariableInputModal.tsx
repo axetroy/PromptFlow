@@ -22,6 +22,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Variable, interpolate, generatePreviewSegments, getUniqueVariables } from '../../utils/template-parser';
 import { mountShadowComponent, unmountShadowComponent, type ShadowMount } from '../../utils/shadow-dom';
 import { getEffectiveThemeSync } from '../../hooks';
+import { useI18n } from '../../i18n/useI18n';
 
 export interface VariableInputOptions {
   prompt: {
@@ -49,6 +50,7 @@ interface VariableInputItemProps {
 }
 
 function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputRef }: VariableInputItemProps) {
+  const { t } = useI18n();
   return (
     <div className="vf-variable-item">
       <span className="vf-variable-name">{`\${${variable.name}}`}</span>
@@ -60,10 +62,10 @@ function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputR
       <div className="vf-badges">
         {variable.defaultValue !== undefined ? (
           <span className="vf-badge vf-badge-default">
-            Default: {variable.defaultValue}
+            {t('variable.default', 'Default value: {value}', { value: variable.defaultValue })}
           </span>
         ) : (
-          <span className="vf-badge vf-badge-required">Required</span>
+          <span className="vf-badge vf-badge-required">{t('variable.required', 'Required')}</span>
         )}
       </div>
       
@@ -75,7 +77,7 @@ function VariableInputItem({ variable, value, onChange, onKeyDown, index, inputR
         value={value}
         onChange={(e) => onChange(variable.name, e.target.value)}
         onKeyDown={(e) => onKeyDown(e, index)}
-        placeholder={variable.defaultValue ? variable.defaultValue : 'Enter value...'}
+        placeholder={variable.defaultValue ? variable.defaultValue : t('variable.placeholder', 'Enter value...')}
         rows={3}
       />
     </div>
@@ -101,6 +103,7 @@ function CheckIcon() {
 
 export function VariableInputModal({ options, variables, initialValues = {} }: VariableInputModalProps) {
   const { prompt, onConfirm, onCancel } = options;
+  const { t } = useI18n();
   
   // Initialize values with defaults and initial values
   const [values, setValues] = useState<Record<string, string>>(() => {
@@ -218,7 +221,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
       <div className="vf-modal-content">
         {/* Header */}
         <div className="vf-header">
-          <div className="vf-header-title">💬 Fill Variables</div>
+<div className="vf-header-title">{t('variable.title', '💬 Fill Variables')}</div>
           <div className="vf-header-subtitle">{prompt.name}</div>
         </div>
         
@@ -228,7 +231,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
             {/* Variable Inputs */}
             {variables.length > 0 ? (
               <>
-                <div className="vf-section-title">📋 Variable Values</div>
+                <div className="vf-section-title">{t('variable.values', '📋 Variable Values')}</div>
                 {variables.map((variable, index) => (
                   <VariableInputItem
                     key={variable.name}
@@ -248,21 +251,21 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
               </>
             ) : (
               <div className="vf-empty-state">
-                This template does not contain any variables
+                {t('variable.empty', 'This template does not contain any variables')}
               </div>
             )}
             
             {/* Preview Section */}
             <div className="vf-section-header">
-              <div className="vf-section-title">👁️ Preview</div>
+              <div className="vf-section-title">{t('variable.preview', '👁️ Preview')}</div>
               <button 
                 type="button" 
                 className={`vf-copy-btn ${copied ? 'copied' : ''}`}
                 onClick={handleCopy}
-                title="Copy to clipboard"
+                title={t('variable.copyTooltip', 'Copy to clipboard')}
               >
                 {copied ? <CheckIcon /> : <CopyIcon />}
-                {copied ? 'Copied!' : 'Copy'}
+                {copied ? t('variable.copied', 'Copied!') : t('variable.copy', 'Copy')}
               </button>
             </div>
             
@@ -296,11 +299,11 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
         {/* Footer */}
         <div className="vf-footer">
           <div className="vf-footer-hint">
-            <kbd>Tab</kbd> / <kbd>Enter</kbd> next &middot; <kbd>Esc</kbd> cancel
+            <kbd>Tab</kbd> / <kbd>Enter</kbd> {t('variable.footer.next', 'next')} &middot; <kbd>Esc</kbd> {t('variable.footer.cancel', 'cancel')}
           </div>
           <div className="vf-footer-actions">
             <button type="button" className="vf-cancel-btn" onClick={handleCancel}>
-              Cancel
+              {t('variable.cancel', 'Cancel')}
             </button>
             <button 
               type="button" 
@@ -308,7 +311,7 @@ export function VariableInputModal({ options, variables, initialValues = {} }: V
               onClick={handleSubmit}
               disabled={!canSubmit}
             >
-              ✨ Insert Prompt
+              {t('variable.insert', '✨ Insert Prompt')}
             </button>
           </div>
         </div>

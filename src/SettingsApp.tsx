@@ -55,6 +55,10 @@ import SyncManager from './SyncManager';
 // Import PromptPreview component
 import PromptPreview from './components/PromptPreview';
 
+// Import i18n
+import { LANGUAGE_NAMES, SUPPORTED_LOCALES } from './i18n';
+import { useI18n } from './i18n/useI18n';
+
 import type { Prompt, PromptSettings, PromptUsage } from './types';
 import { computeEffectiveTheme } from './hooks';
 
@@ -215,6 +219,7 @@ const calculateUsageStats = (usageHistory: PromptUsage[], allPrompts: Prompt[]):
 
 // Settings App Component
 const SettingsApp: React.FC = () => {
+  const { t, locale, setLocale } = useI18n();
   const [customPrompts, setCustomPrompts] = useState<Prompt[]>([]);
   const [disabledDefaultIds, setDisabledDefaultIds] = useState<string[]>([]);
   const [syncedRepos, setSyncedRepos] = useState<SyncedRepo[]>([]);
@@ -255,6 +260,9 @@ const SettingsApp: React.FC = () => {
       ));
       setSettings(data.settings);
       setUsageHistory(data.usageHistory || []);
+      if (data.settings.language) {
+        setLocale(data.settings.language);
+      }
       setLoading(false);
     });
 
@@ -267,6 +275,9 @@ const SettingsApp: React.FC = () => {
         setSyncedPrompts(data.syncedPrompts);
         setSettings(data.settings);
         setUsageHistory(data.usageHistory || []);
+        if (data.settings.language) {
+          setLocale(data.settings.language);
+        }
       });
     };
     
@@ -274,7 +285,7 @@ const SettingsApp: React.FC = () => {
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
-  }, []);
+  }, [setLocale]);
 
   // Update all prompts and usage stats when relevant data changes
   useEffect(() => {
@@ -316,6 +327,9 @@ const SettingsApp: React.FC = () => {
   const handleSettingsChange = async (key: keyof PromptSettings, value: string) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
+    if (key === 'language') {
+      setLocale(value);
+    }
     await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, newSettings, usageHistory);
     
     // Update background script's auto-sync alarm when interval changes
@@ -323,14 +337,14 @@ const SettingsApp: React.FC = () => {
       await chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', payload: newSettings });
     }
     
-    messageApi.success('Settings saved');
+    messageApi.success(t('settings.saved', 'Settings saved'));
   };
 
   // Handle clearing usage history
   const handleClearUsageHistory = async () => {
     await persistData(customPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings, []);
     setUsageHistory([]);
-    messageApi.success('Usage history cleared');
+    messageApi.success(t('settings.msg.usageCleared', 'Usage history cleared'));
   };
 
   // Sync handlers
@@ -340,7 +354,7 @@ const SettingsApp: React.FC = () => {
     const newPrompts = await fetchRepoPrompts(repoData.repo, repoData.promptsPath, repoData.branch, repoId);
     
     if (newPrompts.length === 0) {
-      messageApi.warning(`No markdown files found at ${repoData.promptsPath}`);
+      messageApi.warning(t('settings.msg.noMarkdown', 'No markdown files found at {path}', { path: repoData.promptsPath }));
       return [];
     }
     
@@ -380,7 +394,7 @@ const SettingsApp: React.FC = () => {
       const newPrompts = await fetchRepoPrompts(repo.repo, repo.promptsPath, repo.branch, repoId);
       
       if (newPrompts.length === 0) {
-        messageApi.warning(`No markdown files found at ${repo.promptsPath}`);
+        messageApi.warning(t('settings.msg.noMarkdown', 'No markdown files found at {path}', { path: repo.promptsPath }));
         return [];
       }
       
@@ -460,7 +474,7 @@ const SettingsApp: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    messageApi.success(`Exported ${customPromptsOnly.length} custom prompts (${disabledDefaultIds.length} disabled defaults)`);
+    messageApi.success(t('settings.export.success', 'Exported {count} custom prompts ({disabled} disabled defaults)', { count: customPromptsOnly.length, disabled: disabledDefaultIds.length }));
   };
 
   // Import prompts from JSON file
@@ -475,7 +489,7 @@ const SettingsApp: React.FC = () => {
         const importData = JSON.parse(content);
 
         if (!importData.prompts || !Array.isArray(importData.prompts)) {
-          messageApi.error('Invalid file format: missing prompts array');
+          messageApi.error(t('settings.import.invalidFormat', 'Invalid file format: missing prompts array'));
           return;
         }
 
@@ -491,15 +505,15 @@ const SettingsApp: React.FC = () => {
           : [];
 
         if (validCustomPrompts.length === 0 && importedDisabledDefaults.length === 0) {
-          messageApi.error('No valid custom prompts or disabled defaults found in file');
+          messageApi.error(t('settings.import.noValidData', 'No valid custom prompts or disabled defaults found in file'));
           return;
         }
 
         Modal.confirm({
-          title: 'Import Settings',
-          content: `Found ${validCustomPrompts.length} custom prompts and ${importedDisabledDefaults.length} disabled defaults. How would you like to import?`,
-          okText: 'Import',
-          cancelText: 'Cancel',
+          title: t('settings.import.confirm.title', 'Import Settings'),
+          content: t('settings.import.confirm.desc', 'Found {count} custom prompts and {disabled} disabled defaults. How would you like to import?', { count: validCustomPrompts.length, disabled: importedDisabledDefaults.length }),
+          okText: t('settings.import.confirm.ok', 'Import'),
+          cancelText: t('settings.modal.cancel', 'Cancel'),
           onOk: async () => {
             // Merge custom prompts (avoid duplicates by id)
             const existingIds = new Set(customPrompts.map(p => p.id));
@@ -513,11 +527,11 @@ const SettingsApp: React.FC = () => {
             setCustomPrompts(newCustomPrompts);
             setDisabledDefaultIds(newDisabledDefaults);
             await persistData(newCustomPrompts, newDisabledDefaults, syncedRepos, syncedPrompts, settings, usageHistory);
-            messageApi.success(`Imported ${validCustomPrompts.length} prompts, ${newDisabledDefaults.length} disabled defaults`);
+            messageApi.success(t('settings.import.success', 'Imported {count} prompts, {disabled} disabled defaults', { count: validCustomPrompts.length, disabled: newDisabledDefaults.length }));
           },
         });
       } catch (error) {
-        messageApi.error('Failed to parse file: ' + (error as Error).message);
+        messageApi.error(t('settings.import.parseFailed', 'Failed to parse file: {message}', { message: (error as Error).message }));
       }
     };
     reader.readAsText(file);
@@ -532,7 +546,7 @@ const SettingsApp: React.FC = () => {
   const openModal = (prompt?: Prompt) => {
     // Don't allow editing default prompts
     if (prompt?.isDefault) {
-      messageApi.warning('Default prompts cannot be edited');
+      messageApi.warning(t('settings.modal.defaultNotEditable', 'Default prompts cannot be edited'));
       return;
     }
     setEditingPrompt(prompt || null);
@@ -561,7 +575,7 @@ const SettingsApp: React.FC = () => {
           ? { ...p, name: values.name, content: values.content, description: values.description, tags, updatedAt: Date.now() }
           : p
       );
-      messageApi.success('Prompt updated');
+      messageApi.success(t('settings.msg.promptUpdated', 'Prompt updated'));
     } else {
       // Add new custom prompt
       const newPrompt: Prompt = {
@@ -574,7 +588,7 @@ const SettingsApp: React.FC = () => {
         updatedAt: Date.now()
       };
       newCustomPrompts = [...customPrompts, newPrompt];
-      messageApi.success('Prompt added');
+      messageApi.success(t('settings.msg.promptAdded', 'Prompt added'));
     }
 
     setCustomPrompts(newCustomPrompts);
@@ -588,14 +602,14 @@ const SettingsApp: React.FC = () => {
     // Check if it's a default prompt
     const isDefault = defaultPromptsFromFiles.some(p => p.id === id);
     if (isDefault) {
-      messageApi.warning('Default prompts cannot be deleted');
+      messageApi.warning(t('settings.msg.defaultDeleteDenied', 'Default prompts cannot be deleted'));
       return;
     }
     
     const newCustomPrompts = customPrompts.filter((p) => p.id !== id);
     setCustomPrompts(newCustomPrompts);
     await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings, usageHistory);
-    messageApi.success('Prompt deleted');
+    messageApi.success(t('settings.msg.promptDeleted', 'Prompt deleted'));
   };
 
   // Toggle prompt enabled status
@@ -624,7 +638,7 @@ const SettingsApp: React.FC = () => {
       setCustomPrompts(newCustomPrompts);
       await persistData(newCustomPrompts, disabledDefaultIds, syncedRepos, syncedPrompts, settings, usageHistory);
     }
-    messageApi.success(enabled ? 'Prompt enabled' : 'Prompt disabled');
+    messageApi.success(enabled ? t('settings.msg.promptEnabled', 'Prompt enabled') : t('settings.msg.promptDisabled', 'Prompt disabled'));
   };
 
   // Reset prompts
@@ -632,33 +646,33 @@ const SettingsApp: React.FC = () => {
     setCustomPrompts([]);
     setDisabledDefaultIds([]);
     await persistData([], [], syncedRepos, syncedPrompts, settings, usageHistory);
-    messageApi.success('Prompts reset to defaults');
+    messageApi.success(t('settings.danger.resetDone', 'Prompts reset to defaults'));
   };
 
   // Table columns
   const columns: ColumnsType<Prompt> = [
     {
-      title: 'Name',
+title: t('settings.table.name', 'Name'),
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record) => (
         <Space>
           {
-            record.id.startsWith('sync-') ? <Tag color="purple">Synced</Tag> : record.isDefault ? <Tag color="blue">Default</Tag> : <Tag color="green">Custom</Tag>
+            record.id.startsWith('sync-') ? <Tag color="purple">{t('settings.tag.synced', 'Synced')}</Tag> : record.isDefault ? <Tag color="blue">{t('settings.tag.default', 'Default')}</Tag> : <Tag color="green">{t('settings.tag.custom', 'Custom')}</Tag>
           }
           <Text strong>{name}</Text>
         </Space>
       ),
     },
     {
-      title: 'Description',
+      title: t('settings.table.description', 'Description'),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-      render: (desc: string) => desc || <Text type="secondary">No description</Text>,
+      render: (desc: string) => desc || <Text type="secondary">{t('settings.table.noDescription', 'No description')}</Text>,
     },
     {
-      title: 'Tags',
+      title: t('settings.table.tags', 'Tags'),
       dataIndex: 'tags',
       key: 'tags',
       render: (tags: string[]) => (
@@ -668,27 +682,27 @@ const SettingsApp: React.FC = () => {
       ),
     },
     {
-      title: 'Status',
+      title: t('settings.table.status', 'Status'),
       key: 'enabled',
       width: 100,
       render: (_, record) => (
         <Switch
           checked={record.enabled !== false}
           onChange={(checked) => handleToggleEnabled(record.id, checked)}
-          checkedChildren='On'
-          unCheckedChildren='Off'
+          checkedChildren={t('settings.table.on', 'On')}
+          unCheckedChildren={t('settings.table.off', 'Off')}
         />
       ),
     },
     {
-      title: 'Actions',
+      title: t('settings.table.actions', 'Actions'),
       key: 'actions',
       width: 200,
       render: (_, record) => {
         const isReadOnly = record.isDefault || record.id.startsWith('sync-');
         return (
           <Space>
-            <Tooltip title="Preview">
+            <Tooltip title={t('settings.table.preview', 'Preview')}>
               <Button
                 type="text"
                 icon={<FileTextOutlined />}
@@ -698,7 +712,7 @@ const SettingsApp: React.FC = () => {
                 }}
               />
             </Tooltip>
-            <Tooltip title={isReadOnly ? 'This prompt cannot be edited' : 'Edit'}>
+            <Tooltip title={isReadOnly ? t('settings.table.editDisabled', 'This prompt cannot be edited') : t('settings.table.edit', 'Edit')}>
               <Button 
                 type="text" 
                 icon={<EditOutlined />} 
@@ -706,13 +720,13 @@ const SettingsApp: React.FC = () => {
                 disabled={isReadOnly}
               />
             </Tooltip>
-            <Tooltip title={isReadOnly ? 'This prompt cannot be deleted' : 'Delete'}>
+            <Tooltip title={isReadOnly ? t('settings.table.deleteDisabled', 'This prompt cannot be deleted') : t('settings.table.delete', 'Delete')}>
               <Popconfirm
-                title="Delete this prompt?"
-                description="This action cannot be undone."
+                title={t('settings.table.deleteConfirm.title', 'Delete this prompt?')}
+                description={t('settings.table.deleteConfirm.desc', 'This action cannot be undone.')}
                 onConfirm={() => handleDelete(record.id)}
-                okText="Delete"
-                cancelText="Cancel"
+                okText={t('settings.table.deleteConfirm.ok', 'Delete')}
+                cancelText={t('settings.modal.cancel', 'Cancel')}
                 okButtonProps={{ danger: true }}
                 disabled={isReadOnly}
               >
@@ -742,15 +756,15 @@ const SettingsApp: React.FC = () => {
         }}>
           <CodeOutlined style={{ fontSize: 32, color: '#fff' }} />
           <div>
-            <Title level={3} style={{ color: '#fff', margin: '0 0 4px 0', fontWeight: 600 }}>PromptFlow Settings</Title>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>Manage your prompts and customize your experience</Text>
+            <Title level={3} style={{ color: '#fff', margin: '0 0 4px 0', fontWeight: 600 }}>{t('settings.title', 'PromptFlow Settings')}</Title>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>{t('settings.subtitle', 'Manage your prompts and customize your experience')}</Text>
           </div>
         </Header>
 
         <Content style={{ padding: 24, maxWidth: 1080, margin: '0 auto', width: '100%' }}>
-          <Card title={<Space><SettingOutlined />General Settings</Space>} style={{ marginBottom: 24 }}>
+          <Card title={<Space><SettingOutlined />{t('settings.general', 'General Settings')}</Space>} style={{ marginBottom: 24 }}>
             <Form layout="vertical">
-              <Form.Item label="Trigger Command" tooltip="Type this command in any input field to open the prompt panel" style={{ marginBottom: 16 }}>
+              <Form.Item label={t('settings.trigger.label', 'Trigger Command')} tooltip={t('settings.trigger.tooltip', 'Type this command in any input field to open the prompt panel')} style={{ marginBottom: 16 }}>
                 <Input 
                   value={settings.trigger} 
                   onChange={(e) => handleSettingsChange('trigger', e.target.value)} 
@@ -758,44 +772,57 @@ const SettingsApp: React.FC = () => {
                   style={{ maxWidth: 300 }}
                 />
               </Form.Item>
-              <Form.Item label="Theme" tooltip="Choose your preferred theme for the prompt panel" style={{ marginBottom: 16 }}>
+<Form.Item label={t('settings.theme.label', 'Theme')} tooltip={t('settings.theme.tooltip', 'Choose your preferred theme for the prompt panel')} style={{ marginBottom: 16 }}>
                 <Select
                   value={settings.theme || 'system'}
                   onChange={(value) => handleSettingsChange('theme', value)}
                   style={{ maxWidth: 200 }}
                 >
-                  <Select.Option value="system">Follow System</Select.Option>
-                  <Select.Option value="light">Light</Select.Option>
-                  <Select.Option value="dark">Dark</Select.Option>
+                  <Select.Option value="system">{t('settings.theme.system', 'Follow System')}</Select.Option>
+                  <Select.Option value="light">{t('settings.theme.light', 'Light')}</Select.Option>
+                  <Select.Option value="dark">{t('settings.theme.dark', 'Dark')}</Select.Option>
                 </Select>
               </Form.Item>
-              <Form.Item label="Auto Sync Interval" tooltip="How often to automatically sync prompts from GitHub repositories" style={{ marginBottom: 0 }}>
+              <Form.Item label={t('settings.syncInterval.label', 'Auto Sync Interval')} tooltip={t('settings.syncInterval.tooltip', 'How often to automatically sync prompts from GitHub repositories')} style={{ marginBottom: 16 }}>
                 <Select
                   value={settings.syncInterval || '1hour'}
                   onChange={(value) => handleSettingsChange('syncInterval', value)}
                   style={{ maxWidth: 200 }}
                 >
-                  <Select.Option value="15min">Every 15 minutes</Select.Option>
-                  <Select.Option value="30min">Every 30 minutes</Select.Option>
-                  <Select.Option value="1hour">Every hour</Select.Option>
-                  <Select.Option value="2hours">Every 2 hours</Select.Option>
-                  <Select.Option value="1day">Every day</Select.Option>
+                  <Select.Option value="15min">{t('settings.syncInterval.15min', 'Every 15 minutes')}</Select.Option>
+                  <Select.Option value="30min">{t('settings.syncInterval.30min', 'Every 30 minutes')}</Select.Option>
+                  <Select.Option value="1hour">{t('settings.syncInterval.1hour', 'Every hour')}</Select.Option>
+                  <Select.Option value="2hours">{t('settings.syncInterval.2hours', 'Every 2 hours')}</Select.Option>
+                  <Select.Option value="1day">{t('settings.syncInterval.1day', 'Every day')}</Select.Option>
+                </Select>
+              </Form.Item>
+              <Form.Item label={t('settings.language.label', 'Language')} tooltip={t('settings.language.tooltip', 'PromptFlow interface language, defaults to your browser language')} style={{ marginBottom: 0 }}>
+                <Select
+                  value={settings.language || locale}
+                  onChange={(value) => handleSettingsChange('language', value)}
+                  style={{ maxWidth: 200 }}
+                >
+                  {SUPPORTED_LOCALES.map((l) => (
+                    <Select.Option key={l} value={l}>{LANGUAGE_NAMES[l]}</Select.Option>
+                  ))}
                 </Select>
               </Form.Item>
             </Form>
           </Card>
 
           <Card
-            title={<Space><FileTextOutlined />Prompts ({allPrompts.length})</Space>}
+            title={<Space><FileTextOutlined />{t('settings.prompts.title', 'Prompts ({count})', { count: allPrompts.length })}</Space>}
             extra={
               <Space>
                 <Button icon={<SyncOutlined />} onClick={() => setSyncManagerVisible(true)}>
-                  Sync from GitHub {syncedRepos.length > 0 && `(${syncedRepos.length})`}
+                  {syncedRepos.length > 0
+                    ? t('settings.prompts.syncFromGithub.count', 'Sync from GitHub ({count})', { count: syncedRepos.length })
+                    : t('settings.prompts.syncFromGithub', 'Sync from GitHub')}
                 </Button>
-                <Button icon={<UploadOutlined />} onClick={handleExport}>Export</Button>
-                <Button icon={<DownloadOutlined />} onClick={() => fileInputRef.current?.click()}>Import</Button>
+                <Button icon={<UploadOutlined />} onClick={handleExport}>{t('settings.prompts.export', 'Export')}</Button>
+                <Button icon={<DownloadOutlined />} onClick={() => fileInputRef.current?.click()}>{t('settings.prompts.import', 'Import')}</Button>
                 <input type="file" ref={fileInputRef} onChange={handleImport} style={{ display: 'none' }} accept=".json" />
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>Add Prompt</Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>{t('settings.prompts.add', 'Add Prompt')}</Button>
               </Space>
             }
             style={{ marginBottom: 24 }}
@@ -807,15 +834,17 @@ const SettingsApp: React.FC = () => {
           {syncedRepos.length > 0 && (
             <Card style={{ marginBottom: 24 }}>
               <Space orientation="vertical" style={{ width: '100%' }}>
-                <Text strong><GithubOutlined /> Synced from GitHub</Text>
+                <Text strong><GithubOutlined /> {t('settings.synced.title', 'Synced from GitHub')}</Text>
                 {syncedRepos.map(repo => (
                   <Space key={repo.id}>
                     <Tag color={repo.enabled ? 'green' : 'default'}>
-                      {repo.enabled ? 'Active' : 'Disabled'}
+                      {repo.enabled ? t('settings.synced.active', 'Active') : t('settings.synced.disabled', 'Disabled')}
                     </Tag>
                     <Text>{repo.repo}</Text>
                     <Text type="secondary">• {repo.branch}</Text>
-                    <Text type="secondary">• Last sync: {repo.lastSyncedAt ? new Date(repo.lastSyncedAt).toLocaleString() : 'Never'}</Text>
+                    <Text type="secondary">• {repo.lastSyncedAt
+                      ? t('settings.synced.lastSync', 'Last sync: {time}', { time: new Date(repo.lastSyncedAt).toLocaleString(locale) })
+                      : t('settings.synced.never', 'Never')}</Text>
                     <Button 
                       type="link" 
                       size="small" 
@@ -823,7 +852,7 @@ const SettingsApp: React.FC = () => {
                       onClick={() => handleSyncRepo(repo.id)}
                       loading={!!syncingMap[repo.id]}
                     >
-                      Sync
+                      {t('settings.synced.sync', 'Sync')}
                     </Button>
                   </Space>
                 ))}
@@ -833,29 +862,29 @@ const SettingsApp: React.FC = () => {
 
           {/* Usage Statistics */}
           <Card 
-            title={<Space><BarChartOutlined /> Usage Statistics</Space>}
+            title={<Space><BarChartOutlined /> {t('settings.usage.title', 'Usage Statistics')}</Space>}
             extra={
               usageStats.length > 0 && (
                 <Popconfirm
-                  title="Clear usage history?"
-                  description="This will reset all usage statistics. This action cannot be undone."
+                  title={t('settings.usage.clearConfirm.title', 'Clear usage history?')}
+                  description={t('settings.usage.clearConfirm.desc', 'This will reset all usage statistics. This action cannot be undone.')}
                   onConfirm={handleClearUsageHistory}
-                  okText="Clear"
-                  cancelText="Cancel"
+                  okText={t('settings.usage.clearConfirm.ok', 'Clear')}
+                  cancelText={t('settings.modal.cancel', 'Cancel')}
                   okButtonProps={{ danger: true }}
                 >
-                  <Button danger size="small">Clear History</Button>
+                  <Button danger size="small">{t('settings.usage.clearHistory', 'Clear History')}</Button>
                 </Popconfirm>
               )
             }
             style={{ marginBottom: 24 }}
           >
             {usageStats.length === 0 ? (
-              <Text type="secondary">No usage data yet. Start using prompts to see statistics here.</Text>
+              <Text type="secondary">{t('settings.usage.empty', 'No usage data yet. Start using prompts to see statistics here.')}</Text>
             ) : (
               <>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-                  Total uses: {usageHistory.length} across {usageStats.length} prompts
+                  {t('settings.usage.total', 'Total uses: {count} across {total} prompts', { count: usageHistory.length, total: usageStats.length })}
                 </Text>
                 <Table
                   dataSource={usageStats}
@@ -866,26 +895,26 @@ const SettingsApp: React.FC = () => {
                   sticky
                   columns={[
                       {
-                        title: 'Prompt',
+title: t('settings.usage.colPrompt', 'Prompt'),
                         dataIndex: 'name',
                         key: 'name',
                         render: (text: string) => <Text ellipsis style={{ maxWidth: 300 }}>{text}</Text>,
                       },
                       {
-                        title: 'Uses',
+                        title: t('settings.usage.colUses', 'Uses'),
                         dataIndex: 'count',
                         key: 'count',
                         width: 80,
                         render: (count: number) => <Tag color="blue">{count}</Tag>,
                       },
                       {
-                        title: 'Last Used',
+                        title: t('settings.usage.colLastUsed', 'Last Used'),
                         dataIndex: 'lastUsed',
                         key: 'lastUsed',
                         width: 150,
                         render: (timestamp: number) => (
                           <Text type="secondary" style={{ fontSize: 12 }}>
-                            {new Date(timestamp).toLocaleDateString()} {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(timestamp).toLocaleDateString(locale)} {new Date(timestamp).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                           </Text>
                         ),
                       },
@@ -895,47 +924,47 @@ const SettingsApp: React.FC = () => {
             )}
           </Card>
 
-          <Card title={<Text type="danger"><SettingOutlined /> Danger Zone</Text>} style={{ borderColor: '#ff4d4f' }}>
+          <Card title={<Text type="danger"><SettingOutlined /> {t('settings.danger.title', 'Danger Zone')}</Text>} style={{ borderColor: '#ff4d4f' }}>
             <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-              This will clear all disabled default prompts and custom prompts. Default prompts will be restored from files.
+              {t('settings.danger.desc', 'This will clear all disabled default prompts and custom prompts. Default prompts will be restored from files.')}
             </Text>
             <Popconfirm
-              title="Reset all prompts?"
-              description="All disabled default prompts and custom prompts will be cleared."
+              title={t('settings.danger.resetConfirm.title', 'Reset all prompts?')}
+              description={t('settings.danger.resetConfirm.desc', 'All disabled default prompts and custom prompts will be cleared.')}
               onConfirm={handleReset}
-              okText="Reset"
-              cancelText="Cancel"
+              okText={t('settings.danger.resetConfirm.ok', 'Reset')}
+              cancelText={t('settings.danger.resetConfirm.cancel', 'Cancel')}
               okButtonProps={{ danger: true }}
             >
-              <Button icon={<ReloadOutlined />}>Reset to Default Prompts</Button>
+              <Button icon={<ReloadOutlined />}>{t('settings.danger.resetButton', 'Reset to Default Prompts')}</Button>
             </Popconfirm>
           </Card>
         </Content>
 
         <Modal
-          title={editingPrompt ? 'Edit Prompt' : 'Add New Prompt'}
+          title={editingPrompt ? t('settings.modal.editTitle', 'Edit Prompt') : t('settings.modal.addTitle', 'Add New Prompt')}
           open={modalVisible}
           onCancel={() => { setModalVisible(false); form.resetFields(); }}
           footer={null}
           width={600}
         >
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
-            <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Please enter a name' }]}>
-              <Input placeholder="My Custom Prompt" />
+<Form.Item name="name" label={t('settings.modal.name.label', 'Name')} rules={[{ required: true, message: t('settings.modal.name.required', 'Please enter a name') }]}>
+              <Input placeholder={t('settings.modal.name.placeholder', 'My Custom Prompt')} />
             </Form.Item>
-            <Form.Item name="content" label="Content" rules={[{ required: true, message: 'Please enter content' }]}>
-              <TextArea rows={6} placeholder="Enter your prompt template..." />
+            <Form.Item name="content" label={t('settings.modal.content.label', 'Content')} rules={[{ required: true, message: t('settings.modal.content.required', 'Please enter content') }]}>
+              <TextArea rows={6} placeholder={t('settings.modal.content.placeholder', 'Enter your prompt template...')} />
             </Form.Item>
-            <Form.Item name="description" label="Description">
-              <Input placeholder="Brief description of this prompt" />
+            <Form.Item name="description" label={t('settings.modal.description.label', 'Description')}>
+              <Input placeholder={t('settings.modal.description.placeholder', 'Brief description of this prompt')} />
             </Form.Item>
-            <Form.Item name="tags" label="Tags" tooltip="Press enter or comma to create tags">
-              <Select mode="tags" placeholder="Add tags" style={{ width: '100%' }} tokenSeparators={[',']} />
+            <Form.Item name="tags" label={t('settings.modal.tags.label', 'Tags')} tooltip={t('settings.modal.tags.tooltip', 'Press enter or comma to create tags')}>
+              <Select mode="tags" placeholder={t('settings.modal.tags.placeholder', 'Add tags')} style={{ width: '100%' }} tokenSeparators={[',']} />
             </Form.Item>
             <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
               <Space>
-                <Button onClick={() => { setModalVisible(false); form.resetFields(); }}>Cancel</Button>
-                <Button type="primary" htmlType="submit">{editingPrompt ? 'Update' : 'Create'}</Button>
+                <Button onClick={() => { setModalVisible(false); form.resetFields(); }}>{t('settings.modal.cancel', 'Cancel')}</Button>
+                <Button type="primary" htmlType="submit">{editingPrompt ? t('settings.modal.update', 'Update') : t('settings.modal.create', 'Create')}</Button>
               </Space>
             </Form.Item>
           </Form>

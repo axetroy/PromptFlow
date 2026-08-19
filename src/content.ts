@@ -5,6 +5,7 @@ import { getInputValue, getCaretPosition, setCaretPosition, insertContentWithNew
 import { getStorageData, recordPromptUsage as storageRecordPromptUsage } from './utils/storage';
 import { getAllEnabledPrompts, extractRecentPromptIds } from './utils/prompt-helpers';
 import { initializeThemeCache } from './hooks';
+import { setLocale } from './i18n';
 
 interface ContentState {
   isPanelOpen: boolean;
@@ -38,6 +39,9 @@ async function loadSettings(): Promise<void> {
   const data = await getStorageData();
   if (data.settings.trigger) {
     state.currentTrigger = data.settings.trigger;
+  }
+  if (data.settings.language) {
+    setLocale(data.settings.language);
   }
 }
 
@@ -535,6 +539,16 @@ chrome.runtime.onMessage.addListener((message) => {
     // If panel is open, close it - user will need to re-open to see new prompts
     if (state.isPanelOpen) {
       closePanel();
+    }
+  }
+});
+
+// Listen for storage changes to apply language updates live
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local' && changes['promptflow-data']) {
+    const newData = changes['promptflow-data'].newValue as { settings?: { language?: string } } | undefined;
+    if (newData?.settings?.language) {
+      setLocale(newData.settings.language);
     }
   }
 });
