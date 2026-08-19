@@ -803,10 +803,11 @@ title: t('settings.table.name', 'Name'),
               </Form.Item>
               <Form.Item label={t('settings.language.label', 'Language')} tooltip={t('settings.language.tooltip', 'PromptFlow interface language, defaults to your browser language')} style={{ marginBottom: 0 }}>
                 <Select
-                  value={settings.language || locale}
+                  value={settings.language || 'system'}
                   onChange={(value) => handleSettingsChange('language', value)}
                   style={{ maxWidth: 200 }}
                 >
+                  <Select.Option value="system">{t('settings.language.system', 'Follow System')}</Select.Option>
                   {SUPPORTED_LOCALES.map((l) => (
                     <Select.Option key={l} value={l}>{LANGUAGE_NAMES[l]}</Select.Option>
                   ))}

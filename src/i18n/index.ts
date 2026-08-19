@@ -48,7 +48,7 @@ export function getLocale(): SupportedLocale {
 }
 
 export function setLocale(locale: string): SupportedLocale {
-  currentLocale = resolveLocale(locale);
+  currentLocale = resolveLocale(locale === 'system' ? readBrowserLocale() : locale);
   listeners.forEach((fn) => fn());
   return currentLocale;
 }

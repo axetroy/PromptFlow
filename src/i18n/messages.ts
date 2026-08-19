@@ -23,6 +23,7 @@ export const messages: Record<string, MessageCatalog> = {
     'settings.syncInterval.label': '自动同步间隔',
     'settings.syncInterval.tooltip': '多久自动从 GitHub 仓库同步一次提示词',
     'settings.language.label': '语言',
+    'settings.language.system': '跟随系统',
     'settings.language.tooltip': 'PromptFlow 的界面语言，默认跟随浏览器语言',
     'settings.syncInterval.15min': '每 15 分钟',
     'settings.syncInterval.30min': '每 30 分钟',
