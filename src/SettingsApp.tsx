@@ -764,6 +764,15 @@ title: t('settings.table.name', 'Name'),
             <Title level={3} style={{ color: '#fff', margin: '0 0 4px 0', fontWeight: 600 }}>{t('settings.title', 'PromptFlow Settings')}</Title>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>{t('settings.subtitle', 'Manage your prompts and customize your experience')}</Text>
           </div>
+          <a
+            href={chrome.runtime.getManifest().homepage_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ marginLeft: 'auto', color: '#fff', fontSize: 28, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}
+            title={t('settings.githubLink', 'View project on GitHub')}
+          >
+            <GithubOutlined />
+          </a>
         </Header>
 
         <Content style={{ padding: 24, maxWidth: 1080, margin: '0 auto', width: '100%' }}>

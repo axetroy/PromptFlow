@@ -15,6 +15,7 @@ export const messages: Record<string, MessageCatalog> = {
     // Settings header
     'settings.title': 'PromptFlow 设置',
     'settings.subtitle': '管理提示词并自定义你的使用体验',
+    'settings.githubLink': '在 GitHub 上查看项目',
 
     // General settings
     'settings.general': '通用设置',
